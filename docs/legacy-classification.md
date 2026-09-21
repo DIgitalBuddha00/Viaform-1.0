@@ -95,3 +95,17 @@ seed product data or mutate the database.
 | Regular coach assigned scope | Security/Permissions | KEEP / REBUILD | Groups and gymnasts derive from group assignments |
 | GymnastCoachAccess side effects | Security/Permissions | CONSOLIDATE / DEFER | Group-derived scope first; direct temporary gymnast access later |
 | Separate legacy Coach identity | Refactor | REMOVE | OrganisationMembership remains canonical coaching identity |
+
+## Phase 3A — programme context foundation
+
+| Legacy concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Organisation coaching programmes | Data | KEEP / REBUILD | Organisation-owned programme identity |
+| Programme stages | Data | KEEP / REBUILD | Ordered stages within a programme |
+| Competitive/recreational programme type | Data | KEEP | Explicit programme context, not inferred from group names |
+| Programme on group | Data | KEEP / REBUILD | Explicit group assignment |
+| Programme on gymnast | Data | KEEP / REBUILD | Explicit gymnast assignment for exceptions/individual pathways |
+| Programme history | Data | DEFER | Add when transitions/pathway evidence is implemented |
+| Ruleset program/level on Gymnast | Rules / Data | REBUILD / DEFER | Rulesets remain a separate canonical domain; do not conflate with club programme |
+| Recreational curriculum/progress | Feature | DEFER | Build after programme identity is stable |
+| Legacy programme seed/demo records | Data | TEST-ONLY | Never populate production main |

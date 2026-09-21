@@ -36,6 +36,7 @@ model Organisation {
   sessions    AuthSession[]
   groups      TrainingGroup[]
   gymnasts    Gymnast[]
+  coachingProgrammes CoachingProgramme[]
 }
 
 model OrganisationMembership {
@@ -85,6 +86,7 @@ model TrainingGroup {
   organisation Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   memberships  GymnastTrainingGroup[]
   coachAssignments TrainingGroupCoach[]
+  programmeAssignments TrainingGroupProgrammeAssignment[]
 
   @@unique([organisationId, name])
   @@index([organisationId, name])
@@ -100,6 +102,7 @@ model Gymnast {
 
   organisation Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   groups       GymnastTrainingGroup[]
+  programmeAssignments GymnastProgrammeAssignment[]
 
   @@index([organisationId, name])
 }
@@ -129,4 +132,64 @@ model TrainingGroupCoach {
 
   @@id([trainingGroupId, membershipId])
   @@index([membershipId])
+}
+
+model CoachingProgramme {
+  id             String   @id @default(cuid())
+  organisationId String
+  name           String
+  programmeType  String
+  discipline     String   @default("GENERAL")
+  description    String?
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  stages ProgrammeStage[]
+  groupAssignments TrainingGroupProgrammeAssignment[]
+  gymnastAssignments GymnastProgrammeAssignment[]
+
+  @@unique([organisationId, name])
+  @@index([organisationId, programmeType, status])
+}
+
+model ProgrammeStage {
+  id          String   @id @default(cuid())
+  programmeId String
+  name        String
+  orderIndex  Int      @default(0)
+  description String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  programme CoachingProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  groupAssignments TrainingGroupProgrammeAssignment[]
+  gymnastAssignments GymnastProgrammeAssignment[]
+
+  @@unique([programmeId, name])
+  @@index([programmeId, orderIndex, status])
+}
+
+model TrainingGroupProgrammeAssignment {
+  trainingGroupId String @id
+  programmeId String
+  stageId String?
+  assignedAt DateTime @default(now())
+  trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  programme CoachingProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  stage ProgrammeStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  @@index([programmeId, stageId])
+}
+
+model GymnastProgrammeAssignment {
+  gymnastId String @id
+  programmeId String
+  stageId String?
+  assignedAt DateTime @default(now())
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  programme CoachingProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  stage ProgrammeStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  @@index([programmeId, stageId])
 }
