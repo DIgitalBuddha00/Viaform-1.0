@@ -1,0 +1,2 @@
+export const FIG_WAG_2025_2028={code:"FIG-WAG-2025-2028",cycleLabel:"2025-2028",apparatus:{VAULT:{elementGroups:5},BARS:{elementGroups:6},BEAM:{elementGroups:6},FLOOR:{elementGroups:5}},source:{document:"WAG Code of Points 2025-2028",rulesUrl:"https://www.gymnastics.sport/site/rules/",editionChecked:"2026-08-27"}} as const;
+export const FIG_DIFFICULTY_VALUES={A:.1,B:.2,C:.3,D:.4,E:.5,F:.6,G:.7,H:.8,I:.9,J:1} as const;

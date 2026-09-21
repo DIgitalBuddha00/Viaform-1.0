@@ -160,3 +160,14 @@ seed product data or mutate the database.
 | Vault pair evaluation | Rules | KEEP / REBUILD | Pure evaluation logic remains separate from UI and athlete data |
 | Legacy FIG vault records | Data | AUDIT BEFORE IMPORT | Registry structure retained; values are not copied into 1.0 until checked against the current FIG source |
 | FIG source provenance | Rules / Data | REBUILD | Package records source document, URL, publication/effective context |
+
+## Phase 3 — accelerated FIG WAG four-apparatus foundation
+
+| Concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Shared UB/BB/FX element model | Rules / Data | KEEP / REBUILD | One canonical element table with apparatus-specific metadata |
+| Apparatus and Junior/Senior rules | Rules / Data | KEEP / REBUILD | Structured rule records scoped by package, apparatus and level |
+| Legacy Bars core registry | Rules / Data | AUDIT BEFORE IMPORT | Useful coach-facing metadata; verify against current FIG edition before canonical import |
+| Legacy Beam generated registry | Rules / Data | REBUILD | Extraction contains visibly garbled rows; do not promote unverified text |
+| Legacy Floor registry | Rules / Data | AUDIT BEFORE IMPORT | Strong structured base, but source edition predates current Aug 2026 CoP |
+| Current FIG WAG source | Rules / Provenance | KEEP | 2025–2028 CoP currently listed by World Gymnastics as updated 27 Aug 2026 |

@@ -263,6 +263,8 @@ model RulesetPackage {
  updatedAt DateTime @updatedAt
  program RulesetProgram @relation(fields:[programId],references:[id],onDelete:Cascade)
  vaults FigVaultDefinition[]
+ elements FigElementDefinition[]
+ apparatusRules FigApparatusRule[]
  @@index([programId,effectiveDate,status])
 }
 model FigVaultDefinition {
@@ -280,4 +282,38 @@ model FigVaultDefinition {
  package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
  @@unique([packageId,officialNumber,variantKey])
  @@index([packageId,groupNumber,status])
+}
+
+model FigElementDefinition {
+ id String @id @default(cuid())
+ packageId String
+ apparatus String
+ officialNumber String
+ variantKey String @default("a")
+ name String
+ aliases String @default("[]")
+ difficulty String?
+ groupCode String
+ groupName String
+ sourcePage Int?
+ metadata String @default("{}")
+ verificationStatus String @default("NEEDS_REVIEW")
+ status String @default("ACTIVE")
+ package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
+ @@unique([packageId,apparatus,officialNumber,variantKey])
+ @@index([packageId,apparatus,groupCode,status])
+}
+model FigApparatusRule {
+ id String @id @default(cuid())
+ packageId String
+ apparatus String
+ levelCode String @default("ALL")
+ ruleType String
+ ruleKey String
+ valueJson String
+ sourcePage Int?
+ verificationStatus String @default("NEEDS_REVIEW")
+ package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
+ @@unique([packageId,apparatus,levelCode,ruleKey])
+ @@index([packageId,apparatus,levelCode,ruleType])
 }
