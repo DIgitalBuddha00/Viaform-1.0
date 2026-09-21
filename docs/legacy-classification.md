@@ -140,3 +140,13 @@ seed product data or mutate the database.
 | Loose gymnast ruleset/level strings | Data | REMOVE | Canonical relations replace duplicated text fields |
 | Ruleset packages/versions | Rules | DEFER | Add with effective-date rule evaluation |
 | FIG/GI preset records | Data | DEFER | Add canonical content only after structure is verified |
+
+## Phase 3D — governing-body ownership boundary
+
+| Concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Club-created ruleset definitions | Rules / Permissions | REMOVE | Clubs cannot create or alter governing-body rulesets |
+| Viaform canonical ruleset catalogue | Rules / Data | KEEP / REBUILD | Viaform-managed reference data |
+| Organisation ruleset selection | Feature | KEEP / REBUILD | Club enables or stops using available canonical rulesets |
+| FIG WAG identity | Rules / Data | KEEP / REBUILD | Canonical FIG_WAG with Junior and Senior levels |
+| FIG technical rule package | Rules | DEFER | Import separately from the proven legacy registries after identity/catalogue verification |
