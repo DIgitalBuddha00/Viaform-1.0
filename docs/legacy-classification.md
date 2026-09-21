@@ -179,3 +179,7 @@ The canonical 2025–2028 WAG package is pinned to the World Gymnastics rules ca
 ## Phase 3 — FIG rule audit gate
 
 The current FIG package is the authority. Legacy evaluation code is not treated as verified merely because it previously shipped. The first current-source audit removed legacy Vault pair assumptions from executable 1.0 logic until the applicable Senior/Junior rules are verified against the Aug 2026 CoP. Shared element/rule tables remain ready for verified imports. Beam generated extraction remains quarantined.
+
+## Phase 3 — verified FIG rule batch 1
+
+Current-source verification promotes only rules supported by the pinned CoP: Senior Vault context distinguishes Team/AA, Apparatus Qualification and Apparatus Final rather than applying the final-only different-group rule globally; Senior Bars stores the 8-DV/dismount rule and same-root chronological limit; Senior Beam stores the 8-DV, 3 Dance, 3 Acro, 2 optional composition. Floor and Junior-specific records remain behind the audit gate until their current-source passages are verified. No legacy element row is promoted solely from the frozen app.

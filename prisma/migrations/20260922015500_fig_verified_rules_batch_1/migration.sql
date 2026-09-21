@@ -1,0 +1,15 @@
+INSERT INTO "FigApparatusRule" ("id","packageId","apparatus","levelCode","ruleType","ruleKey","valueJson","sourcePage","verificationStatus")
+SELECT 'fig25_vt_senior_af_groups','canonical_fig_wag_2025_2028','VAULT','SENIOR','FORMAT','apparatus_final_different_groups','{"required":true}',171,'VERIFIED'
+WHERE EXISTS (SELECT 1 FROM "RulesetPackage" WHERE "id"='canonical_fig_wag_2025_2028') AND NOT EXISTS (SELECT 1 FROM "FigApparatusRule" WHERE "packageId"='canonical_fig_wag_2025_2028' AND "apparatus"='VAULT' AND "levelCode"='SENIOR' AND "ruleKey"='apparatus_final_different_groups');
+INSERT INTO "FigApparatusRule" ("id","packageId","apparatus","levelCode","ruleType","ruleKey","valueJson","sourcePage","verificationStatus")
+SELECT 'fig25_vt_senior_qual_two','canonical_fig_wag_2025_2028','VAULT','SENIOR','FORMAT','apparatus_qualification_second_vault','{"requiredForApparatusFinalQualification":true,"score":"AVERAGE"}',171,'VERIFIED'
+WHERE EXISTS (SELECT 1 FROM "RulesetPackage" WHERE "id"='canonical_fig_wag_2025_2028') AND NOT EXISTS (SELECT 1 FROM "FigApparatusRule" WHERE "packageId"='canonical_fig_wag_2025_2028' AND "apparatus"='VAULT' AND "levelCode"='SENIOR' AND "ruleKey"='apparatus_qualification_second_vault');
+INSERT INTO "FigApparatusRule" ("id","packageId","apparatus","levelCode","ruleType","ruleKey","valueJson","sourcePage","verificationStatus")
+SELECT 'fig25_ub_counting_dv','canonical_fig_wag_2025_2028','BARS','SENIOR','DIFFICULTY','counting_difficulty','{"maximum":8,"includesDismount":true}',43,'VERIFIED'
+WHERE EXISTS (SELECT 1 FROM "RulesetPackage" WHERE "id"='canonical_fig_wag_2025_2028') AND NOT EXISTS (SELECT 1 FROM "FigApparatusRule" WHERE "packageId"='canonical_fig_wag_2025_2028' AND "apparatus"='BARS' AND "levelCode"='SENIOR' AND "ruleKey"='counting_difficulty');
+INSERT INTO "FigApparatusRule" ("id","packageId","apparatus","levelCode","ruleType","ruleKey","valueJson","sourcePage","verificationStatus")
+SELECT 'fig25_ub_root_limit','canonical_fig_wag_2025_2028','BARS','SENIOR','RECOGNITION','same_root_chronological_limit','{"maximum":3,"exceptions":["KIP","GIANT_FWD","GIANT_BWD","CAST_TO_HANDSTAND"]}',43,'VERIFIED'
+WHERE EXISTS (SELECT 1 FROM "RulesetPackage" WHERE "id"='canonical_fig_wag_2025_2028') AND NOT EXISTS (SELECT 1 FROM "FigApparatusRule" WHERE "packageId"='canonical_fig_wag_2025_2028' AND "apparatus"='BARS' AND "levelCode"='SENIOR' AND "ruleKey"='same_root_chronological_limit');
+INSERT INTO "FigApparatusRule" ("id","packageId","apparatus","levelCode","ruleType","ruleKey","valueJson","sourcePage","verificationStatus")
+SELECT 'fig25_bb_counting_dv','canonical_fig_wag_2025_2028','BEAM','SENIOR','DIFFICULTY','counting_difficulty','{"maximum":8,"includesDismount":true,"minimumDance":3,"minimumAcro":3,"optional":2}',49,'VERIFIED'
+WHERE EXISTS (SELECT 1 FROM "RulesetPackage" WHERE "id"='canonical_fig_wag_2025_2028') AND NOT EXISTS (SELECT 1 FROM "FigApparatusRule" WHERE "packageId"='canonical_fig_wag_2025_2028' AND "apparatus"='BEAM' AND "levelCode"='SENIOR' AND "ruleKey"='counting_difficulty');
