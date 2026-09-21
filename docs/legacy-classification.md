@@ -128,3 +128,15 @@ seed product data or mutate the database.
 | Group programme/stage context | Feature | KEEP / REBUILD | Explicit assignment visible from Group Overview |
 | Individual gymnast programme override | Feature | KEEP / REBUILD | Optional individual pathway; otherwise group context applies |
 | Preset/demo programmes | Data | TEST-ONLY | Club creates real programme data explicitly |
+
+## Phase 3C — canonical ruleset identity
+
+| Legacy concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Ruleset programme | Rules / Data | KEEP / REBUILD | Global governing-body programme identity, separate from club programme |
+| Ruleset level | Rules / Data | KEEP / REBUILD | Ordered level within a ruleset programme |
+| Club ruleset availability | Rules / Data | REBUILD | Organisation explicitly enables relevant canonical ruleset programmes |
+| Gymnast ruleset/level | Rules / Data | KEEP / REBUILD | Explicit gymnast assignment to enabled external rules context |
+| Loose gymnast ruleset/level strings | Data | REMOVE | Canonical relations replace duplicated text fields |
+| Ruleset packages/versions | Rules | DEFER | Add with effective-date rule evaluation |
+| FIG/GI preset records | Data | DEFER | Add canonical content only after structure is verified |

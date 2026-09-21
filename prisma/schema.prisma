@@ -37,6 +37,7 @@ model Organisation {
   groups      TrainingGroup[]
   gymnasts    Gymnast[]
   coachingProgrammes CoachingProgramme[]
+  rulesetAssignments OrganisationRulesetAssignment[]
 }
 
 model OrganisationMembership {
@@ -103,6 +104,7 @@ model Gymnast {
   organisation Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   groups       GymnastTrainingGroup[]
   programmeAssignments GymnastProgrammeAssignment[]
+  rulesetAssignments GymnastRulesetAssignment[]
 
   @@index([organisationId, name])
 }
@@ -192,4 +194,54 @@ model GymnastProgrammeAssignment {
   programme CoachingProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
   stage ProgrammeStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
   @@index([programmeId, stageId])
+}
+
+model RulesetProgram {
+ id String @id @default(cuid())
+ code String @unique
+ name String
+ governingBody String
+ discipline String @default("WAG")
+ status String @default("ACTIVE")
+ sourceUrl String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ levels RulesetLevel[]
+ organisationAssignments OrganisationRulesetAssignment[]
+ gymnastAssignments GymnastRulesetAssignment[]
+ @@index([governingBody, discipline, status])
+}
+model RulesetLevel {
+ id String @id @default(cuid())
+ programId String
+ code String
+ name String
+ orderIndex Int @default(0)
+ status String @default("ACTIVE")
+ notes String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ program RulesetProgram @relation(fields:[programId],references:[id],onDelete:Cascade)
+ gymnastAssignments GymnastRulesetAssignment[]
+ @@unique([programId,code])
+ @@index([programId,orderIndex,status])
+}
+model OrganisationRulesetAssignment {
+ organisationId String
+ programId String
+ enabledAt DateTime @default(now())
+ organisation Organisation @relation(fields:[organisationId],references:[id],onDelete:Cascade)
+ program RulesetProgram @relation(fields:[programId],references:[id],onDelete:Cascade)
+ @@id([organisationId,programId])
+ @@index([programId])
+}
+model GymnastRulesetAssignment {
+ gymnastId String @id
+ programId String
+ levelId String?
+ assignedAt DateTime @default(now())
+ gymnast Gymnast @relation(fields:[gymnastId],references:[id],onDelete:Cascade)
+ program RulesetProgram @relation(fields:[programId],references:[id],onDelete:Cascade)
+ level RulesetLevel? @relation(fields:[levelId],references:[id],onDelete:SetNull)
+ @@index([programId,levelId])
 }
