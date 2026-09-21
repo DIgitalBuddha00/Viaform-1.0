@@ -73,3 +73,14 @@ seed product data or mutate the database.
 | Programme/ruleset assignment during gymnast creation | Rules / Data | DEFER | Add only with canonical programme/ruleset domains |
 | Shared-coach access side effects | Security/Permissions | REBUILD / DEFER | Scope from canonical memberships; no legacy Coach bridge |
 | Legacy QA roster and simulated history | Data | TEST-ONLY | Never populate production main |
+
+## Core Coaching 2B — roster operations
+
+| Legacy concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Rename/delete groups | Feature | KEEP / REBUILD | Organisation-scoped mutations |
+| Edit/delete gymnasts | Feature | KEEP / REBUILD | Organisation-scoped mutations |
+| Add/remove group membership | Feature | KEEP / REBUILD | Canonical membership mutations |
+| Transfer gymnast | Feature | CONSOLIDATE | Add/remove memberships; primary group is explicit |
+| Automatic primary reassignment | Data | KEEP | Earliest remaining membership becomes primary |
+| Group/gymnast management drawer complexity | UI | REBUILD | Progressive disclosure inside My Groups |

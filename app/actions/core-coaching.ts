@@ -4,31 +4,19 @@ import { redirect } from "next/navigation";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 
-const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
+const value=(d:FormData,k:string)=>String(d.get(k)??"").trim();
+async function manager(){const c=await requireAuthContext();if(!c.access.canManagePeopleAndRoles)redirect("/groups?error=permission");return c;}
+async function groupInOrg(id:string,org:string){return prisma.trainingGroup.findFirst({where:{id,organisationId:org}});}
+async function gymnastInOrg(id:string,org:string){return prisma.gymnast.findFirst({where:{id,organisationId:org}});}
 
-export async function createGroup(data: FormData) {
-  const context = await requireAuthContext();
-  if (!context.access.canManagePeopleAndRoles) redirect("/groups?error=permission");
-  const name = value(data, "name");
-  if (!name) redirect("/groups?error=group-name");
-  await prisma.trainingGroup.create({ data: { name, organisationId: context.organisation.id } }).catch(() => null);
-  revalidatePath("/groups");
-}
+export async function createGroup(d:FormData){const c=await manager(),name=value(d,"name");if(!name)redirect("/groups?error=group-name");await prisma.trainingGroup.create({data:{name,organisationId:c.organisation.id}}).catch(()=>null);revalidatePath("/groups");}
+export async function renameGroup(d:FormData){const c=await manager(),id=value(d,"groupId"),name=value(d,"name");if(!name||!await groupInOrg(id,c.organisation.id))return;await prisma.trainingGroup.update({where:{id},data:{name}}).catch(()=>null);revalidatePath("/groups");}
+export async function deleteGroup(d:FormData){const c=await manager(),id=value(d,"groupId");if(!await groupInOrg(id,c.organisation.id))return;await prisma.trainingGroup.delete({where:{id}});const gymnasts=await prisma.gymnast.findMany({where:{organisationId:c.organisation.id},include:{groups:{orderBy:{joinedAt:"asc"}}}});for(const g of gymnasts){if(g.groups.length&&!g.groups.some(x=>x.isPrimary))await prisma.gymnastTrainingGroup.update({where:{gymnastId_trainingGroupId:{gymnastId:g.id,trainingGroupId:g.groups[0].trainingGroupId}},data:{isPrimary:true}});}revalidatePath("/groups");}
 
-export async function createGymnast(data: FormData) {
-  const context = await requireAuthContext();
-  if (!context.access.canManagePeopleAndRoles) redirect("/groups?error=permission");
-  const name = value(data, "name");
-  if (!name) redirect("/groups?error=gymnast-name");
-  const dateText = value(data, "dateOfBirth");
-  const groupId = value(data, "groupId");
-  const group = groupId ? await prisma.trainingGroup.findFirst({ where: { id: groupId, organisationId: context.organisation.id } }) : null;
-  await prisma.gymnast.create({
-    data: {
-      name, organisationId: context.organisation.id,
-      dateOfBirth: dateText ? new Date(dateText + "T00:00:00.000Z") : null,
-      groups: group ? { create: { trainingGroupId: group.id, isPrimary: true } } : undefined,
-    },
-  });
-  revalidatePath("/groups");
-}
+export async function createGymnast(d:FormData){const c=await manager(),name=value(d,"name");if(!name)redirect("/groups?error=gymnast-name");const date=value(d,"dateOfBirth"),groupId=value(d,"groupId"),group=groupId?await groupInOrg(groupId,c.organisation.id):null;await prisma.gymnast.create({data:{name,organisationId:c.organisation.id,dateOfBirth:date?new Date(date+"T00:00:00.000Z"):null,groups:group?{create:{trainingGroupId:group.id,isPrimary:true}}:undefined}});revalidatePath("/groups");}
+export async function updateGymnast(d:FormData){const c=await manager(),id=value(d,"gymnastId"),name=value(d,"name"),date=value(d,"dateOfBirth");if(!name||!await gymnastInOrg(id,c.organisation.id))return;await prisma.gymnast.update({where:{id},data:{name,dateOfBirth:date?new Date(date+"T00:00:00.000Z"):null}});revalidatePath("/groups");}
+export async function deleteGymnast(d:FormData){const c=await manager(),id=value(d,"gymnastId");if(!await gymnastInOrg(id,c.organisation.id))return;await prisma.gymnast.delete({where:{id}});revalidatePath("/groups");}
+
+export async function addGymnastToGroup(d:FormData){const c=await manager(),gymnastId=value(d,"gymnastId"),trainingGroupId=value(d,"groupId");if(!await gymnastInOrg(gymnastId,c.organisation.id)||!await groupInOrg(trainingGroupId,c.organisation.id))return;const count=await prisma.gymnastTrainingGroup.count({where:{gymnastId}});await prisma.gymnastTrainingGroup.upsert({where:{gymnastId_trainingGroupId:{gymnastId,trainingGroupId}},create:{gymnastId,trainingGroupId,isPrimary:count===0},update:{}});revalidatePath("/groups");}
+export async function removeGymnastFromGroup(d:FormData){const c=await manager(),gymnastId=value(d,"gymnastId"),trainingGroupId=value(d,"groupId");if(!await gymnastInOrg(gymnastId,c.organisation.id)||!await groupInOrg(trainingGroupId,c.organisation.id))return;await prisma.gymnastTrainingGroup.deleteMany({where:{gymnastId,trainingGroupId}});const remaining=await prisma.gymnastTrainingGroup.findMany({where:{gymnastId},orderBy:{joinedAt:"asc"}});if(remaining.length&&!remaining.some(x=>x.isPrimary))await prisma.gymnastTrainingGroup.update({where:{gymnastId_trainingGroupId:{gymnastId,trainingGroupId:remaining[0].trainingGroupId}},data:{isPrimary:true}});revalidatePath("/groups");}
+export async function setPrimaryGroup(d:FormData){const c=await manager(),gymnastId=value(d,"gymnastId"),trainingGroupId=value(d,"groupId");if(!await gymnastInOrg(gymnastId,c.organisation.id)||!await groupInOrg(trainingGroupId,c.organisation.id))return;const member=await prisma.gymnastTrainingGroup.findUnique({where:{gymnastId_trainingGroupId:{gymnastId,trainingGroupId}}});if(!member)return;await prisma.$transaction([prisma.gymnastTrainingGroup.updateMany({where:{gymnastId},data:{isPrimary:false}}),prisma.gymnastTrainingGroup.update({where:{gymnastId_trainingGroupId:{gymnastId,trainingGroupId}},data:{isPrimary:true}})]);revalidatePath("/groups");}
