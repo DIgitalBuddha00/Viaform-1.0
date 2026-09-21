@@ -171,3 +171,7 @@ seed product data or mutate the database.
 | Legacy Beam generated registry | Rules / Data | REBUILD | Extraction contains visibly garbled rows; do not promote unverified text |
 | Legacy Floor registry | Rules / Data | AUDIT BEFORE IMPORT | Strong structured base, but source edition predates current Aug 2026 CoP |
 | Current FIG WAG source | Rules / Provenance | KEEP | 2025–2028 CoP currently listed by World Gymnastics as updated 27 Aug 2026 |
+
+## Phase 3 — current FIG package provenance
+
+The canonical 2025–2028 WAG package is pinned to the World Gymnastics rules catalogue revision dated 27 Aug 2026. The August 2026 WAG Help Desk is a companion clarification source. Legacy apparatus records remain outside canonical tables until each record/rule passes the current-source audit; this deliberately prevents stale or garbled extracted content from being promoted merely because it existed in the frozen app.
