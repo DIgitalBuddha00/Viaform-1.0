@@ -7,12 +7,67 @@ datasource db {
   provider = "sqlite"
 }
 
-// Viaform 1.0 canonical schema starts intentionally small.
-// Domain models are added in coherent slices after their legacy behaviour is audited.
+// Viaform 1.0 canonical identity and organisation boundary.
+// A fresh database contains no organisations, users, memberships, sessions,
+// coaching profiles, QA records, demo records, or seeded product data.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  displayName  String
+  passwordHash String
+  passwordSalt String
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships OrganisationMembership[]
+  sessions    AuthSession[]
+}
+
 model Organisation {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  memberships OrganisationMembership[]
+  sessions    AuthSession[]
+}
+
+model OrganisationMembership {
+  id                    String   @id @default(cuid())
+  userId                String
+  organisationId        String
+  isAdministrator       Boolean  @default(false)
+  coachingRoles         String   @default("[]")
+  delegatedCapabilities String   @default("[]")
+  apparatusSpecialties  String   @default("[]")
+  isActive              Boolean  @default(true)
+  joinedAt              DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organisationId])
+  @@index([organisationId, isActive])
+  @@index([userId, isActive])
+}
+
+model AuthSession {
+  id             String   @id @default(cuid())
+  userId         String
+  organisationId String?
+  tokenHash      String   @unique
+  expiresAt      DateTime
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, expiresAt])
+  @@index([organisationId, expiresAt])
 }
