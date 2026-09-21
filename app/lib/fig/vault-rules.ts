@@ -1,5 +1,11 @@
 import type {FigRulesetLevel,FigVault} from "./types";
 export function figLevel(value?:string|null):FigRulesetLevel{return String(value||"").toUpperCase().includes("JUNIOR")?"JUNIOR":"SENIOR"}
-export function validateVaultPair(level:FigRulesetLevel,first:FigVault|null,second:FigVault|null){const issues:string[]=[];if(!first)issues.push("Choose a primary vault.");if(!second)issues.push("Choose a second vault.");if(first&&second){if(first.id===second.id)issues.push("The same performed vault cannot be repeated.");if(level==="SENIOR"&&first.group===second.group)issues.push("Senior Vault qualification/finals require vaults from different groups.");if(level==="JUNIOR"&&first.officialNumber===second.officialNumber)issues.push("Junior vaults must have different official FIG numbers, including when a FIG cell contains two forms.");if(level==="JUNIOR"&&(first.doubleSalto||second.doubleSalto))issues.push("Double-salto vaults are prohibited for Juniors.");}const directionBonusEligible=Boolean(level==="SENIOR"&&first&&second&&first.secondFlightDirection!=="NON_SALTO"&&second.secondFlightDirection!=="NON_SALTO"&&first.secondFlightDirection!==second.secondFlightDirection);return {valid:issues.length===0,issues,directionBonusEligible,potentialDirectionBonus:directionBonusEligible?0.2:0,averageD:first&&second?(first.dValue+second.dValue)/2:null};}
+export function validateVaultPair(_level:FigRulesetLevel,first:FigVault|null,second:FigVault|null){
+ const issues:string[]=[];
+ if(!first)issues.push("Choose a primary vault.");
+ if(!second)issues.push("Choose a second vault.");
+ if(first&&second&&first.id===second.id)issues.push("The same performed vault cannot be repeated.");
+ return {valid:issues.length===0,issues,averageD:first&&second?(first.dValue+second.dValue)/2:null};
+}
 export function allAroundVaultScore(firstVaultFinal:number){return firstVaultFinal}
-export function vaultEventScore(firstFinal:number,secondFinal:number,directionBonusEligible=false,firstFall=false,secondFall=false){return (firstFinal+secondFinal)/2+(directionBonusEligible&&!firstFall&&!secondFall?0.2:0)}
+export function vaultEventScore(firstFinal:number,secondFinal:number){return (firstFinal+secondFinal)/2}

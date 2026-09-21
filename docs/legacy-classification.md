@@ -175,3 +175,7 @@ seed product data or mutate the database.
 ## Phase 3 — current FIG package provenance
 
 The canonical 2025–2028 WAG package is pinned to the World Gymnastics rules catalogue revision dated 27 Aug 2026. The August 2026 WAG Help Desk is a companion clarification source. Legacy apparatus records remain outside canonical tables until each record/rule passes the current-source audit; this deliberately prevents stale or garbled extracted content from being promoted merely because it existed in the frozen app.
+
+## Phase 3 — FIG rule audit gate
+
+The current FIG package is the authority. Legacy evaluation code is not treated as verified merely because it previously shipped. The first current-source audit removed legacy Vault pair assumptions from executable 1.0 logic until the applicable Senior/Junior rules are verified against the Aug 2026 CoP. Shared element/rule tables remain ready for verified imports. Beam generated extraction remains quarantined.
