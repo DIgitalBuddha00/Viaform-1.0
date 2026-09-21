@@ -23,8 +23,6 @@ model User {
 
   memberships OrganisationMembership[]
   sessions    AuthSession[]
-  groups      TrainingGroup[]
-  gymnasts    Gymnast[]
 }
 
 model Organisation {
@@ -36,6 +34,8 @@ model Organisation {
 
   memberships OrganisationMembership[]
   sessions    AuthSession[]
+  groups      TrainingGroup[]
+  gymnasts    Gymnast[]
 }
 
 model OrganisationMembership {
