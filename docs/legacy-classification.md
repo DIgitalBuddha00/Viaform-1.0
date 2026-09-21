@@ -84,3 +84,14 @@ seed product data or mutate the database.
 | Transfer gymnast | Feature | CONSOLIDATE | Add/remove memberships; primary group is explicit |
 | Automatic primary reassignment | Data | KEEP | Earliest remaining membership becomes primary |
 | Group/gymnast management drawer complexity | UI | REBUILD | Progressive disclosure inside My Groups |
+
+## Core Coaching 2C — coaching scope and group access
+
+| Legacy concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Coach-owned groups | Security/Permissions | REMOVE | Organisation owns groups; memberships are assigned access |
+| Shared group coaches | Security/Permissions | KEEP / REBUILD | TrainingGroupCoach joins group to OrganisationMembership |
+| Head Coach whole-club visibility | Security/Permissions | KEEP | Bypasses assignment filter inside organisation |
+| Regular coach assigned scope | Security/Permissions | KEEP / REBUILD | Groups and gymnasts derive from group assignments |
+| GymnastCoachAccess side effects | Security/Permissions | CONSOLIDATE / DEFER | Group-derived scope first; direct temporary gymnast access later |
+| Separate legacy Coach identity | Refactor | REMOVE | OrganisationMembership remains canonical coaching identity |

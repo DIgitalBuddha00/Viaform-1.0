@@ -52,6 +52,7 @@ model OrganisationMembership {
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  groupAssignments TrainingGroupCoach[]
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
@@ -83,6 +84,7 @@ model TrainingGroup {
 
   organisation Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   memberships  GymnastTrainingGroup[]
+  coachAssignments TrainingGroupCoach[]
 
   @@unique([organisationId, name])
   @@index([organisationId, name])
@@ -115,3 +117,16 @@ model GymnastTrainingGroup {
   @@index([trainingGroupId])
 }
 
+
+model TrainingGroupCoach {
+  trainingGroupId String
+  membershipId    String
+  assignmentRole  String   @default("COACH")
+  assignedAt      DateTime @default(now())
+
+  trainingGroup TrainingGroup          @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  membership    OrganisationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@id([trainingGroupId, membershipId])
+  @@index([membershipId])
+}
