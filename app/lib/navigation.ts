@@ -11,7 +11,7 @@ export function primaryNavigation(access: AccessProfile): NavigationItem[] {
     { label: "Testing", href: "/testing", enabled: false },
     { label: "Routines", href: "/routines", enabled: false },
     { label: "Competitions", href: "/competitions", enabled: false },
-    { label: "More", href: "/more", enabled: false },
+    { label: "More", href: "/programmes", enabled: true },
   ];
 }
 export function coachingRoleLabel(role: string) {

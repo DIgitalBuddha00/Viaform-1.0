@@ -1,0 +1,13 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { requireAuthContext } from "@/app/lib/auth";
+import { prisma } from "@/app/lib/prisma";
+const v=(d:FormData,k:string)=>String(d.get(k)??"").trim();
+async function manager(){const c=await requireAuthContext();if(!c.access.canManageProgrammesAndMethodology)redirect("/programmes?error=permission");return c;}
+async function programme(id:string,org:string){return prisma.coachingProgramme.findFirst({where:{id,organisationId:org}});}
+async function stage(id:string,pid:string){return id?prisma.programmeStage.findFirst({where:{id,programmeId:pid}}):null;}
+export async function createProgramme(d:FormData){const c=await manager(),name=v(d,"name"),programmeType=v(d,"programmeType"),discipline=v(d,"discipline")||"GENERAL";if(!name||!programmeType)return;await prisma.coachingProgramme.create({data:{organisationId:c.organisation.id,name,programmeType,discipline,description:v(d,"description")||null}}).catch(()=>null);revalidatePath("/programmes");}
+export async function createProgrammeStage(d:FormData){const c=await manager(),programmeId=v(d,"programmeId"),name=v(d,"name");const p=await programme(programmeId,c.organisation.id);if(!p||!name)return;const count=await prisma.programmeStage.count({where:{programmeId}});await prisma.programmeStage.create({data:{programmeId,name,orderIndex:count,description:v(d,"description")||null}}).catch(()=>null);revalidatePath("/programmes");}
+export async function assignGroupProgramme(d:FormData){const c=await manager(),trainingGroupId=v(d,"groupId"),programmeId=v(d,"programmeId"),stageId=v(d,"stageId");const g=await prisma.trainingGroup.findFirst({where:{id:trainingGroupId,organisationId:c.organisation.id}}),p=await programme(programmeId,c.organisation.id),s=p?await stage(stageId,p.id):null;if(!g||!p||(stageId&&!s))return;await prisma.trainingGroupProgrammeAssignment.upsert({where:{trainingGroupId},create:{trainingGroupId,programmeId,stageId:s?.id},update:{programmeId,stageId:s?.id??null}});revalidatePath("/groups/"+trainingGroupId);revalidatePath("/programmes");}
+export async function assignGymnastProgramme(d:FormData){const c=await manager(),gymnastId=v(d,"gymnastId"),programmeId=v(d,"programmeId"),stageId=v(d,"stageId");const g=await prisma.gymnast.findFirst({where:{id:gymnastId,organisationId:c.organisation.id}}),p=await programme(programmeId,c.organisation.id),s=p?await stage(stageId,p.id):null;if(!g||!p||(stageId&&!s))return;await prisma.gymnastProgrammeAssignment.upsert({where:{gymnastId},create:{gymnastId,programmeId,stageId:s?.id},update:{programmeId,stageId:s?.id??null}});revalidatePath("/gymnasts/"+gymnastId);revalidatePath("/programmes");}
