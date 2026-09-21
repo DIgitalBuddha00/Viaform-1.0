@@ -23,6 +23,8 @@ model User {
 
   memberships OrganisationMembership[]
   sessions    AuthSession[]
+  groups      TrainingGroup[]
+  gymnasts    Gymnast[]
 }
 
 model Organisation {
@@ -71,3 +73,45 @@ model AuthSession {
   @@index([userId, expiresAt])
   @@index([organisationId, expiresAt])
 }
+
+model TrainingGroup {
+  id             String   @id @default(cuid())
+  organisationId String
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  memberships  GymnastTrainingGroup[]
+
+  @@unique([organisationId, name])
+  @@index([organisationId, name])
+}
+
+model Gymnast {
+  id             String    @id @default(cuid())
+  organisationId String
+  name           String
+  dateOfBirth    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organisation Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  groups       GymnastTrainingGroup[]
+
+  @@index([organisationId, name])
+}
+
+model GymnastTrainingGroup {
+  gymnastId      String
+  trainingGroupId String
+  isPrimary      Boolean  @default(false)
+  joinedAt       DateTime @default(now())
+
+  gymnast      Gymnast       @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+
+  @@id([gymnastId, trainingGroupId])
+  @@index([trainingGroupId])
+}
+

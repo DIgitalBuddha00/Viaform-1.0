@@ -59,3 +59,17 @@ A fresh Viaform 1.0 database contains no organisations, users, coaches, groups,
 gymnasts, sessions, results, routines, evidence, competitions, QA fixtures, or
 demo history. Production builds generate application code only; they do not
 seed product data or mutate the database.
+
+## Core Coaching 2A — groups and gymnast identity
+
+| Legacy concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Gymnast as coach-owned record | Data / Permissions | REMOVE | Gymnast belongs directly to Organisation |
+| Training group as coach-owned record | Data / Permissions | REBUILD | Group belongs directly to Organisation |
+| Multi-group gymnast membership | Data | KEEP / REBUILD | Canonical many-to-many membership |
+| Primary group | Data | KEEP | Membership can identify the primary group |
+| My Groups workspace | UI | KEEP / REBUILD | First live core-coaching destination |
+| Group schedules/hours | Feature | DEFER | Add with planning/calendar domain |
+| Programme/ruleset assignment during gymnast creation | Rules / Data | DEFER | Add only with canonical programme/ruleset domains |
+| Shared-coach access side effects | Security/Permissions | REBUILD / DEFER | Scope from canonical memberships; no legacy Coach bridge |
+| Legacy QA roster and simulated history | Data | TEST-ONLY | Never populate production main |
