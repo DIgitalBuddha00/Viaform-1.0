@@ -109,3 +109,22 @@ seed product data or mutate the database.
 | Ruleset program/level on Gymnast | Rules / Data | REBUILD / DEFER | Rulesets remain a separate canonical domain; do not conflate with club programme |
 | Recreational curriculum/progress | Feature | DEFER | Build after programme identity is stable |
 | Legacy programme seed/demo records | Data | TEST-ONLY | Never populate production main |
+
+## Core Coaching 2D — overview hierarchy
+
+| Legacy concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| My Groups as directory | UI | KEEP / REBUILD | Directory links into canonical overview pages |
+| Group Overview | UI | KEEP / REBUILD | Group roster/coaching context plus future workspace entry points |
+| Gymnast Overview | UI | KEEP / REBUILD | Gymnast context plus future workspace entry points |
+| Overview widgets | UI | DEFER | Add summaries only when underlying domains contain real evidence |
+| Editing inside overview widgets | UI | REMOVE | Overview remains summary/navigation; workspaces own work |
+
+## Phase 3B — programme management and assignment
+
+| Legacy concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Programme management | Feature | KEEP / REBUILD | Permission-gated club pathway workspace |
+| Group programme/stage context | Feature | KEEP / REBUILD | Explicit assignment visible from Group Overview |
+| Individual gymnast programme override | Feature | KEEP / REBUILD | Optional individual pathway; otherwise group context applies |
+| Preset/demo programmes | Data | TEST-ONLY | Club creates real programme data explicitly |
