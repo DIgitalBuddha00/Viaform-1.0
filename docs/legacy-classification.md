@@ -150,3 +150,13 @@ seed product data or mutate the database.
 | Organisation ruleset selection | Feature | KEEP / REBUILD | Club enables or stops using available canonical rulesets |
 | FIG WAG identity | Rules / Data | KEEP / REBUILD | Canonical FIG_WAG with Junior and Senior levels |
 | FIG technical rule package | Rules | DEFER | Import separately from the proven legacy registries after identity/catalogue verification |
+
+## Phase 3E — FIG WAG rules foundation and Vault
+
+| Concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Versioned FIG rules package | Rules / Data | KEEP / REBUILD | Rules attach to an effective-dated canonical package, not directly to club data |
+| FIG Vault registry | Rules / Data | KEEP / REBUILD | Canonical vault definitions belong to a rules package |
+| Vault pair evaluation | Rules | KEEP / REBUILD | Pure evaluation logic remains separate from UI and athlete data |
+| Legacy FIG vault records | Data | AUDIT BEFORE IMPORT | Registry structure retained; values are not copied into 1.0 until checked against the current FIG source |
+| FIG source provenance | Rules / Data | REBUILD | Package records source document, URL, publication/effective context |

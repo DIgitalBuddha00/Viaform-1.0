@@ -209,6 +209,7 @@ model RulesetProgram {
  levels RulesetLevel[]
  organisationAssignments OrganisationRulesetAssignment[]
  gymnastAssignments GymnastRulesetAssignment[]
+ packages RulesetPackage[]
  @@index([governingBody, discipline, status])
 }
 model RulesetLevel {
@@ -244,4 +245,39 @@ model GymnastRulesetAssignment {
  program RulesetProgram @relation(fields:[programId],references:[id],onDelete:Cascade)
  level RulesetLevel? @relation(fields:[levelId],references:[id],onDelete:SetNull)
  @@index([programId,levelId])
+}
+
+model RulesetPackage {
+ id String @id @default(cuid())
+ programId String
+ code String @unique
+ name String
+ cycleLabel String
+ versionLabel String
+ effectiveDate DateTime
+ sourceDocument String
+ sourceUrl String?
+ sourcePublishedAt DateTime?
+ status String @default("ACTIVE")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ program RulesetProgram @relation(fields:[programId],references:[id],onDelete:Cascade)
+ vaults FigVaultDefinition[]
+ @@index([programId,effectiveDate,status])
+}
+model FigVaultDefinition {
+ id String @id @default(cuid())
+ packageId String
+ officialNumber String
+ variantKey String @default("a")
+ groupNumber Int
+ name String
+ aliases String @default("[]")
+ dValue Float
+ secondFlightDirection String @default("NON_SALTO")
+ doubleSalto Boolean @default(false)
+ status String @default("ACTIVE")
+ package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
+ @@unique([packageId,officialNumber,variantKey])
+ @@index([packageId,groupNumber,status])
 }
