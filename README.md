@@ -20,7 +20,7 @@ The previous development repository is retained only as a behavioural reference 
 2. Keep one canonical schema and a small, intentional migration history.
 3. Production builds must build the application, not replay product-development history.
 4. Tests belong in explicit verification workflows, not an ever-growing deployment command.
-5. Demo/QA data must be opt-in and removable; it is not production initialization.
+5. Production `main` contains no QA, demo, simulated-club, or test-product data. Validation data belongs only in isolated test environments or derived branches.
 6. Preserve tenant boundaries and the established role/capability model.
 7. Preserve apparatus-specific routine and technical-coaching behaviour where the domain genuinely differs.
 8. Unknown or missing evidence remains unknown; it is never silently converted into a negative assessment.

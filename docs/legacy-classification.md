@@ -32,6 +32,27 @@ The frozen legacy application is behavioural evidence, not source architecture.
 | QA/demo users, clubs and profiles | Data | TEST-ONLY | Never seed production main |
 | Demo/QA production initialization | Data | REMOVE | Test environments own their own data |
 
+## Foundation 1C — authentication and sessions
+
+| Legacy concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Email/password authentication | Security/Permissions | REBUILD | Canonical User authentication |
+| Salted password hashing | Security/Permissions | KEEP / REBUILD | scrypt with per-user salt |
+| Hashed session tokens | Security/Permissions | KEEP / REBUILD | Random browser token; hash persisted |
+| First-user bootstrap | Security/Permissions | REBUILD | One-time real organisation onboarding from empty state |
+| Legacy coach session/repair | Refactor | REMOVE | Membership is the access identity |
+
+## Foundation 1D — application shell
+
+| Legacy concept | Type | Disposition | 1.0 direction |
+| --- | --- | --- | --- |
+| Role-aware authenticated shell | UI / Security | REBUILD | Shell derives only from canonical AccessProfile |
+| Tablet primary navigation | UI | KEEP / REBUILD | Established nine destinations retained as product architecture |
+| Phone primary navigation | UI | KEEP / REBUILD | Home, My Groups, Planning, Training, More |
+| Internal role codes in UI | UI | REMOVE | Human-readable role labels |
+| Working links to unbuilt domains | UI | DEFER | Destinations shown as unavailable until their domain exists |
+| Widget dashboards | UI | DEFER | Add widgets with real domains; shell does not invent empty widgets |
+
 ## Blank-slate rule
 
 A fresh Viaform 1.0 database contains no organisations, users, coaches, groups,
