@@ -207,3 +207,9 @@ The remaining current Vault table is promoted as one audited section: 59 populat
 ## Phase 3 — verified FIG content batch 7
 
 The first canonical Uneven Bars subset covers the complete Group 1 Mounts table on current CoP pages 72–77. Its 27 populated source cells are represented by 48 canonical rows because distinct performed variants printed under one official number are retained with `a`–`d` variant keys. The shared official number remains intact for same-number identity and repetition handling. Difficulty letters come directly from the rendered table columns; blank cells and unverified aliases are omitted. Metadata is deliberately limited to the source-supported mount classification rather than importing the legacy registry's older coach-facing interpretations.
+
+### Verified FIG Uneven Bars completion batch
+
+The current-source audit now covers all remaining Uneven Bars element groups on CoP pages 78–103: Casts and Clear Hip Circles, Giant Circles, Stalder Circles, Pike Circles and Dismounts. Together they contain 136 populated official source cells represented by 166 canonical rows; distinct named skills printed within a shared cell receive variant keys while closely related position or turn alternatives remain in one source-faithful description. With the 48 Mount rows already verified, the canonical Bars registry contains 214 rows covering all 163 populated cells. Blank table positions, legacy-only aliases and legacy metadata remain excluded.
+
+This batch also adds a manually dispatched production migration workflow. It accepts only a checked-in timestamped migration from `main`, requires the commit's Vercel status to be successful, uses the protected `production-database` environment and runs an optional checked-in verification query. It does not expose connection secrets or run migrations during the Vercel build.

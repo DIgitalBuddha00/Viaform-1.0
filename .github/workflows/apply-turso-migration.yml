@@ -1,0 +1,66 @@
+name: Apply Turso migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration_directory:
+        description: Timestamped directory under prisma/migrations
+        required: true
+        type: string
+
+permissions:
+  checks: read
+  contents: read
+  statuses: read
+
+concurrency:
+  group: production-turso-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/main'
+    environment: production-database
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out deployed main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Require successful Vercel status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status_state="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/status" --jq '[.statuses[] | select(.context | startswith("Vercel"))][0].state // "missing"')"
+          check_state="$(gh api -H 'Accept: application/vnd.github+json' "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" --jq '[.check_runs[] | select(.name | startswith("Vercel"))][0].conclusion // "missing"')"
+          if [ "$status_state" != "success" ] && [ "$check_state" != "success" ]; then
+            echo "Vercel is not successful for $GITHUB_SHA (status=$status_state, check=$check_state); refusing production migration."
+            exit 1
+          fi
+
+      - name: Validate migration input
+        env:
+          MIGRATION_DIRECTORY: ${{ inputs.migration_directory }}
+        run: |
+          if ! [[ "$MIGRATION_DIRECTORY" =~ ^[0-9]{14}_[a-z0-9_]+$ ]]; then
+            echo "Invalid migration directory."
+            exit 1
+          fi
+          test -f "prisma/migrations/$MIGRATION_DIRECTORY/migration.sql"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install migration client
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund @libsql/client@0.17.0
+
+      - name: Apply and verify migration
+        env:
+          MIGRATION_DIRECTORY: ${{ inputs.migration_directory }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: node scripts/apply-turso-migration.mjs
