@@ -203,3 +203,7 @@ The first canonical Vault registry subset contains exactly the 24 populated Grou
 ## Phase 3 — verified FIG content batch 6
 
 The remaining current Vault table is promoted as one audited section: 59 populated source cells across Groups 2–5 on CoP pages 63–70 become 63 canonical registry rows. Four source cells explicitly describe both forward- and backward-salto versions (2.11, 2.21, 5.11 and 5.21); these are preserved as `a`/`b` variants so second-flight direction is not lost. Double-salto status is limited to 2.50 and 4.62. Together with Batch 5, the current Vault table now contains 83 populated source cells represented by 87 canonical rows. Blank cells and unverified aliases remain absent.
+
+## Phase 3 — verified FIG content batch 7
+
+The first canonical Uneven Bars subset covers the complete Group 1 Mounts table on current CoP pages 72–77. Its 27 populated source cells are represented by 48 canonical rows because distinct performed variants printed under one official number are retained with `a`–`d` variant keys. The shared official number remains intact for same-number identity and repetition handling. Difficulty letters come directly from the rendered table columns; blank cells and unverified aliases are omitted. Metadata is deliberately limited to the source-supported mount classification rather than importing the legacy registry's older coach-facing interpretations.
