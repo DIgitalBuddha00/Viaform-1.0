@@ -183,3 +183,7 @@ The current FIG package is the authority. Legacy evaluation code is not treated 
 ## Phase 3 — verified FIG rule batch 1
 
 Current-source verification promotes only rules supported by the pinned CoP: Senior Vault context distinguishes Team/AA, Apparatus Qualification and Apparatus Final rather than applying the final-only different-group rule globally; Senior Bars stores the 8-DV/dismount rule and same-root chronological limit; Senior Beam stores the 8-DV, 3 Dance, 3 Acro, 2 optional composition. Floor and Junior-specific records remain behind the audit gate until their current-source passages are verified. No legacy element row is promoted solely from the frozen app.
+
+## Phase 3 — verified FIG rules batch 2
+
+The pinned current CoP verifies the shared A–J DV scale and chronological repetition rules, Senior Floor counting/acro-line/CR structure, and the Junior appendix rules for DV cap, short exercise, no DMT bonus and Vault pair/prohibition differences. The routine helper now selects highest difficulty values rather than the first eight entered and applies the Junior E-value cap to F–J. Element identity/repetition and apparatus-specific counting constraints remain separate concerns and are not guessed by the helper.
