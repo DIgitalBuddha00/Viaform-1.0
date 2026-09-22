@@ -1,0 +1,76 @@
+WITH "verifiedVaults" ("id","officialNumber","variantKey","groupNumber","name","dValue","secondFlightDirection","doubleSalto") AS (
+  VALUES
+    ('fig25_vt_2_10','2.10','a',2,'Handspring fwd on - tucked salto fwd off',3.60,'FORWARD',0),
+    ('fig25_vt_2_11a','2.11','a',2,'Handspring fwd on - tucked salto fwd with 1/2 twist (180°) off',3.80,'FORWARD',0),
+    ('fig25_vt_2_11b','2.11','b',2,'Handspring fwd on - 1/2 turn (180°) and tucked salto bwd off',3.80,'BACKWARD',0),
+    ('fig25_vt_2_12','2.12','a',2,'Handspring fwd on - tucked salto fwd with 1/1 twist (360°) off',4.20,'FORWARD',0),
+    ('fig25_vt_2_13','2.13','a',2,'Handspring fwd on - tucked salto fwd with 1 1/2 twist (540°) off',4.60,'FORWARD',0),
+    ('fig25_vt_2_20','2.20','a',2,'Handspring fwd on - piked salto fwd off',3.80,'FORWARD',0),
+    ('fig25_vt_2_21a','2.21','a',2,'Handspring fwd on - piked salto fwd with 1/2 twist (180°) off',4.00,'FORWARD',0),
+    ('fig25_vt_2_21b','2.21','b',2,'Handspring fwd on - 1/2 turn (180°) and piked salto bwd off',4.00,'BACKWARD',0),
+    ('fig25_vt_2_22','2.22','a',2,'Handspring fwd on - piked salto fwd with 1/1 twist (360°) off (Chusovitina)',4.40,'FORWARD',0),
+    ('fig25_vt_2_30','2.30','a',2,'Handspring fwd on - stretched salto fwd off (Evdokimova)',4.40,'FORWARD',0),
+    ('fig25_vt_2_31','2.31','a',2,'Handspring fwd on - stretched salto fwd with 1/2 twist (180°) off (Wang)',4.60,'FORWARD',0),
+    ('fig25_vt_2_32','2.32','a',2,'Handspring fwd on - stretched salto fwd with 1/1 twist (360°) off',5.00,'FORWARD',0),
+    ('fig25_vt_2_33','2.33','a',2,'Handspring fwd on - stretched salto fwd with 1 1/2 twist (540°) off (Chusovitina)',5.40,'FORWARD',0),
+    ('fig25_vt_2_34','2.34','a',2,'Handspring fwd on - stretched salto fwd with 2/1 twist (720°) off (Yeo)',5.80,'FORWARD',0),
+    ('fig25_vt_2_40','2.40','a',2,'Handspring fwd with 1/1 turn (360°) on - tucked salto fwd off (Davydova)',4.80,'FORWARD',0),
+    ('fig25_vt_2_41','2.41','a',2,'Handspring fwd with 1/1 turn (360°) on - piked salto fwd off',5.20,'FORWARD',0),
+    ('fig25_vt_2_50','2.50','a',2,'Handspring fwd on - tucked double salto fwd off (Produnova)',6.00,'FORWARD',1),
+    ('fig25_vt_3_10','3.10','a',3,'Tsukahara tucked (Tourischeva)',3.20,'BACKWARD',0),
+    ('fig25_vt_3_11','3.11','a',3,'Tsukahara tucked with 1/2 twist (180°) off',3.40,'BACKWARD',0),
+    ('fig25_vt_3_12','3.12','a',3,'Tsukahara tucked with 1/1 twist (360°) off (Kim)',3.80,'BACKWARD',0),
+    ('fig25_vt_3_13','3.13','a',3,'Tsukahara tucked with 1 1/2 twist (540°) off',4.20,'BACKWARD',0),
+    ('fig25_vt_3_14','3.14','a',3,'Tsukahara tucked with 2/1 twist (720°) off',4.60,'BACKWARD',0),
+    ('fig25_vt_3_20','3.20','a',3,'Tsukahara piked',3.40,'BACKWARD',0),
+    ('fig25_vt_3_30','3.30','a',3,'Tsukahara stretched',3.80,'BACKWARD',0),
+    ('fig25_vt_3_31','3.31','a',3,'Tsukahara stretched with 1/2 twist (180°) off',4.00,'BACKWARD',0),
+    ('fig25_vt_3_32','3.32','a',3,'Tsukahara stretched with 1/1 twist (360°) off (Kim)',4.40,'BACKWARD',0),
+    ('fig25_vt_3_33','3.33','a',3,'Tsukahara stretched with 1 1/2 twist (540°) off',4.80,'BACKWARD',0),
+    ('fig25_vt_3_34','3.34','a',3,'Tsukahara stretched with 2/1 twist (720°) off (Zamolodchikova)',5.20,'BACKWARD',0),
+    ('fig25_vt_3_35','3.35','a',3,'Tsukahara stretched with 2 1/2 twist (900°) off',5.60,'BACKWARD',0),
+    ('fig25_vt_4_10','4.10','a',4,'Round-off, flic-flac on - tucked salto bwd off (Yurchenko)',3.00,'BACKWARD',0),
+    ('fig25_vt_4_11','4.11','a',4,'Round-off, flic-flac on - tucked salto bwd with 1/2 twist (180°) off',3.20,'BACKWARD',0),
+    ('fig25_vt_4_12','4.12','a',4,'Round-off, flic-flac on - tucked salto bwd with 1/1 twist (360°) off',3.60,'BACKWARD',0),
+    ('fig25_vt_4_13','4.13','a',4,'Round-off, flic-flac on - tucked salto bwd with 1 1/2 twist (540°) off (Dungelova)',4.00,'BACKWARD',0),
+    ('fig25_vt_4_14','4.14','a',4,'Round-off, flic-flac on - tucked salto bwd with 2/1 twist (720°) off',4.40,'BACKWARD',0),
+    ('fig25_vt_4_20','4.20','a',4,'Round-off, flic-flac on - piked salto bwd off',3.20,'BACKWARD',0),
+    ('fig25_vt_4_30','4.30','a',4,'Round-off, flic-flac on - stretched salto bwd off',3.60,'BACKWARD',0),
+    ('fig25_vt_4_31','4.31','a',4,'Round-off, flic-flac on - stretched salto bwd with 1/2 twist (180°) off',3.80,'BACKWARD',0),
+    ('fig25_vt_4_32','4.32','a',4,'Round-off, flic-flac on - stretched salto bwd with 1/1 twist (360°) off',4.20,'BACKWARD',0),
+    ('fig25_vt_4_33','4.33','a',4,'Round-off, flic-flac on - stretched salto bwd with 1 1/2 twist (540°) off',4.60,'BACKWARD',0),
+    ('fig25_vt_4_34','4.34','a',4,'Round-off, flic-flac on - stretched salto bwd with 2/1 twist (720°) off (Baitova)',5.00,'BACKWARD',0),
+    ('fig25_vt_4_35','4.35','a',4,'Round-off, flic-flac on - stretched salto bwd with 2 1/2 twist (900°) off (Amanar)',5.40,'BACKWARD',0),
+    ('fig25_vt_4_40','4.40','a',4,'Round-off, flic-flac with 3/4 turn (270°) on - tucked salto bwd off (Luconi)',3.60,'BACKWARD',0),
+    ('fig25_vt_4_41','4.41','a',4,'Round-off, flic-flac with 3/4 turn (270°) on - tucked salto bwd with 1/2 twist (180°) off',4.00,'BACKWARD',0),
+    ('fig25_vt_4_42','4.42','a',4,'Round-off, flic-flac with 3/4 turn (270°) on - tucked salto bwd with 1/1 twist (360°) off',4.20,'BACKWARD',0),
+    ('fig25_vt_4_50','4.50','a',4,'Round-off, flic-flac with 3/4 turn (270°) on - piked salto bwd off',3.80,'BACKWARD',0),
+    ('fig25_vt_4_51','4.51','a',4,'Round-off, flic-flac with 3/4 turn (270°) on - stretched salto bwd off',4.20,'BACKWARD',0),
+    ('fig25_vt_4_52','4.52','a',4,'Round-off, flic-flac with 3/4 turn (270°) on - stretched salto bwd with 1/2 twist (180°) off',4.60,'BACKWARD',0),
+    ('fig25_vt_4_53','4.53','a',4,'Round-off, flic-flac with 3/4 turn (270°) on - stretched salto bwd with 1/1 twist (360°) off',5.00,'BACKWARD',0),
+    ('fig25_vt_4_62','4.62','a',4,'Round-off, flic-flac on - double piked salto bwd off (Biles)',6.40,'BACKWARD',1),
+    ('fig25_vt_5_10','5.10','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - tucked salto fwd off (Ivantcheva)',3.80,'FORWARD',0),
+    ('fig25_vt_5_11a','5.11','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - tucked salto fwd with 1/2 twist (180°) off (Servente)',4.00,'FORWARD',0),
+    ('fig25_vt_5_11b','5.11','b',5,'Round-off, flic-flac with 1/2 turn (180°) on - 1/2 turn (180°) and tucked salto bwd off (Servente)',4.00,'BACKWARD',0),
+    ('fig25_vt_5_12','5.12','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - tucked salto fwd with 1/1 twist (360°) off',4.40,'FORWARD',0),
+    ('fig25_vt_5_13','5.13','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - tucked salto fwd with 1 1/2 twist (540°) off (Khorkina)',4.80,'FORWARD',0),
+    ('fig25_vt_5_20','5.20','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - piked salto fwd off (Omelianchik)',4.00,'FORWARD',0),
+    ('fig25_vt_5_21a','5.21','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - piked salto fwd with 1/2 twist (180°) off (Podkopayeva)',4.20,'FORWARD',0),
+    ('fig25_vt_5_21b','5.21','b',5,'Round-off, flic-flac with 1/2 turn (180°) on - 1/2 turn (180°) and piked salto bwd off (Podkopayeva)',4.20,'BACKWARD',0),
+    ('fig25_vt_5_22','5.22','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - piked salto fwd with 1/1 twist (360°) off',4.60,'FORWARD',0),
+    ('fig25_vt_5_30','5.30','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - stretched salto fwd off',4.60,'FORWARD',0),
+    ('fig25_vt_5_31','5.31','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - stretched salto fwd with 1/2 twist (180°) off',4.80,'FORWARD',0),
+    ('fig25_vt_5_32','5.32','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - stretched salto fwd with 1/1 twist (360°) off',5.20,'FORWARD',0),
+    ('fig25_vt_5_33','5.33','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - stretched salto fwd with 1 1/2 twist (540°) off (Cheng)',5.60,'FORWARD',0),
+    ('fig25_vt_5_34','5.34','a',5,'Round-off, flic-flac with 1/2 turn (180°) on - stretched salto fwd with 2/1 twist (720°) off (Biles)',6.00,'FORWARD',0)
+)
+INSERT INTO "FigVaultDefinition" ("id","packageId","officialNumber","variantKey","groupNumber","name","aliases","dValue","secondFlightDirection","doubleSalto","status")
+SELECT "id",'canonical_fig_wag_2025_2028',"officialNumber","variantKey","groupNumber","name",'[]',"dValue","secondFlightDirection","doubleSalto",'ACTIVE'
+FROM "verifiedVaults"
+WHERE EXISTS (SELECT 1 FROM "RulesetPackage" WHERE "id"='canonical_fig_wag_2025_2028')
+  AND NOT EXISTS (
+    SELECT 1 FROM "FigVaultDefinition" existing
+    WHERE existing."packageId"='canonical_fig_wag_2025_2028'
+      AND existing."officialNumber"="verifiedVaults"."officialNumber"
+      AND existing."variantKey"="verifiedVaults"."variantKey"
+  );

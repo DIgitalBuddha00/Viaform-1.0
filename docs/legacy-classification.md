@@ -199,3 +199,7 @@ The current CoP now supplies structured evaluation boundaries for shared CR fulf
 ## Phase 3 — verified FIG content batch 5
 
 The first canonical Vault registry subset contains exactly the 24 populated Group 1 entries on current CoP pages 60–62. Official numbers, names and D-values were checked against rendered source pages as well as extracted text. Blank numbered cells remain absent. Aliases are deliberately empty until separately evidenced; all Group 1 entries are non-salto second flights and are not double saltos. No legacy Vault value is used as authority.
+
+## Phase 3 — verified FIG content batch 6
+
+The remaining current Vault table is promoted as one audited section: 59 populated source cells across Groups 2–5 on CoP pages 63–70 become 63 canonical registry rows. Four source cells explicitly describe both forward- and backward-salto versions (2.11, 2.21, 5.11 and 5.21); these are preserved as `a`/`b` variants so second-flight direction is not lost. Double-salto status is limited to 2.50 and 4.62. Together with Batch 5, the current Vault table now contains 83 populated source cells represented by 87 canonical rows. Blank cells and unverified aliases remain absent.
