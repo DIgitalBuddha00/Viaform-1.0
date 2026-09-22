@@ -191,3 +191,7 @@ The pinned current CoP verifies the shared A–J DV scale and chronological repe
 ## Phase 3 — verified FIG rules batch 3
 
 The current-source audit corrects the Batch 1 Senior Vault scope: the different-group requirement applies in both qualification for the Apparatus Final and the Apparatus Final; Team Final and All-Around still use one vault. The 0.20 different-second-flight-direction bonus requires both vaults without a fall. The canonical rule layer now also records Senior short-exercise and dismount-bonus rules, shared CV recognition boundaries, complete Senior Bars and Beam composition requirements and connection structures, and the Junior UB/BB/FX prohibited-element modifications. Junior pair validation enforces different official vault numbers without imposing the Senior different-group rule. No element-table row is promoted by this batch.
+
+## Phase 3 — verified FIG rules batch 4
+
+The current CoP now supplies structured evaluation boundaries for shared CR fulfilment and direct connections, Bars flight/no-dismount recognition, Beam timing/fall/no-dismount recognition, and Floor timing, dismount construction, dance-passage construction, connection formulas and Floor-specific dismount-bonus conditions. The short-exercise helper implements the distinct Senior seven-element and Junior six-element no-penalty thresholds. It remains a bounded helper rather than a claim of complete D-score evaluation. No legacy registry or element-table row is imported by this batch.
