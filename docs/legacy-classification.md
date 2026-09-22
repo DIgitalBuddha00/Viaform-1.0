@@ -195,3 +195,7 @@ The current-source audit corrects the Batch 1 Senior Vault scope: the different-
 ## Phase 3 — verified FIG rules batch 4
 
 The current CoP now supplies structured evaluation boundaries for shared CR fulfilment and direct connections, Bars flight/no-dismount recognition, Beam timing/fall/no-dismount recognition, and Floor timing, dismount construction, dance-passage construction, connection formulas and Floor-specific dismount-bonus conditions. The short-exercise helper implements the distinct Senior seven-element and Junior six-element no-penalty thresholds. It remains a bounded helper rather than a claim of complete D-score evaluation. No legacy registry or element-table row is imported by this batch.
+
+## Phase 3 — verified FIG content batch 5
+
+The first canonical Vault registry subset contains exactly the 24 populated Group 1 entries on current CoP pages 60–62. Official numbers, names and D-values were checked against rendered source pages as well as extracted text. Blank numbered cells remain absent. Aliases are deliberately empty until separately evidenced; all Group 1 entries are non-salto second flights and are not double saltos. No legacy Vault value is used as authority.
