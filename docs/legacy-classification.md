@@ -219,3 +219,9 @@ This batch also adds a manually dispatched production migration workflow. It acc
 The canonical Balance Beam registry is rebuilt directly from the current 27 August 2026 CoP tables on pages 108–147. All six Beam groups are covered: 198 populated official-number cells represented by 239 canonical rows after splitting genuinely distinct skills printed under shared numbers. Position, leg-form and turn alternatives that remain the same FIG element stay together. The audit preserves the H-rated `6.805` Biles dismount and the `(D)` annotations used to identify elements counted as Dance, including the marked mounts and Group 4 holds.
 
 The corrupted legacy generated Beam extraction is not imported. It is used only as comparison evidence where useful; every retained number, name, difficulty, group and source page is reconciled against the rendered current official table. Blank cells, explanatory table notes, diagram-only angle labels and legacy-inferred coaching metadata are excluded.
+
+### Verified FIG Floor Exercise completion batch
+
+The canonical Floor Exercise registry is rebuilt against every current CoP table page from 149–169. Its five groups contain 105 populated official-number cells represented by 129 canonical rows after distinct skills printed in shared cells are retained as variants. The audit includes the J-rated `5.1002` Biles and preserves source-marked same-box chronological identity without treating position or turn alternatives as unrelated elements.
+
+The March 2026 Floor registry is comparison evidence only. Current August 2026 numbering wins: the tuck hop or jump with 1/1 turn is `1.213`, while the whip-salto sequence is `5.104`, `5.204` and `5.304`. Legacy-only aliases and coaching metadata are excluded; blank cells, explanatory notes and diagram labels are not promoted.
