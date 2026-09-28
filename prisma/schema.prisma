@@ -255,10 +255,47 @@ model GymnastRoutine {
   updatedAt            DateTime @updatedAt
 
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  elements GymnastRoutineElement[]
+  vaults GymnastRoutineVault[]
 
   @@unique([gymnastId, apparatus, name])
   @@index([gymnastId, apparatus, status])
   @@index([gymnastId, purpose, status])
+}
+
+model GymnastRoutineElement {
+  id                  String   @id @default(cuid())
+  routineId           String
+  elementDefinitionId String
+  orderIndex          Int
+  recognition         String   @default("UNKNOWN")
+  isDismount          Boolean  @default(false)
+  coachNote           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  routine GymnastRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  elementDefinition FigElementDefinition @relation(fields: [elementDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([routineId, orderIndex])
+  @@index([routineId, elementDefinitionId])
+}
+
+model GymnastRoutineVault {
+  id                String   @id @default(cuid())
+  routineId         String
+  vaultDefinitionId String
+  orderIndex        Int
+  role              String   @default("PRIMARY")
+  coachNote         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  routine GymnastRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  vaultDefinition FigVaultDefinition @relation(fields: [vaultDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([routineId, orderIndex])
+  @@index([routineId, vaultDefinitionId])
 }
 
 model TrainingSession {
@@ -725,6 +762,7 @@ model FigVaultDefinition {
  doubleSalto Boolean @default(false)
  status String @default("ACTIVE")
  package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
+ routineSelections GymnastRoutineVault[]
  @@unique([packageId,officialNumber,variantKey])
  @@index([packageId,groupNumber,status])
 }
@@ -745,6 +783,7 @@ model FigElementDefinition {
  verificationStatus String @default("NEEDS_REVIEW")
  status String @default("ACTIVE")
  package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
+ routineSelections GymnastRoutineElement[]
  @@unique([packageId,apparatus,officialNumber,variantKey])
  @@index([packageId,apparatus,groupCode,status])
 }
