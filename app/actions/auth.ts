@@ -36,15 +36,20 @@ export async function createFirstOrganisation(data: FormData) {
 export async function signIn(data: FormData) {
   const email = normaliseEmail(data.get("email"));
   const password = String(data.get("password") ?? "");
-  const user = await prisma.user.findUnique({ where: { email }, include: { memberships: { where: { isActive: true }, orderBy: { joinedAt: "asc" } } } });
+  const user = await prisma.user.findUnique({ where: { email }, include: { memberships: { where: { isActive: true }, orderBy: { joinedAt: "asc" } }, athletePortalAccesses:{where:{status:"ACTIVE"},orderBy:{createdAt:"asc"}} } });
   if (!user || !user.isActive || !verifyPassword(password, user.passwordSalt, user.passwordHash)) redirect("/login?error=invalid");
-  const membership = user.memberships[0];
-  if (!membership) redirect("/login?error=access");
-  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-  await createSession(user.id, membership.organisationId);
-  const preference=await prisma.membershipPresentationPreference.findUnique({where:{membershipId:membership.id},select:{theme:true}});
-  (await cookies()).set("viaform_theme",resolveAppearanceTheme(preference?.theme),{sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:31536000});
-  redirect("/dashboard");
+  const membership=user.memberships[0],portal=user.athletePortalAccesses[0];
+  if(!membership&&!portal)redirect("/login?error=access");
+  await prisma.user.update({where:{id:user.id},data:{lastLoginAt:new Date()}});
+  if(membership){
+    await createSession(user.id,membership.organisationId);
+    const preference=await prisma.membershipPresentationPreference.findUnique({where:{membershipId:membership.id},select:{theme:true}});
+    (await cookies()).set("viaform_theme",resolveAppearanceTheme(preference?.theme),{sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:31536000});
+    redirect("/dashboard");
+  }
+  await createSession(user.id,portal!.organisationId);
+  (await cookies()).set("viaform_theme","preparation",{sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:31536000});
+  redirect(portal!.relationship==="ATHLETE"?"/athlete":"/family");
 }
 
 export async function signOut() {

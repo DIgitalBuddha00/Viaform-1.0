@@ -23,6 +23,7 @@ model User {
 
   memberships OrganisationMembership[]
   sessions    AuthSession[]
+  athletePortalAccesses AthletePortalAccess[]
 }
 
 model Organisation {
@@ -47,6 +48,7 @@ model Organisation {
   methodologyRecords MethodologyRecord[]
   coachHandoffs CoachHandoff[]
   trustedContributors TrustedContributor[]
+  athletePortalAccesses AthletePortalAccess[]
 }
 
 model OrganisationMembership {
@@ -170,8 +172,29 @@ model Gymnast {
   routines GymnastRoutine[]
   competitionEntries CompetitionEntry[]
   handoffEntries CoachHandoffGymnast[]
+  portalAccesses AthletePortalAccess[]
 
   @@index([organisationId, name])
+}
+
+model AthletePortalAccess {
+  id             String   @id @default(cuid())
+  userId         String
+  organisationId String
+  gymnastId      String
+  relationship   String
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  gymnast      Gymnast      @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gymnastId, relationship])
+  @@index([organisationId, relationship, status])
+  @@index([gymnastId, relationship, status])
+  @@index([userId, status])
 }
 
 model GymnastTrainingGroup {

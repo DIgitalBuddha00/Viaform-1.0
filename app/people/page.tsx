@@ -26,7 +26,7 @@ export default async function PeoplePage() {
   return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section>
     <a href="/more" className="text-sm font-semibold text-[var(--muted)]">← More</a>
     <p className="mt-5 text-sm font-semibold text-[var(--muted)]">People & roles</p>
-    <h1 className="mt-2 text-3xl font-semibold">Club team</h1>
+    <div className="mt-2 flex flex-wrap items-end justify-between gap-3"><h1 className="text-3xl font-semibold">Club team</h1><a href="/people/portal" className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold">Athlete & family access →</a></div>
     <p className="mt-3 max-w-3xl leading-7 text-[var(--muted)]">Administrator status, coaching roles and delegated operational responsibilities are separate. A club administrator can also hold a coaching role; an administrator without one can still reach the operational areas they manage.</p>
 
     <details className="mt-7 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">

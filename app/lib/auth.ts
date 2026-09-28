@@ -62,3 +62,21 @@ export async function requireAuthContext() {
   if (!context) redirect("/login");
   return context;
 }
+
+export async function currentPortalContext() {
+  const token=(await cookies()).get(SESSION_COOKIE)?.value;
+  if(!token)return null;
+  const session=await prisma.authSession.findUnique({
+    where:{tokenHash:tokenHash(token)},
+    include:{user:{include:{athletePortalAccesses:{where:{status:"ACTIVE"},include:{gymnast:true,organisation:true},orderBy:{createdAt:"asc"}}}}}
+  }).catch(()=>null);
+  if(!session||session.expiresAt<=new Date()||!session.user.isActive)return null;
+  const accesses=session.user.athletePortalAccesses.filter(x=>!session.organisationId||x.organisationId===session.organisationId);
+  if(!accesses.length)return null;
+  return {user:session.user,accesses,organisation:accesses[0].organisation};
+}
+export async function requirePortalContext(){
+  const context=await currentPortalContext();
+  if(!context)redirect("/login");
+  return context;
+}
