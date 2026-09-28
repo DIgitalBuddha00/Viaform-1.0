@@ -34,6 +34,7 @@ export async function createSessionStation(data: FormData) {
   const name = value(data, "name");
   const block = await visibleBlock(sessionId, blockId, context);
   if (!block || !name) return;
+  const workItemId=value(data,"workItemId")||null; if(workItemId&&!await prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId}}))return;
   const last = await prisma.sessionStation.findFirst({ where: { blockId }, orderBy: { orderIndex: "desc" } });
   await prisma.sessionStation.create({
     data: {
@@ -46,6 +47,7 @@ export async function createSessionStation(data: FormData) {
       cues: value(data, "cues") || null,
       easierOption: value(data, "easierOption") || null,
       harderOption: value(data, "harderOption") || null,
+      workItemId,
       orderIndex: (last?.orderIndex ?? -1) + 1,
     },
   }).catch(() => null);
@@ -62,6 +64,7 @@ export async function updateSessionStation(data: FormData) {
   const block = await visibleBlock(sessionId, blockId, context);
   const station = block ? await prisma.sessionStation.findFirst({ where: { id: stationId, blockId } }) : null;
   if (!block || !station || !name) return;
+  const workItemId=value(data,"workItemId")||null; if(workItemId&&!await prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId}}))return;
   await prisma.sessionStation.update({
     where: { id: station.id },
     data: {
@@ -73,6 +76,7 @@ export async function updateSessionStation(data: FormData) {
       cues: value(data, "cues") || null,
       easierOption: value(data, "easierOption") || null,
       harderOption: value(data, "harderOption") || null,
+      workItemId,
     },
   }).catch(() => null);
   revalidatePath("/planning/" + sessionId);

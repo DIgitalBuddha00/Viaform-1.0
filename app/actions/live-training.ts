@@ -82,6 +82,7 @@ export async function recordTrainingEvidence(data: FormData) {
   const blockId = value(data, "blockId");
   const gymnastId = value(data, "gymnastId");
   const stationId = value(data, "stationId") || null;
+  const workItemId = value(data, "workItemId") || null;
   const routineElementId = value(data, "routineElementId") || null;
   const routineVaultId = value(data, "routineVaultId") || null;
   const routineCustomItemId = value(data, "routineCustomItemId") || null;
@@ -103,6 +104,7 @@ export async function recordTrainingEvidence(data: FormData) {
     ? await prisma.sessionStation.findFirst({ where: { id: stationId, blockId } })
     : null;
   if (stationId && !station) return;
+  const workItem=workItemId?await prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId},include:{trainingResource:true,landingResource:true}}):null;if(workItemId&&!workItem)return;if(workItem?.targetGymnastId&&workItem.targetGymnastId!==gymnastId)return;if(station?.workItemId&&workItemId!==station.workItemId)return;
   if ([routineElementId, routineVaultId, routineCustomItemId].filter(Boolean).length > 1) return;
 
   const routineApparatus: Record<string, string> = {
@@ -157,6 +159,10 @@ export async function recordTrainingEvidence(data: FormData) {
       sessionId,
       blockId,
       stationId: station?.id ?? null,
+      workItemId: workItem?.id ?? null,
+      elementDefinitionId: workItem?.elementDefinitionId ?? null,
+      vaultDefinitionId: workItem?.vaultDefinitionId ?? null,
+      contextSnapshot: workItem ? JSON.stringify({trainingSurface:workItem.trainingSurface,landingSurface:workItem.landingSurface,takeoffEquipment:workItem.takeoffEquipment,trainingResource:workItem.trainingResource?.name??null,landingResource:workItem.landingResource?.name??null}) : null,
       gymnastId,
       routineElementId: verifiedRoutineElementId,
       routineVaultId: verifiedRoutineVaultId,

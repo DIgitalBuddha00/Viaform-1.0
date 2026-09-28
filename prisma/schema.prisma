@@ -558,6 +558,13 @@ model SessionBlockWorkItem {
   targetGymnastId    String?
   title              String
   targetCount        Int?
+  elementDefinitionId String?
+  vaultDefinitionId   String?
+  trainingResourceId  String?
+  landingResourceId   String?
+  trainingSurface     String?
+  landingSurface      String?
+  takeoffEquipment    String?
   notes              String?
   orderIndex         Int      @default(0)
   createdAt          DateTime @default(now())
@@ -566,8 +573,16 @@ model SessionBlockWorkItem {
   block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
   trainingPlanItem TrainingPlanItem? @relation(fields: [trainingPlanItemId], references: [id], onDelete: SetNull)
   targetGymnast Gymnast? @relation(fields: [targetGymnastId], references: [id], onDelete: SetNull)
+  elementDefinition FigElementDefinition? @relation("WorkItemElementDefinition", fields: [elementDefinitionId], references: [id], onDelete: SetNull)
+  vaultDefinition FigVaultDefinition? @relation("WorkItemVaultDefinition", fields: [vaultDefinitionId], references: [id], onDelete: SetNull)
+  trainingResource FacilityResource? @relation("WorkItemTrainingResource", fields: [trainingResourceId], references: [id], onDelete: SetNull)
+  landingResource FacilityResource? @relation("WorkItemLandingResource", fields: [landingResourceId], references: [id], onDelete: SetNull)
+  stations SessionStation[]
+  evidence TrainingEvidence[]
 
   @@index([blockId, orderIndex])
+  @@index([elementDefinitionId])
+  @@index([vaultDefinitionId])
   @@index([trainingPlanItemId])
   @@index([targetGymnastId])
 }
@@ -630,6 +645,8 @@ model FacilityResource {
 
   trainingSpace TrainingSpace @relation(fields: [trainingSpaceId], references: [id], onDelete: Cascade)
   blockAssignments SessionBlockResource[]
+  trainingWorkItems SessionBlockWorkItem[] @relation("WorkItemTrainingResource")
+  landingWorkItems SessionBlockWorkItem[] @relation("WorkItemLandingResource")
 
   @@unique([trainingSpaceId, name])
   @@index([trainingSpaceId, category, status])
@@ -892,11 +909,13 @@ model SessionStation {
   cues         String?
   easierOption String?
   harderOption String?
+  workItemId   String?
   orderIndex   Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  workItem SessionBlockWorkItem? @relation(fields: [workItemId], references: [id], onDelete: SetNull)
   evidence TrainingEvidence[]
 
   @@unique([blockId, name])
@@ -908,6 +927,10 @@ model TrainingEvidence {
   sessionId              String
   blockId                String
   stationId              String?
+  workItemId             String?
+  elementDefinitionId    String?
+  vaultDefinitionId      String?
+  contextSnapshot        String?
   gymnastId              String
   routineElementId       String?
   routineVaultId         String?
@@ -920,6 +943,9 @@ model TrainingEvidence {
   session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
   station SessionStation? @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  workItem SessionBlockWorkItem? @relation(fields: [workItemId], references: [id], onDelete: SetNull)
+  elementDefinition FigElementDefinition? @relation("EvidenceElementDefinition", fields: [elementDefinitionId], references: [id], onDelete: SetNull)
+  vaultDefinition FigVaultDefinition? @relation("EvidenceVaultDefinition", fields: [vaultDefinitionId], references: [id], onDelete: SetNull)
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
   routineElement GymnastRoutineElement? @relation(fields: [routineElementId], references: [id], onDelete: SetNull)
   routineVault GymnastRoutineVault? @relation(fields: [routineVaultId], references: [id], onDelete: SetNull)
@@ -931,6 +957,9 @@ model TrainingEvidence {
   @@index([routineVaultId, recordedAt])
   @@index([routineCustomItemId, recordedAt])
   @@index([stationId, recordedAt])
+  @@index([workItemId, recordedAt])
+  @@index([elementDefinitionId, recordedAt])
+  @@index([vaultDefinitionId, recordedAt])
   @@index([gymnastId, recordedAt])
   @@index([recordedByMembershipId, recordedAt])
 }
@@ -1020,6 +1049,8 @@ model FigVaultDefinition {
  status String @default("ACTIVE")
  package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
  routineSelections GymnastRoutineVault[]
+ sessionWorkItems SessionBlockWorkItem[] @relation("WorkItemVaultDefinition")
+ trainingEvidence TrainingEvidence[] @relation("EvidenceVaultDefinition")
  @@unique([packageId,officialNumber,variantKey])
  @@index([packageId,groupNumber,status])
 }
@@ -1041,6 +1072,8 @@ model FigElementDefinition {
  status String @default("ACTIVE")
  package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
  routineSelections GymnastRoutineElement[]
+ sessionWorkItems SessionBlockWorkItem[] @relation("WorkItemElementDefinition")
+ trainingEvidence TrainingEvidence[] @relation("EvidenceElementDefinition")
  @@unique([packageId,apparatus,officialNumber,variantKey])
  @@index([packageId,apparatus,groupCode,status])
 }

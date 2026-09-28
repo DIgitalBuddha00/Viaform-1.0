@@ -1,0 +1,17 @@
+ALTER TABLE "SessionBlockWorkItem" ADD COLUMN "elementDefinitionId" TEXT REFERENCES "FigElementDefinition"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "SessionBlockWorkItem" ADD COLUMN "vaultDefinitionId" TEXT REFERENCES "FigVaultDefinition"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "SessionBlockWorkItem" ADD COLUMN "trainingResourceId" TEXT REFERENCES "FacilityResource"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "SessionBlockWorkItem" ADD COLUMN "landingResourceId" TEXT REFERENCES "FacilityResource"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "SessionBlockWorkItem" ADD COLUMN "trainingSurface" TEXT;
+ALTER TABLE "SessionBlockWorkItem" ADD COLUMN "landingSurface" TEXT;
+ALTER TABLE "SessionBlockWorkItem" ADD COLUMN "takeoffEquipment" TEXT;
+ALTER TABLE "SessionStation" ADD COLUMN "workItemId" TEXT REFERENCES "SessionBlockWorkItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "TrainingEvidence" ADD COLUMN "workItemId" TEXT REFERENCES "SessionBlockWorkItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "TrainingEvidence" ADD COLUMN "elementDefinitionId" TEXT REFERENCES "FigElementDefinition"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "TrainingEvidence" ADD COLUMN "vaultDefinitionId" TEXT REFERENCES "FigVaultDefinition"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "TrainingEvidence" ADD COLUMN "contextSnapshot" TEXT;
+CREATE INDEX "SessionBlockWorkItem_elementDefinitionId_idx" ON "SessionBlockWorkItem"("elementDefinitionId");
+CREATE INDEX "SessionBlockWorkItem_vaultDefinitionId_idx" ON "SessionBlockWorkItem"("vaultDefinitionId");
+CREATE INDEX "TrainingEvidence_workItemId_recordedAt_idx" ON "TrainingEvidence"("workItemId","recordedAt");
+CREATE INDEX "TrainingEvidence_elementDefinitionId_recordedAt_idx" ON "TrainingEvidence"("elementDefinitionId","recordedAt");
+CREATE INDEX "TrainingEvidence_vaultDefinitionId_recordedAt_idx" ON "TrainingEvidence"("vaultDefinitionId","recordedAt");

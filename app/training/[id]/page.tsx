@@ -34,7 +34,7 @@ export default async function LiveTrainingSessionPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ block?: string; station?: string }>;
+  searchParams: Promise<{ block?: string; station?: string; work?: string }>;
 }) {
   const c = await requireAuthContext();
   if (!c.access.canUseCoachingWorkspace) notFound();
@@ -51,7 +51,7 @@ export default async function LiveTrainingSessionPage({
       trainingGroup: true,
       blocks: {
         orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
-        include: { targetGymnast: { select: { name: true } }, workItems: { include: { targetGymnast: { select: { name: true } } }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] }, stations: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
+        include: { targetGymnast: { select: { name: true } }, workItems: { include: { targetGymnast: { select: { name: true } }, elementDefinition:true, vaultDefinition:true, trainingResource:true, landingResource:true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] }, stations: { include: { workItem: true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
       },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
       evidence: { orderBy: { recordedAt: "asc" } },
@@ -69,6 +69,7 @@ export default async function LiveTrainingSessionPage({
 
   const selectedStation = selectedBlock?.stations.find((station) => station.id === query.station) ?? null;
   const selectedWorkItems = selectedBlock?.workItems ?? [];
+  const selectedWorkItem = selectedWorkItems.find(item=>item.id===query.work) ?? (selectedStation?.workItemId ? selectedWorkItems.find(item=>item.id===selectedStation.workItemId) : null) ?? selectedWorkItems[0] ?? null;
   const blockEvidence = selectedBlock
     ? session.evidence.filter((entry) =>
         entry.blockId === selectedBlock.id && (!selectedStation || entry.stationId === selectedStation.id)
@@ -238,6 +239,8 @@ export default async function LiveTrainingSessionPage({
               </div>
             )}
 
+            {selectedWorkItems.length>0&&<div className="mt-4"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Skill work</p><div className="mt-2 flex flex-wrap gap-2">{selectedWorkItems.map(item=><a key={item.id} href={"/training/"+session.id+"?block="+selectedBlock.id+"&work="+item.id+(selectedStation?"&station="+selectedStation.id:"")} className={"rounded-xl border px-3 py-2 text-sm "+(selectedWorkItem?.id===item.id?"border-[var(--foreground)] font-semibold":"border-[var(--border)]")}>{item.title}</a>)}</div>{selectedWorkItem&&<p className="mt-2 text-xs text-[var(--muted)]">{selectedWorkItem.elementDefinition?"Canonical skill · "+selectedWorkItem.elementDefinition.officialNumber:selectedWorkItem.vaultDefinition?"Canonical vault · "+selectedWorkItem.vaultDefinition.officialNumber:"Coach-authored work"}{selectedWorkItem.trainingResource?" · "+selectedWorkItem.trainingResource.name:selectedWorkItem.trainingSurface?" · "+selectedWorkItem.trainingSurface:""}{selectedWorkItem.landingResource?" · landing "+selectedWorkItem.landingResource.name:selectedWorkItem.landingSurface?" · landing "+selectedWorkItem.landingSurface:""}{selectedWorkItem.takeoffEquipment?" · "+selectedWorkItem.takeoffEquipment:""}</p>}</div>}
+
             <article className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -301,7 +304,7 @@ export default async function LiveTrainingSessionPage({
                               <input type="hidden" name="sessionId" value={session.id} />
                               <input type="hidden" name="blockId" value={selectedBlock.id} />
                               <input type="hidden" name="gymnastId" value={entry.gymnastId} />
-                              <input type="hidden" name="stationId" value={selectedStation?.id ?? ""} />
+                              <input type="hidden" name="stationId" value={selectedStation?.id ?? ""} /><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""} />
                               <button name="outcome" value={outcome} className="min-w-24 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">
                                 {outcomeLabel[outcome]}
                               </button>
@@ -312,7 +315,7 @@ export default async function LiveTrainingSessionPage({
                               <input type="hidden" name="sessionId" value={session.id} />
                               <input type="hidden" name="blockId" value={selectedBlock.id} />
                               <input type="hidden" name="gymnastId" value={entry.gymnastId} />
-                              <input type="hidden" name="stationId" value={selectedStation?.id ?? ""} />
+                              <input type="hidden" name="stationId" value={selectedStation?.id ?? ""} /><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""} />
                               <button className="rounded-xl px-3 py-3 text-sm text-[var(--muted)]">Undo</button>
                             </form>
                           )}
@@ -343,7 +346,7 @@ export default async function LiveTrainingSessionPage({
                                       <div className="mt-2 flex flex-wrap gap-2">
                                         {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
                                           <form key={outcome} action={recordTrainingEvidence}>
-                                            <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="routineVaultId" value={item.id}/>
+                                            <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""}/><input type="hidden" name="routineVaultId" value={item.id}/>
                                             <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
                                           </form>
                                         ))}
@@ -364,7 +367,7 @@ export default async function LiveTrainingSessionPage({
                                       <div className="mt-2 flex flex-wrap gap-2">
                                         {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
                                           <form key={outcome} action={recordTrainingEvidence}>
-                                            <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="routineElementId" value={item.id}/>
+                                            <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""}/><input type="hidden" name="routineElementId" value={item.id}/>
                                             <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
                                           </form>
                                         ))}
@@ -385,7 +388,7 @@ export default async function LiveTrainingSessionPage({
                                   <div className="mt-2 flex flex-wrap gap-2">
                                     {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
                                       <form key={outcome} action={recordTrainingEvidence}>
-                                        <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="routineCustomItemId" value={item.id}/>
+                                        <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""}/><input type="hidden" name="routineCustomItemId" value={item.id}/>
                                         <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
                                       </form>
                                     ))}
