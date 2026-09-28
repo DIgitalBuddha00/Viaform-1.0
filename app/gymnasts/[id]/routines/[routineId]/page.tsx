@@ -360,7 +360,7 @@ export default async function RoutineWorkspace({
               </article>
             </aside>
           </div>
-        ))}
+        )}
 
         {tab === "pathway" && (
           <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_360px]">
@@ -399,7 +399,7 @@ export default async function RoutineWorkspace({
               </article>
             </aside>
           </div>
-        ))}
+        )}
 
         <p className="mt-8 border-t border-[var(--border)] pt-5 text-sm text-[var(--muted)]">Evidence → Context → Guidance → Coach judgement.</p>
       </section>
