@@ -52,6 +52,7 @@ model Organisation {
   calendarEvents CalendarEvent[]
   macrocycles Macrocycle[]
   trainingPlans TrainingPlan[]
+  clubRotationPlans ClubRotationPlan[]
 }
 
 model OrganisationMembership {
@@ -84,6 +85,8 @@ model OrganisationMembership {
   createdCalendarEvents CalendarEvent[]
   createdMacrocycles Macrocycle[]
   createdTrainingPlans TrainingPlan[]
+  createdClubRotationPlans ClubRotationPlan[]
+  coachedRotationSlots ClubRotationSlot[]
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
@@ -136,6 +139,7 @@ model TrainingGroup {
   coachHandoffs CoachHandoff[]
   macrocycles MacrocycleGroup[]
   trainingPlans TrainingPlan[]
+  clubRotationSlots ClubRotationSlot[]
 
   @@unique([organisationId, name])
   @@index([organisationId, name])
@@ -462,6 +466,8 @@ model TrainingSession {
   trainingGroupId       String
   scheduleSlotId        String?
   trainingPlanId        String?
+  clubRotationPlanId    String?
+  clubRotationVariant   Int?
   createdByMembershipId String
   sessionDate           DateTime
   startTime             String
@@ -483,6 +489,7 @@ model TrainingSession {
   trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
   scheduleSlot TrainingGroupSchedule? @relation(fields: [scheduleSlotId], references: [id], onDelete: SetNull)
   trainingPlan TrainingPlan? @relation(fields: [trainingPlanId], references: [id], onDelete: SetNull)
+  clubRotationPlan ClubRotationPlan? @relation(fields: [clubRotationPlanId], references: [id], onDelete: SetNull)
   createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
   programme CoachingProgramme? @relation(fields: [programmeId], references: [id], onDelete: SetNull)
   programmeStage ProgrammeStage? @relation(fields: [programmeStageId], references: [id], onDelete: SetNull)
@@ -498,6 +505,7 @@ model TrainingSession {
   @@index([organisationId, sessionDate])
   @@index([trainingGroupId, sessionDate])
   @@index([trainingPlanId, sessionDate])
+  @@index([clubRotationPlanId, sessionDate])
   @@index([createdByMembershipId, sessionDate])
 }
 
@@ -552,6 +560,7 @@ model FacilityLocation {
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   spaces TrainingSpace[]
+  clubRotationPlans ClubRotationPlan[]
   groupPreferences TrainingGroupFacility[]
   sessionAssignments TrainingSessionFacility[]
 
@@ -563,6 +572,7 @@ model TrainingSpace {
   id         String   @id @default(cuid())
   locationId String
   name       String
+  apparatus  String?
   capacity   Int?
   shareable  Boolean  @default(true)
   notes      String?
@@ -575,6 +585,7 @@ model TrainingSpace {
   resources FacilityResource[]
   blockAssignments SessionBlockSpace[]
   rotationAssignments SessionRotationAssignment[]
+  clubRotationSlots ClubRotationSlot[]
 
   @@unique([locationId, name])
   @@index([locationId, orderIndex, status])
@@ -698,6 +709,55 @@ model SessionRotationAssignment {
   @@index([sessionId, startTime, endTime])
   @@index([rotationGroupId, orderIndex])
   @@index([trainingSpaceId, startTime, endTime])
+}
+
+model ClubRotationPlan {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  locationId            String
+  createdByMembershipId String
+  name                  String
+  effectiveFrom         DateTime
+  effectiveTo           DateTime?
+  anchorDate            DateTime
+  weeksPerVariant       Int      @default(1)
+  variantCount          Int      @default(1)
+  status                String   @default("ACTIVE")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  location FacilityLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+  slots ClubRotationSlot[]
+  sessions TrainingSession[]
+
+  @@index([organisationId, status, effectiveFrom])
+  @@index([locationId, status])
+}
+
+model ClubRotationSlot {
+  id                String   @id @default(cuid())
+  planId            String
+  variantIndex      Int
+  dayOfWeek         String
+  trainingGroupId   String
+  trainingSpaceId   String
+  coachMembershipId String?
+  startTime         String
+  endTime           String
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  plan ClubRotationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  trainingSpace TrainingSpace @relation(fields: [trainingSpaceId], references: [id], onDelete: Cascade)
+  coach OrganisationMembership? @relation(fields: [coachMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([planId, variantIndex, dayOfWeek, startTime])
+  @@index([trainingGroupId, dayOfWeek])
+  @@index([trainingSpaceId, dayOfWeek, startTime])
 }
 
 model TrainingAttendance {

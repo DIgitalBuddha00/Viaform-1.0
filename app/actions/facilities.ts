@@ -7,6 +7,7 @@ import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
 
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
+const APPARATUS = ["WARM_UP", "VAULT", "BARS", "BEAM", "FLOOR", "CONDITIONING", "RINGS", "POMMEL_HORSE", "PARALLEL_BARS", "HIGH_BAR", "TUMBLING", "OTHER"];
 
 async function facilityManager() {
   const context = await requireAuthContext();
@@ -92,15 +93,17 @@ export async function createTrainingSpace(data: FormData) {
   const context = await facilityManager();
   const locationId = value(data, "locationId");
   const name = value(data, "name");
+  const apparatus = value(data, "apparatus") || null;
   const capacityRaw = value(data, "capacity");
   const capacity = capacityRaw ? Number(capacityRaw) : null;
   const location = await locationInOrganisation(locationId, context.organisation.id);
-  if (!location || !name || (capacity !== null && (!Number.isInteger(capacity) || capacity < 1))) return;
+  if (!location || !name || (apparatus && !APPARATUS.includes(apparatus)) || (capacity !== null && (!Number.isInteger(capacity) || capacity < 1))) return;
   const count = await prisma.trainingSpace.count({ where: { locationId } });
   await prisma.trainingSpace.create({
     data: {
       locationId,
       name,
+      apparatus,
       capacity,
       shareable: value(data, "shareable") === "on",
       notes: value(data, "notes") || null,
@@ -114,14 +117,16 @@ export async function updateTrainingSpace(data: FormData) {
   const context = await facilityManager();
   const id = value(data, "spaceId");
   const name = value(data, "name");
+  const apparatus = value(data, "apparatus") || null;
   const capacityRaw = value(data, "capacity");
   const capacity = capacityRaw ? Number(capacityRaw) : null;
   const space = await spaceInOrganisation(id, context.organisation.id);
-  if (!space || !name || (capacity !== null && (!Number.isInteger(capacity) || capacity < 1))) return;
+  if (!space || !name || (apparatus && !APPARATUS.includes(apparatus)) || (capacity !== null && (!Number.isInteger(capacity) || capacity < 1))) return;
   await prisma.trainingSpace.update({
     where: { id },
     data: {
       name,
+      apparatus,
       capacity,
       shareable: value(data, "shareable") === "on",
       notes: value(data, "notes") || null,

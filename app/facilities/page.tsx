@@ -14,6 +14,7 @@ import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 
 export const dynamic = "force-dynamic";
+const APPARATUS = [["", "Type (optional)"], ["WARM_UP", "Warm-up"], ["VAULT", "Vault"], ["BARS", "Bars"], ["BEAM", "Beam"], ["FLOOR", "Floor"], ["CONDITIONING", "Conditioning"], ["RINGS", "Rings"], ["POMMEL_HORSE", "Pommel horse"], ["PARALLEL_BARS", "Parallel bars"], ["HIGH_BAR", "High bar"], ["TUMBLING", "Tumbling"], ["OTHER", "Other"]] as const;
 
 export default async function FacilitiesPage() {
   const c = await requireAuthContext();
@@ -76,7 +77,7 @@ export default async function FacilitiesPage() {
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <span className="font-semibold">{space.name}</span>
-                          <span className="ml-2 text-xs text-[var(--muted)]">{space.shareable ? "Shareable" : "Exclusive"}{space.capacity ? " · capacity " + space.capacity : ""}</span>
+                          <span className="ml-2 text-xs text-[var(--muted)]">{space.apparatus ? space.apparatus.replaceAll("_", " ") + " · " : ""}{space.shareable ? "Shareable" : "Exclusive"}{space.capacity ? " · capacity " + space.capacity : ""}</span>
                         </div>
                         <span className="text-sm text-[var(--muted)]">{space.resources.length} resources</span>
                       </div>
@@ -137,6 +138,7 @@ export default async function FacilitiesPage() {
                           <form action={updateTrainingSpace} className="mt-3 grid gap-2 md:grid-cols-3">
                             <input type="hidden" name="spaceId" value={space.id} />
                             <input name="name" required defaultValue={space.name} className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                            <select name="apparatus" defaultValue={space.apparatus ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">{APPARATUS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
                             <input name="capacity" type="number" min="1" defaultValue={space.capacity ?? ""} placeholder="Capacity (optional)" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                             <label className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
                               <input name="shareable" type="checkbox" defaultChecked={space.shareable} /> Shareable
@@ -156,12 +158,13 @@ export default async function FacilitiesPage() {
               </div>
 
               {canConfigure && (
-                <form action={createTrainingSpace} className="mt-4 grid gap-2 rounded-xl border border-[var(--border)] p-4 md:grid-cols-[1fr_140px_160px_2fr_auto]">
+                <form action={createTrainingSpace} className="mt-4 grid gap-2 rounded-xl border border-[var(--border)] p-4 md:grid-cols-3">
                   <input type="hidden" name="locationId" value={location.id} />
-                  <input name="name" required placeholder="Training space" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                  <input name="name" required placeholder="Apparatus or space name (e.g. Bars 2)" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                  <select name="apparatus" className="rounded-lg border border-[var(--border)] px-3 py-2">{APPARATUS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
                   <input name="capacity" type="number" min="1" placeholder="Capacity" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                   <label className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                    <input name="shareable" type="checkbox" defaultChecked /> Shareable
+                    <input name="shareable" type="checkbox" /> Shareable
                   </label>
                   <input name="notes" placeholder="Optional note" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                   <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add space</button>

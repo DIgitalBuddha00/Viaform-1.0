@@ -21,15 +21,8 @@ import {
   clearSessionFacility,
   removeSessionBlockResource,
 } from "@/app/actions/facilities";
-import {
-  assignGymnastToRotationGroup,
-  createRotationAssignment,
-  createRotationGroup,
-  deleteRotationAssignment,
-  deleteRotationGroup,
-  removeGymnastFromRotationGroup,
-  updateRotationAssignment,
-} from "@/app/actions/rotations";
+import { applyClubRotationToSession, clearClubRotationFromSession } from "@/app/actions/club-rotations";
+import { rotationDay, rotationVariant } from "@/app/lib/club-rotation-time";
 import {
   createSessionStation,
   deleteSessionStation,
@@ -72,6 +65,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
       _count: { select: { evidence: true, attendance: true } },
       facilityAssignment: { include: { location: true } },
+      clubRotationPlan: true,
       rotationGroups: {
         orderBy: [{ orderIndex: "asc" }, { name: "asc" }],
         include: {
@@ -108,9 +102,17 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
   const activeFacility = session.facilityAssignment?.locationId
     ? facilities.find((facility) => facility.id === session.facilityAssignment?.locationId)
     : null;
-  const rotationAssignedIds = new Set(session.rotationGroups.flatMap((group) => group.gymnasts.map((entry) => entry.gymnastId)));
-  const unassignedRotationGymnasts = session.gymnasts.filter((entry) => !rotationAssignedIds.has(entry.gymnastId));
-  const canManageRotations = c.access.canManageRotations;
+  const rotationPlans = session.status === "PLANNED" ? await prisma.clubRotationPlan.findMany({
+    where: {
+      organisationId: c.organisation.id, status: "ACTIVE",
+      effectiveFrom: { lte: session.sessionDate },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: session.sessionDate } }],
+      ...(session.facilityAssignment ? { locationId: session.facilityAssignment.locationId } : {}),
+    },
+    include: { location: true, slots: { where: { dayOfWeek: rotationDay(session.sessionDate), trainingGroupId: session.trainingGroupId, startTime: { gte: session.startTime }, endTime: { lte: session.endTime } } } },
+  }) : [];
+  const matchingRotations = rotationPlans.map(p => ({ ...p, variant: rotationVariant(p, session.sessionDate) }))
+    .filter(p => p.slots.some(s => s.variantIndex === p.variant));
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
@@ -422,165 +424,32 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
           <button className="mt-3 rounded-xl bg-[var(--foreground)] px-4 py-3 font-semibold text-white">Add block</button>
         </form>
 
-        <section className="mt-8">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-[var(--muted)]">Operational plan</p>
-              <h2 className="mt-1 text-2xl font-semibold">Basic rotations</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-                Split the session roster into subgroups, then assign each subgroup to a block and training space for a defined time window.
-              </p>
+        {(matchingRotations.length > 0 || session.clubRotationPlanId || session.rotationGroups.length > 0) && (
+          <section className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold">Rotation</h2>
+              <a href="/rotations" className="text-sm font-semibold underline">Club rotas</a>
             </div>
-            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-sm">
-              {session.rotationGroups.length} {session.rotationGroups.length === 1 ? "subgroup" : "subgroups"}
-            </span>
-          </div>
-
-          <div className="mt-4 grid gap-4">
-            {session.rotationGroups.map((group) => (
-              <article key={group.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold">{group.name}</h3>
-                    <p className="mt-1 text-sm text-[var(--muted)]">
-                      {group.gymnasts.length} gymnasts · {group.assignments.length} rotation slots
-                    </p>
-                  </div>
-                  {canManageRotations && (
-                    <form action={deleteRotationGroup}>
-                      <input type="hidden" name="sessionId" value={session.id} />
-                      <input type="hidden" name="rotationGroupId" value={group.id} />
-                      <button className="text-sm text-[var(--muted)]">Delete subgroup</button>
-                    </form>
-                  )}
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {group.gymnasts.length ? group.gymnasts.map((entry) => (
-                    <div key={entry.gymnastId} className="flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-2 text-sm">
-                      <span>{entry.gymnast.name}</span>
-                      {canManageRotations && (
-                        <form action={removeGymnastFromRotationGroup}>
-                          <input type="hidden" name="sessionId" value={session.id} />
-                          <input type="hidden" name="gymnastId" value={entry.gymnastId} />
-                          <button className="text-xs text-[var(--muted)]">×</button>
-                        </form>
-                      )}
-                    </div>
-                  )) : <span className="text-sm text-[var(--muted)]">No gymnasts assigned yet.</span>}
-                </div>
-
-                {canManageRotations && unassignedRotationGymnasts.length > 0 && (
-                  <form action={assignGymnastToRotationGroup} className="mt-3 flex flex-wrap gap-2">
-                    <input type="hidden" name="sessionId" value={session.id} />
-                    <input type="hidden" name="rotationGroupId" value={group.id} />
-                    <select name="gymnastId" required className="min-w-56 rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                      <option value="">Add gymnast…</option>
-                      {unassignedRotationGymnasts.map((entry) => (
-                        <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>
-                      ))}
-                    </select>
-                    <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add</button>
-                  </form>
-                )}
-
-                <div className="mt-5 grid gap-3">
-                  {group.assignments.map((assignment) => (
-                    <details key={assignment.id} className="rounded-xl border border-[var(--border)] px-4 py-3">
-                      <summary className="cursor-pointer list-none">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <span className="font-semibold">{assignment.startTime}–{assignment.endTime}</span>
-                            <span className="ml-2 text-sm text-[var(--muted)]">
-                              {assignment.block?.title || "Open rotation"}
-                              {assignment.trainingSpace ? " · " + assignment.trainingSpace.name : ""}
-                            </span>
-                          </div>
-                          {assignment.trainingSpace && (
-                            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">
-                              {assignment.trainingSpace.shareable ? "Shareable" : "Exclusive"}
-                            </span>
-                          )}
-                        </div>
-                        {assignment.notes && <p className="mt-2 text-sm text-[var(--muted)]">{assignment.notes}</p>}
-                      </summary>
-
-                      {canManageRotations && (
-                        <div className="mt-4 border-t border-[var(--border)] pt-4">
-                          <form action={updateRotationAssignment} className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                            <input type="hidden" name="sessionId" value={session.id} />
-                            <input type="hidden" name="assignmentId" value={assignment.id} />
-                            <input type="hidden" name="rotationGroupId" value={group.id} />
-                            <select name="blockId" defaultValue={assignment.blockId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                              <option value="">Open rotation</option>
-                              {session.blocks.map((block) => <option key={block.id} value={block.id}>{block.title}</option>)}
-                            </select>
-                            <select name="spaceId" defaultValue={assignment.trainingSpaceId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                              <option value="">No space</option>
-                              {(activeFacility?.spaces ?? []).map((space) => (
-                                <option key={space.id} value={space.id}>{space.name}{space.shareable ? " · shareable" : " · exclusive"}</option>
-                              ))}
-                            </select>
-                            <input name="notes" defaultValue={assignment.notes ?? ""} placeholder="Rotation note" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-                            <input name="startTime" type="time" required defaultValue={assignment.startTime} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-                            <input name="endTime" type="time" required defaultValue={assignment.endTime} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-                            <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save rotation</button>
-                          </form>
-                          <form action={deleteRotationAssignment} className="mt-3">
-                            <input type="hidden" name="sessionId" value={session.id} />
-                            <input type="hidden" name="assignmentId" value={assignment.id} />
-                            <button className="text-sm text-[var(--muted)]">Delete rotation slot</button>
-                          </form>
-                        </div>
-                      )}
-                    </details>
-                  ))}
-                </div>
-
-                {canManageRotations && (
-                  <form action={createRotationAssignment} className="mt-4 grid gap-2 rounded-xl border border-[var(--border)] p-4 md:grid-cols-2 lg:grid-cols-3">
-                    <input type="hidden" name="sessionId" value={session.id} />
-                    <input type="hidden" name="rotationGroupId" value={group.id} />
-                    <select name="blockId" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                      <option value="">Open rotation</option>
-                      {session.blocks.map((block) => <option key={block.id} value={block.id}>{block.title}</option>)}
-                    </select>
-                    <select name="spaceId" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                      <option value="">No space</option>
-                      {(activeFacility?.spaces ?? []).map((space) => (
-                        <option key={space.id} value={space.id}>{space.name}{space.shareable ? " · shareable" : " · exclusive"}{space.capacity ? " · cap " + space.capacity : ""}</option>
-                      ))}
-                    </select>
-                    <input name="notes" placeholder="Rotation note" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-                    <input name="startTime" type="time" required min={session.startTime} max={session.endTime} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-                    <input name="endTime" type="time" required min={session.startTime} max={session.endTime} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-                    <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add rotation slot</button>
-                  </form>
-                )}
-              </article>
-            ))}
-
-            {!session.rotationGroups.length && (
-              <div className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--muted)]">
-                No rotation subgroups yet. Create them only when the session needs gymnasts working in parallel.
+            {session.clubRotationPlan && <p className="mt-3 text-sm font-semibold">{session.clubRotationPlan.name} · Rota {(session.clubRotationVariant ?? 0) + 1}</p>}
+            {session.rotationGroups.flatMap(group => group.assignments.map(assignment => (
+              <div key={assignment.id} className="mt-2 flex flex-wrap gap-2 text-sm">
+                <strong>{assignment.startTime}–{assignment.endTime}</strong>
+                <span>{assignment.trainingSpace?.name ?? "Open rotation"}</span>
+                {assignment.notes && <span className="text-[var(--muted)]">{assignment.notes}</span>}
               </div>
+            )))}
+            {session.status === "PLANNED" && matchingRotations.length > 0 && (
+              <form action={applyClubRotationToSession} className="mt-4 flex flex-wrap items-center gap-2">
+                <input type="hidden" name="sessionId" value={session.id} />
+                <select name="planId" aria-label="Club rota" className="min-w-52 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm">
+                  {matchingRotations.map(p => <option key={p.id} value={p.id}>{p.name} · Rota {p.variant + 1} · {p.location.name}</option>)}
+                </select>
+                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.clubRotationPlanId ? "Replace rota" : "Use rota"}</button>
+              </form>
             )}
-          </div>
-
-          {canManageRotations && (
-            <form action={createRotationGroup} className="mt-4 flex flex-wrap gap-2">
-              <input type="hidden" name="sessionId" value={session.id} />
-              <input name="name" required placeholder="Subgroup name" className="min-w-56 rounded-lg border border-[var(--border)] px-3 py-2" />
-              <button className="rounded-lg bg-[var(--foreground)] px-4 py-2 font-semibold text-white">Add subgroup</button>
-            </form>
-          )}
-
-          {session.rotationGroups.length > 0 && !session.facilityAssignment && (
-            <p className="mt-3 text-sm text-[var(--muted)]">
-              Assign a facility above to use configured spaces and exclusive-space clash protection.
-            </p>
-          )}
-        </section>
+            {session.status === "PLANNED" && session.clubRotationPlanId && <form action={clearClubRotationFromSession} className="mt-3"><input type="hidden" name="sessionId" value={session.id}/><button className="text-sm text-[var(--muted)] underline">Remove rota from session</button></form>}
+          </section>
+        )}
 
         <details className="mt-8 rounded-2xl border border-[var(--border)] p-4">
           <summary className="cursor-pointer text-sm font-semibold">Remove session</summary>
