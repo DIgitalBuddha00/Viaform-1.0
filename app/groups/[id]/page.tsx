@@ -9,6 +9,7 @@ import {
   deleteGroupScheduleSlot,
   updateGroupScheduleSlot,
 } from "@/app/actions/planning";
+import { assignGroupFacility, clearGroupFacility } from "@/app/actions/facilities";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export default async function GroupOverview({ params }: { params: Promise<{ id: 
       coachAssignments: { include: { membership: { include: { user: true } } } },
       programmeAssignments: { include: { programme: true, stage: true } },
       scheduleSlots: { orderBy: [{ orderIndex: "asc" }, { startTime: "asc" }] },
+      facilityPreference: { include: { location: true } },
     },
   });
   if (!group) notFound();
@@ -58,6 +60,10 @@ export default async function GroupOverview({ params }: { params: Promise<{ id: 
       })
     : [];
   const canManageSchedule = c.access.canManageRotations;
+  const facilities = await prisma.facilityLocation.findMany({
+    where: { organisationId: c.organisation.id, status: "ACTIVE" },
+    orderBy: { name: "asc" },
+  });
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
@@ -146,6 +152,32 @@ export default async function GroupOverview({ params }: { params: Promise<{ id: 
               <input name="notes" placeholder="Optional note" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
               <button className="rounded-lg bg-[var(--foreground)] px-3 py-2 text-sm font-semibold text-white">Add time</button>
             </form>
+          )}
+        </article>
+
+        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-semibold">Default training facility</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            {group.facilityPreference?.location.name || "No default facility assigned"}
+          </p>
+          {canManageSchedule && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <form action={assignGroupFacility} className="flex flex-wrap gap-2">
+                <input type="hidden" name="groupId" value={group.id} />
+                <select name="locationId" required defaultValue={group.facilityPreference?.locationId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                  <option value="">Choose facility…</option>
+                  {facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
+                </select>
+                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Set default</button>
+              </form>
+              {group.facilityPreference && (
+                <form action={clearGroupFacility}>
+                  <input type="hidden" name="groupId" value={group.id} />
+                  <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button>
+                </form>
+              )}
+              <a href="/facilities" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Manage facilities</a>
+            </div>
           )}
         </article>
 

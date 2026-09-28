@@ -12,6 +12,14 @@ import {
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
+import {
+  assignSessionBlockResource,
+  assignSessionBlockSpace,
+  assignSessionFacility,
+  clearSessionBlockSpace,
+  clearSessionFacility,
+  removeSessionBlockResource,
+} from "@/app/actions/facilities";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +45,15 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
     },
     include: {
       trainingGroup: { include: { memberships: { include: { gymnast: true }, orderBy: { joinedAt: "asc" } } } },
-      blocks: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
+      blocks: {
+        orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+        include: {
+          spaceAssignment: { include: { trainingSpace: true } },
+          resourceAssignments: { include: { resource: { include: { trainingSpace: true } } } },
+        },
+      },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
+      facilityAssignment: { include: { location: true } },
     },
   });
   if (!session) notFound();
@@ -51,6 +66,20 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
   const plannedMinutes = session.blocks.reduce((sum, block) => sum + (block.durationMin ?? 0), 0);
   const assignedIds = new Set(session.gymnasts.map((entry) => entry.gymnastId));
   const availableGymnasts = session.trainingGroup.memberships.filter((membership) => !assignedIds.has(membership.gymnastId));
+  const facilities = await prisma.facilityLocation.findMany({
+    where: { organisationId: c.organisation.id, status: "ACTIVE" },
+    include: {
+      spaces: {
+        where: { status: "ACTIVE" },
+        include: { resources: { where: { status: "ACTIVE" }, orderBy: [{ orderIndex: "asc" }, { name: "asc" }] } },
+        orderBy: [{ orderIndex: "asc" }, { name: "asc" }],
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+  const activeFacility = session.facilityAssignment?.locationId
+    ? facilities.find((facility) => facility.id === session.facilityAssignment?.locationId)
+    : null;
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
@@ -82,6 +111,34 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
             <p className="mt-1 text-sm text-[var(--muted)]">gymnasts assigned to session</p>
           </article>
         </div>
+
+        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Facility</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                {session.facilityAssignment?.location.name || "No facility assigned to this session"}
+              </p>
+            </div>
+            <a href="/facilities" className="text-sm font-semibold">Facilities & equipment →</a>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <form action={assignSessionFacility} className="flex flex-wrap gap-2">
+              <input type="hidden" name="sessionId" value={session.id} />
+              <select name="locationId" required defaultValue={session.facilityAssignment?.locationId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                <option value="">Choose facility…</option>
+                {facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
+              </select>
+              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Assign facility</button>
+            </form>
+            {session.facilityAssignment && (
+              <form action={clearSessionFacility}>
+                <input type="hidden" name="sessionId" value={session.id} />
+                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button>
+              </form>
+            )}
+          </div>
+        </article>
 
         {(session.programmeNameSnapshot || session.stageNameSnapshot) && (
           <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -190,6 +247,63 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                 <textarea name="notes" defaultValue={block.notes ?? ""} placeholder="Block notes" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
                 <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save block</button>
               </form>
+              <div className="mt-4 border-t border-[var(--border)] pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Space & resources</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <form action={assignSessionBlockSpace} className="flex flex-wrap gap-2">
+                    <input type="hidden" name="sessionId" value={session.id} />
+                    <input type="hidden" name="blockId" value={block.id} />
+                    <select name="spaceId" required defaultValue={block.spaceAssignment?.trainingSpaceId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+                      <option value="">Choose training space…</option>
+                      {(activeFacility?.spaces ?? []).map((space) => (
+                        <option key={space.id} value={space.id}>
+                          {space.name}{space.shareable ? " · shareable" : " · exclusive"}{space.capacity ? " · cap " + space.capacity : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Set space</button>
+                  </form>
+                  {block.spaceAssignment && (
+                    <form action={clearSessionBlockSpace}>
+                      <input type="hidden" name="sessionId" value={session.id} />
+                      <input type="hidden" name="blockId" value={block.id} />
+                      <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear space</button>
+                    </form>
+                  )}
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {block.resourceAssignments.map((assignment) => (
+                    <div key={assignment.resourceId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border)] px-3 py-2">
+                      <span className="text-sm">{assignment.resource.name} · qty {assignment.quantity}</span>
+                      <form action={removeSessionBlockResource}>
+                        <input type="hidden" name="sessionId" value={session.id} />
+                        <input type="hidden" name="blockId" value={block.id} />
+                        <input type="hidden" name="resourceId" value={assignment.resourceId} />
+                        <button className="text-xs text-[var(--muted)]">Remove</button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+                {block.spaceAssignment && (() => {
+                  const space = activeFacility?.spaces.find((candidate) => candidate.id === block.spaceAssignment?.trainingSpaceId);
+                  const assigned = new Set(block.resourceAssignments.map((assignment) => assignment.resourceId));
+                  const resources = (space?.resources ?? []).filter((resource) => resource.availability !== "UNAVAILABLE" && !assigned.has(resource.id));
+                  return resources.length ? (
+                    <form action={assignSessionBlockResource} className="mt-3 flex flex-wrap gap-2">
+                      <input type="hidden" name="sessionId" value={session.id} />
+                      <input type="hidden" name="blockId" value={block.id} />
+                      <select name="resourceId" required className="min-w-56 rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+                        <option value="">Add equipment/resource…</option>
+                        {resources.map((resource) => (
+                          <option key={resource.id} value={resource.id}>{resource.name} · available {resource.quantity}</option>
+                        ))}
+                      </select>
+                      <input name="quantity" type="number" min="1" defaultValue="1" className="w-24 rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
+                      <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add</button>
+                    </form>
+                  ) : null;
+                })()}
+              </div>
               <form action={deleteSessionBlock} className="mt-3">
                 <input type="hidden" name="sessionId" value={session.id} />
                 <input type="hidden" name="blockId" value={block.id} />

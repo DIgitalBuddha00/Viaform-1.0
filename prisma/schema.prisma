@@ -39,6 +39,7 @@ model Organisation {
   coachingProgrammes CoachingProgramme[]
   rulesetAssignments OrganisationRulesetAssignment[]
   trainingSessions TrainingSession[]
+  facilityLocations FacilityLocation[]
 }
 
 model OrganisationMembership {
@@ -92,6 +93,7 @@ model TrainingGroup {
   programmeAssignments TrainingGroupProgrammeAssignment[]
   scheduleSlots TrainingGroupSchedule[]
   trainingSessions TrainingSession[]
+  facilityPreference TrainingGroupFacility?
 
   @@unique([organisationId, name])
   @@index([organisationId, name])
@@ -251,6 +253,7 @@ model TrainingSession {
   programmeStage ProgrammeStage? @relation(fields: [programmeStageId], references: [id], onDelete: SetNull)
   blocks SessionBlock[]
   gymnasts TrainingSessionGymnast[]
+  facilityAssignment TrainingSessionFacility?
 
   @@index([organisationId, sessionDate])
   @@index([trainingGroupId, sessionDate])
@@ -284,8 +287,115 @@ model SessionBlock {
   updatedAt      DateTime @updatedAt
 
   session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  spaceAssignment SessionBlockSpace?
+  resourceAssignments SessionBlockResource[]
 
   @@index([sessionId, orderIndex])
+}
+
+model FacilityLocation {
+  id             String   @id @default(cuid())
+  organisationId String
+  name           String
+  notes          String?
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  spaces TrainingSpace[]
+  groupPreferences TrainingGroupFacility[]
+  sessionAssignments TrainingSessionFacility[]
+
+  @@unique([organisationId, name])
+  @@index([organisationId, status])
+}
+
+model TrainingSpace {
+  id         String   @id @default(cuid())
+  locationId String
+  name       String
+  capacity   Int?
+  shareable  Boolean  @default(true)
+  notes      String?
+  status     String   @default("ACTIVE")
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  location FacilityLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  resources FacilityResource[]
+  blockAssignments SessionBlockSpace[]
+
+  @@unique([locationId, name])
+  @@index([locationId, orderIndex, status])
+}
+
+model FacilityResource {
+  id              String   @id @default(cuid())
+  trainingSpaceId String
+  name            String
+  category        String
+  quantity        Int      @default(1)
+  capacity        Int      @default(1)
+  availability    String   @default("AVAILABLE")
+  setupNotes      String?
+  status          String   @default("ACTIVE")
+  orderIndex      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trainingSpace TrainingSpace @relation(fields: [trainingSpaceId], references: [id], onDelete: Cascade)
+  blockAssignments SessionBlockResource[]
+
+  @@unique([trainingSpaceId, name])
+  @@index([trainingSpaceId, category, status])
+}
+
+model TrainingGroupFacility {
+  trainingGroupId String @id
+  locationId      String
+  assignedAt      DateTime @default(now())
+
+  trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  location FacilityLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([locationId])
+}
+
+model TrainingSessionFacility {
+  sessionId  String @id
+  locationId String
+  assignedAt DateTime @default(now())
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  location FacilityLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([locationId])
+}
+
+model SessionBlockSpace {
+  blockId         String @id
+  trainingSpaceId String
+  assignedAt      DateTime @default(now())
+
+  block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  trainingSpace TrainingSpace @relation(fields: [trainingSpaceId], references: [id], onDelete: Cascade)
+
+  @@index([trainingSpaceId])
+}
+
+model SessionBlockResource {
+  blockId    String
+  resourceId String
+  quantity   Int @default(1)
+  assignedAt DateTime @default(now())
+
+  block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  resource FacilityResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@id([blockId, resourceId])
+  @@index([resourceId])
 }
 
 model RulesetProgram {

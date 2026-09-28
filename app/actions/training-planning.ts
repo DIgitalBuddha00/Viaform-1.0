@@ -39,6 +39,7 @@ async function visibleGroup(groupId: string, context: Awaited<ReturnType<typeof 
       programmeAssignments: { include: { programme: true, stage: true } },
       scheduleSlots: true,
       memberships: { select: { gymnastId: true } },
+      facilityPreference: true,
     },
   });
 }
@@ -88,6 +89,9 @@ export async function createTrainingSession(data: FormData) {
           source: "GROUP",
         })),
       },
+      facilityAssignment: group.facilityPreference
+        ? { create: { locationId: group.facilityPreference.locationId } }
+        : undefined,
     },
   });
   revalidatePath("/planning");
