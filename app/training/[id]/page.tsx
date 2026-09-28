@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
 import {
   finishTrainingSession,
+  markAllTrainingPresent,
+  recordTrainingAttendance,
   recordTrainingEvidence,
   startTrainingSession,
   undoLastTrainingEvidence,
@@ -52,6 +54,7 @@ export default async function LiveTrainingSessionPage({
       },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
       evidence: { orderBy: { recordedAt: "asc" } },
+      attendance: true,
       facilityAssignment: { include: { location: true } },
     },
   });
@@ -73,6 +76,8 @@ export default async function LiveTrainingSessionPage({
   const missed = blockEvidence.filter((entry) => entry.outcome === "MISSED").length;
   const spotted = blockEvidence.filter((entry) => entry.outcome === "SPOTTED").length;
   const isLive = session.status === "IN_PROGRESS";
+  const attendanceByGymnast = new Map(session.attendance.map((entry) => [entry.gymnastId, entry.status]));
+  const presentCount = session.attendance.filter((entry) => entry.status === "PRESENT" || entry.status === "LATE").length;
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
@@ -103,6 +108,56 @@ export default async function LiveTrainingSessionPage({
             )}
           </div>
         </div>
+
+        <details className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5" open={isLive && session.attendance.length < session.gymnasts.length}>
+          <summary className="cursor-pointer list-none">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold">Attendance</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">{presentCount} present / late · {session.gymnasts.length} assigned</p>
+              </div>
+              {isLive && <span className="text-sm font-semibold">Tap to record →</span>}
+            </div>
+          </summary>
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            {isLive && (
+              <form action={markAllTrainingPresent} className="mb-3">
+                <input type="hidden" name="sessionId" value={session.id} />
+                <button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Mark all present</button>
+              </form>
+            )}
+            <div className="grid gap-2">
+              {session.gymnasts.map((entry) => {
+                const status = attendanceByGymnast.get(entry.gymnastId) ?? "NOT_RECORDED";
+                return (
+                  <div key={entry.gymnastId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-3 py-3">
+                    <div>
+                      <p className="font-medium">{entry.gymnast.name}</p>
+                      <p className="mt-1 text-xs text-[var(--muted)]">{status.replaceAll("_", " ")}</p>
+                    </div>
+                    {isLive && (
+                      <div className="flex flex-wrap gap-2">
+                        {(["PRESENT", "ABSENT", "LATE"] as const).map((attendanceStatus) => (
+                          <form key={attendanceStatus} action={recordTrainingAttendance}>
+                            <input type="hidden" name="sessionId" value={session.id} />
+                            <input type="hidden" name="gymnastId" value={entry.gymnastId} />
+                            <button
+                              name="status"
+                              value={attendanceStatus}
+                              className={"rounded-lg border px-3 py-2 text-xs font-semibold " + (status === attendanceStatus ? "border-[var(--foreground)]" : "border-[var(--border)]")}
+                            >
+                              {attendanceStatus === "PRESENT" ? "Present" : attendanceStatus === "ABSENT" ? "Absent" : "Late"}
+                            </button>
+                          </form>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </details>
 
         <div className="mt-6 overflow-x-auto pb-2">
           <div className="flex min-w-max gap-2">
@@ -195,6 +250,7 @@ export default async function LiveTrainingSessionPage({
                     <div className="grid gap-3 lg:grid-cols-[minmax(180px,1fr)_auto] lg:items-center">
                       <div>
                         <a href={"/gymnasts/" + entry.gymnastId} className="font-semibold hover:underline">{entry.gymnast.name}</a>
+                        <p className="mt-1 text-xs text-[var(--muted)]">Attendance: {(attendanceByGymnast.get(entry.gymnastId) ?? "NOT_RECORDED").replaceAll("_", " ")}</p>
                         <p className="mt-1 text-xs text-[var(--muted)]">
                           {evidence.length
                             ? evidence.length + " observations · latest " + outcomeLabel[latest.outcome]

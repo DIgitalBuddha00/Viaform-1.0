@@ -7,6 +7,7 @@ import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
 
 const OUTCOMES = ["MADE", "MISSED", "SPOTTED"] as const;
+const ATTENDANCE = ["PRESENT", "ABSENT", "LATE"] as const;
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
 
 async function coachingContext() {
@@ -112,5 +113,70 @@ export async function undoLastTrainingEvidence(data: FormData) {
   });
   if (!latest) return;
   await prisma.trainingEvidence.delete({ where: { id: latest.id } });
+  revalidatePath("/training/" + sessionId);
+}
+
+
+export async function recordTrainingAttendance(data: FormData) {
+  const context = await coachingContext();
+  const sessionId = value(data, "sessionId");
+  const gymnastId = value(data, "gymnastId");
+  const status = value(data, "status");
+  if (!ATTENDANCE.includes(status as (typeof ATTENDANCE)[number])) return;
+
+  const session = await visibleSession(sessionId, context);
+  if (!session || session.status !== "IN_PROGRESS") return;
+  const assigned = await prisma.trainingSessionGymnast.findUnique({
+    where: { sessionId_gymnastId: { sessionId, gymnastId } },
+  });
+  if (!assigned) return;
+
+  await prisma.trainingAttendance.upsert({
+    where: { sessionId_gymnastId: { sessionId, gymnastId } },
+    create: {
+      sessionId,
+      gymnastId,
+      status,
+      recordedByMembershipId: context.membership.id,
+    },
+    update: {
+      status,
+      recordedByMembershipId: context.membership.id,
+      recordedAt: new Date(),
+    },
+  });
+  revalidatePath("/training/" + sessionId);
+}
+
+export async function markAllTrainingPresent(data: FormData) {
+  const context = await coachingContext();
+  const sessionId = value(data, "sessionId");
+  const session = await visibleSession(sessionId, context);
+  if (!session || session.status !== "IN_PROGRESS") return;
+
+  const assigned = await prisma.trainingSessionGymnast.findMany({
+    where: { sessionId },
+    select: { gymnastId: true },
+  });
+  const now = new Date();
+  await prisma.$transaction(
+    assigned.map((entry) =>
+      prisma.trainingAttendance.upsert({
+        where: { sessionId_gymnastId: { sessionId, gymnastId: entry.gymnastId } },
+        create: {
+          sessionId,
+          gymnastId: entry.gymnastId,
+          status: "PRESENT",
+          recordedByMembershipId: context.membership.id,
+          recordedAt: now,
+        },
+        update: {
+          status: "PRESENT",
+          recordedByMembershipId: context.membership.id,
+          recordedAt: now,
+        },
+      })
+    )
+  );
   revalidatePath("/training/" + sessionId);
 }

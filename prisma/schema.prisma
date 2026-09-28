@@ -59,6 +59,7 @@ model OrganisationMembership {
   groupAssignments TrainingGroupCoach[]
   createdTrainingSessions TrainingSession[]
   recordedTrainingEvidence TrainingEvidence[]
+  recordedTrainingAttendance TrainingAttendance[]
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
@@ -133,6 +134,7 @@ model Gymnast {
   trainingSessions TrainingSessionGymnast[]
   rotationAssignments SessionRotationGymnast[]
   trainingEvidence TrainingEvidence[]
+  trainingAttendance TrainingAttendance[]
 
   @@index([organisationId, name])
 }
@@ -261,6 +263,7 @@ model TrainingSession {
   rotationGymnasts SessionRotationGymnast[]
   rotationAssignments SessionRotationAssignment[]
   evidence TrainingEvidence[]
+  attendance TrainingAttendance[]
 
   @@index([organisationId, sessionDate])
   @@index([trainingGroupId, sessionDate])
@@ -460,6 +463,23 @@ model SessionRotationAssignment {
   @@index([sessionId, startTime, endTime])
   @@index([rotationGroupId, orderIndex])
   @@index([trainingSpaceId, startTime, endTime])
+}
+
+model TrainingAttendance {
+  sessionId              String
+  gymnastId              String
+  status                 String   @default("NOT_RECORDED")
+  recordedByMembershipId String
+  recordedAt             DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  recordedBy OrganisationMembership @relation(fields: [recordedByMembershipId], references: [id], onDelete: Restrict)
+
+  @@id([sessionId, gymnastId])
+  @@index([gymnastId, recordedAt])
+  @@index([recordedByMembershipId, recordedAt])
 }
 
 model SessionStation {
