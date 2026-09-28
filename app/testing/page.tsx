@@ -55,7 +55,7 @@ export default async function TestingPage() {
 
         <form action={createTestingSession} className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="font-semibold">Start a group testing session</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">The current group roster is snapshotted into the testing session.</p>
+          
           <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <select name="groupId" required className="rounded-xl border border-[var(--border)] px-3 py-3">
               <option value="">Choose group…</option>

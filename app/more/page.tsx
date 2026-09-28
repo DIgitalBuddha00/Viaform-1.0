@@ -1,27 +1,2 @@
-import { AppShell } from "@/app/components/app-shell";
-import { requireAuthContext } from "@/app/lib/auth";
-
-export const dynamic = "force-dynamic";
-
-export default async function MorePage() {
-  const c = await requireAuthContext();
-  const cards = [
-    { label: "Appearance", href: "/appearance", detail: "Choose your Viaform theme and manage presentation preferences.", show: true },
-    { label: "People & roles", href: "/people", detail: "Staff accounts, coaching roles, delegated responsibilities and access.", show: c.access.canManagePeopleAndRoles },
-    { label: "Programmes", href: "/programmes", detail: "Club-owned coaching programmes, stages and pathway context.", show: c.access.canManageProgrammesAndMethodology || c.access.canUseCoachingWorkspace },
-    { label: "Programme leadership", href: "/programme-leads", detail: "Assign Programme Leads and Head Coaches to explicit programme responsibilities.", show: c.access.canManageProgrammesAndMethodology },
-    { label: "Methodology", href: "/methodology", detail: "Sourced club coaching approaches, boundaries, uncertainty and review.", show: c.access.canUseCoachingWorkspace || c.access.canManageProgrammesAndMethodology },
-    { label: "Trusted contributors", href: "/contributors", detail: "Register external coaching sources and preserve the scope in which the club trusts their contribution.", show: c.access.canManageProgrammesAndMethodology },
-    { label: "Updates & digest", href: "/updates", detail: "Role-scoped handoffs, reviews, upcoming sessions and competition horizon.", show: c.access.canUseCoachingWorkspace || c.access.canManageProgrammesAndMethodology },
-    { label: "Coach handoff & cover", href: "/handoffs", detail: "Pass groups or selected gymnasts between coaches with frozen factual context and return notes.", show: c.access.canUseCoachingWorkspace },
-    { label: "Rulesets", href: "/rulesets", detail: "Enable and assign Viaform-managed governing-body rulesets.", show: c.access.canManageProgrammesAndMethodology || c.access.canUseCoachingWorkspace },
-    { label: "Facilities & equipment", href: "/facilities", detail: "Training spaces, equipment, capacities and availability.", show: c.access.canConfigureFacilities || c.access.canUseCoachingWorkspace },
-  ].filter((card) => card.show);
-  return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section>
-    <p className="text-sm font-semibold text-[var(--muted)]">More</p>
-    <h1 className="mt-2 text-3xl font-semibold">Club operations</h1>
-    <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">Configure the people, pathways and training environment that support day-to-day coaching. Access follows administrator and delegated responsibilities.</p>
-    <div className="mt-8 grid gap-4 md:grid-cols-2">{cards.map((card)=><a key={card.href} href={card.href} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="text-lg font-semibold">{card.label}</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{card.detail}</p><span className="mt-4 block text-sm font-semibold">Open →</span></a>)}</div>
-    {!cards.length&&<p className="mt-8 rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--muted)]">No club-operation responsibilities are currently assigned to this account.</p>}
-  </section></AppShell>;
-}
+import {AppShell} from "@/app/components/app-shell";import {requireAuthContext} from "@/app/lib/auth";export const dynamic="force-dynamic";
+export default async function More(){const c=await requireAuthContext();const sections=[{title:"Your account",items:[{label:"Appearance",href:"/appearance",show:true},{label:"Updates",href:"/updates",show:c.access.canUseCoachingWorkspace||c.access.canManageProgrammesAndMethodology}]},{title:"Coaching",items:[{label:"Programmes",href:"/programmes",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},{label:"Methodology",href:"/methodology",show:c.access.canUseCoachingWorkspace||c.access.canManageProgrammesAndMethodology},{label:"Coach handoff & cover",href:"/handoffs",show:c.access.canUseCoachingWorkspace},{label:"Rulesets",href:"/rulesets",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace}]},{title:"Club",items:[{label:"People & roles",href:"/people",show:c.access.canManagePeopleAndRoles},{label:"Programme leadership",href:"/programme-leads",show:c.access.canManageProgrammesAndMethodology},{label:"Trusted contributors",href:"/contributors",show:c.access.canManageProgrammesAndMethodology},{label:"Facilities & equipment",href:"/facilities",show:c.access.canConfigureFacilities||c.access.canUseCoachingWorkspace}]}].map(s=>({...s,items:s.items.filter(i=>i.show)})).filter(s=>s.items.length);return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section className="workspace-page"><div className="workspace-hero"><div><p className="workspace-kicker">More</p><h1>More</h1></div></div><div className="more-sections">{sections.map(s=><section key={s.title}><h2>{s.title}</h2><div className="more-grid">{s.items.map(i=><a key={i.href} href={i.href}><span>{i.label}</span><b>→</b></a>)}</div></section>)}</div></section></AppShell>}
