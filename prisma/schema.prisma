@@ -130,6 +130,7 @@ model Gymnast {
   programmeAssignments GymnastProgrammeAssignment[]
   rulesetAssignments GymnastRulesetAssignment[]
   trainingSessions TrainingSessionGymnast[]
+  rotationAssignments SessionRotationGymnast[]
 
   @@index([organisationId, name])
 }
@@ -254,6 +255,9 @@ model TrainingSession {
   blocks SessionBlock[]
   gymnasts TrainingSessionGymnast[]
   facilityAssignment TrainingSessionFacility?
+  rotationGroups SessionRotationGroup[]
+  rotationGymnasts SessionRotationGymnast[]
+  rotationAssignments SessionRotationAssignment[]
 
   @@index([organisationId, sessionDate])
   @@index([trainingGroupId, sessionDate])
@@ -289,6 +293,7 @@ model SessionBlock {
   session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   spaceAssignment SessionBlockSpace?
   resourceAssignments SessionBlockResource[]
+  rotationAssignments SessionRotationAssignment[]
 
   @@index([sessionId, orderIndex])
 }
@@ -326,6 +331,7 @@ model TrainingSpace {
   location FacilityLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
   resources FacilityResource[]
   blockAssignments SessionBlockSpace[]
+  rotationAssignments SessionRotationAssignment[]
 
   @@unique([locationId, name])
   @@index([locationId, orderIndex, status])
@@ -396,6 +402,59 @@ model SessionBlockResource {
 
   @@id([blockId, resourceId])
   @@index([resourceId])
+}
+
+model SessionRotationGroup {
+  id         String   @id @default(cuid())
+  sessionId  String
+  name       String
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  gymnasts SessionRotationGymnast[]
+  assignments SessionRotationAssignment[]
+
+  @@unique([sessionId, name])
+  @@index([sessionId, orderIndex])
+}
+
+model SessionRotationGymnast {
+  sessionId       String
+  gymnastId       String
+  rotationGroupId String
+  assignedAt      DateTime @default(now())
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  rotationGroup SessionRotationGroup @relation(fields: [rotationGroupId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, gymnastId])
+  @@index([rotationGroupId, assignedAt])
+}
+
+model SessionRotationAssignment {
+  id              String   @id @default(cuid())
+  sessionId       String
+  rotationGroupId String
+  blockId         String?
+  trainingSpaceId String?
+  startTime       String
+  endTime         String
+  notes           String?
+  orderIndex      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rotationGroup SessionRotationGroup @relation(fields: [rotationGroupId], references: [id], onDelete: Cascade)
+  block SessionBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  trainingSpace TrainingSpace? @relation(fields: [trainingSpaceId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, startTime, endTime])
+  @@index([rotationGroupId, orderIndex])
+  @@index([trainingSpaceId, startTime, endTime])
 }
 
 model RulesetProgram {

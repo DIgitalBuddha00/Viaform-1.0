@@ -235,11 +235,23 @@ export async function assignSessionFacility(data: FormData) {
   const session = await visibleSession(sessionId, context);
   const location = await locationInOrganisation(locationId, context.organisation.id);
   if (!session || !location) return;
-  await prisma.trainingSessionFacility.upsert({
-    where: { sessionId },
-    create: { sessionId, locationId },
-    update: { locationId },
-  });
+  const current = await prisma.trainingSessionFacility.findUnique({ where: { sessionId } });
+  if (current && current.locationId !== locationId) {
+    const blocks = await prisma.sessionBlock.findMany({ where: { sessionId }, select: { id: true } });
+    const blockIds = blocks.map((block) => block.id);
+    await prisma.$transaction([
+      prisma.sessionBlockResource.deleteMany({ where: { blockId: { in: blockIds } } }),
+      prisma.sessionBlockSpace.deleteMany({ where: { blockId: { in: blockIds } } }),
+      prisma.sessionRotationAssignment.updateMany({ where: { sessionId }, data: { trainingSpaceId: null } }),
+      prisma.trainingSessionFacility.update({ where: { sessionId }, data: { locationId } }),
+    ]);
+  } else {
+    await prisma.trainingSessionFacility.upsert({
+      where: { sessionId },
+      create: { sessionId, locationId },
+      update: { locationId },
+    });
+  }
   revalidatePath("/planning/" + sessionId);
 }
 
@@ -248,7 +260,14 @@ export async function clearSessionFacility(data: FormData) {
   const sessionId = value(data, "sessionId");
   const session = await visibleSession(sessionId, context);
   if (!session) return;
-  await prisma.trainingSessionFacility.deleteMany({ where: { sessionId } });
+  const blocks = await prisma.sessionBlock.findMany({ where: { sessionId }, select: { id: true } });
+  const blockIds = blocks.map((block) => block.id);
+  await prisma.$transaction([
+    prisma.sessionBlockResource.deleteMany({ where: { blockId: { in: blockIds } } }),
+    prisma.sessionBlockSpace.deleteMany({ where: { blockId: { in: blockIds } } }),
+    prisma.sessionRotationAssignment.updateMany({ where: { sessionId }, data: { trainingSpaceId: null } }),
+    prisma.trainingSessionFacility.deleteMany({ where: { sessionId } }),
+  ]);
   revalidatePath("/planning/" + sessionId);
 }
 
@@ -263,11 +282,19 @@ export async function assignSessionBlockSpace(data: FormData) {
   if (!session || !block || !space) return;
   const sessionFacility = await prisma.trainingSessionFacility.findUnique({ where: { sessionId } });
   if (sessionFacility && sessionFacility.locationId !== space.locationId) return;
-  await prisma.sessionBlockSpace.upsert({
-    where: { blockId },
-    create: { blockId, trainingSpaceId },
-    update: { trainingSpaceId },
-  });
+  const currentSpace = await prisma.sessionBlockSpace.findUnique({ where: { blockId } });
+  if (currentSpace && currentSpace.trainingSpaceId !== trainingSpaceId) {
+    await prisma.$transaction([
+      prisma.sessionBlockResource.deleteMany({ where: { blockId } }),
+      prisma.sessionBlockSpace.update({ where: { blockId }, data: { trainingSpaceId } }),
+    ]);
+  } else {
+    await prisma.sessionBlockSpace.upsert({
+      where: { blockId },
+      create: { blockId, trainingSpaceId },
+      update: { trainingSpaceId },
+    });
+  }
   revalidatePath("/planning/" + sessionId);
 }
 
@@ -277,7 +304,12 @@ export async function clearSessionBlockSpace(data: FormData) {
   const blockId = value(data, "blockId");
   const session = await visibleSession(sessionId, context);
   if (!session) return;
-  await prisma.sessionBlockSpace.deleteMany({ where: { blockId, block: { sessionId } } });
+  const block = await prisma.sessionBlock.findFirst({ where: { id: blockId, sessionId } });
+  if (!block) return;
+  await prisma.$transaction([
+    prisma.sessionBlockResource.deleteMany({ where: { blockId } }),
+    prisma.sessionBlockSpace.deleteMany({ where: { blockId } }),
+  ]);
   revalidatePath("/planning/" + sessionId);
 }
 

@@ -232,6 +232,9 @@ export async function removeGymnastFromTrainingSession(data: FormData) {
   const gymnastId = value(data, "gymnastId");
   const session = await visibleSession(sessionId, context);
   if (!session) return;
-  await prisma.trainingSessionGymnast.deleteMany({ where: { sessionId, gymnastId } });
+  await prisma.$transaction([
+    prisma.sessionRotationGymnast.deleteMany({ where: { sessionId, gymnastId } }),
+    prisma.trainingSessionGymnast.deleteMany({ where: { sessionId, gymnastId } }),
+  ]);
   revalidatePath("/planning/" + sessionId);
 }
