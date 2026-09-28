@@ -38,6 +38,7 @@ async function visibleGroup(groupId: string, context: Awaited<ReturnType<typeof 
     include: {
       programmeAssignments: { include: { programme: true, stage: true } },
       scheduleSlots: true,
+      memberships: { select: { gymnastId: true } },
     },
   });
 }
@@ -81,6 +82,12 @@ export async function createTrainingSession(data: FormData) {
       programmeStageId: programmeContext?.stageId ?? null,
       programmeNameSnapshot: programmeContext?.programme.name ?? null,
       stageNameSnapshot: programmeContext?.stage?.name ?? null,
+      gymnasts: {
+        create: group.memberships.map((membership) => ({
+          gymnastId: membership.gymnastId,
+          source: "GROUP",
+        })),
+      },
     },
   });
   revalidatePath("/planning");
@@ -189,5 +196,38 @@ export async function deleteSessionBlock(data: FormData) {
   const session = await visibleSession(sessionId, context);
   if (!session) return;
   await prisma.sessionBlock.deleteMany({ where: { id: blockId, sessionId } });
+  revalidatePath("/planning/" + sessionId);
+}
+
+
+export async function addGymnastToTrainingSession(data: FormData) {
+  const context = await coachingContext();
+  const sessionId = value(data, "sessionId");
+  const gymnastId = value(data, "gymnastId");
+  const session = await visibleSession(sessionId, context);
+  if (!session) return;
+  const gymnast = await prisma.gymnast.findFirst({
+    where: {
+      id: gymnastId,
+      organisationId: context.organisation.id,
+      groups: { some: { trainingGroupId: session.trainingGroupId } },
+    },
+  });
+  if (!gymnast) return;
+  await prisma.trainingSessionGymnast.upsert({
+    where: { sessionId_gymnastId: { sessionId, gymnastId } },
+    create: { sessionId, gymnastId, source: "GROUP" },
+    update: {},
+  });
+  revalidatePath("/planning/" + sessionId);
+}
+
+export async function removeGymnastFromTrainingSession(data: FormData) {
+  const context = await coachingContext();
+  const sessionId = value(data, "sessionId");
+  const gymnastId = value(data, "gymnastId");
+  const session = await visibleSession(sessionId, context);
+  if (!session) return;
+  await prisma.trainingSessionGymnast.deleteMany({ where: { sessionId, gymnastId } });
   revalidatePath("/planning/" + sessionId);
 }

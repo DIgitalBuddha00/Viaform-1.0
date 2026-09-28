@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
 import {
+  addGymnastToTrainingSession,
   createSessionBlock,
   deleteSessionBlock,
   deleteTrainingSession,
   updateSessionBlock,
   updateTrainingSession,
+  removeGymnastFromTrainingSession,
 } from "@/app/actions/training-planning";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
@@ -34,8 +36,9 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
       trainingGroup: groupScopeWhere(c.organisation.id, c.membership.id, c.access),
     },
     include: {
-      trainingGroup: { include: { memberships: true } },
+      trainingGroup: { include: { memberships: { include: { gymnast: true }, orderBy: { joinedAt: "asc" } } } },
       blocks: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
+      gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
     },
   });
   if (!session) notFound();
@@ -46,6 +49,8 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
     return Math.max(0, eh * 60 + em - (sh * 60 + sm));
   })();
   const plannedMinutes = session.blocks.reduce((sum, block) => sum + (block.durationMin ?? 0), 0);
+  const assignedIds = new Set(session.gymnasts.map((entry) => entry.gymnastId));
+  const availableGymnasts = session.trainingGroup.memberships.filter((membership) => !assignedIds.has(membership.gymnastId));
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
@@ -73,8 +78,8 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
           </article>
           <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Group</p>
-            <p className="mt-2 text-2xl font-semibold">{session.trainingGroup.memberships.length}</p>
-            <p className="mt-1 text-sm text-[var(--muted)]">gymnasts currently in group</p>
+            <p className="mt-2 text-2xl font-semibold">{session.gymnasts.length}</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">gymnasts assigned to session</p>
           </article>
         </div>
 
@@ -86,6 +91,46 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
             </p>
           </div>
         )}
+
+        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Session gymnasts</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                This roster is specific to the planned session. Removing someone here does not change their group membership.
+              </p>
+            </div>
+            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-sm">{session.gymnasts.length} assigned</span>
+          </div>
+          <div className="mt-4 grid gap-2">
+            {session.gymnasts.length ? session.gymnasts.map((entry) => (
+              <div key={entry.gymnastId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-4 py-3">
+                <a href={"/gymnasts/" + entry.gymnastId} className="font-medium hover:underline">{entry.gymnast.name}</a>
+                <form action={removeGymnastFromTrainingSession}>
+                  <input type="hidden" name="sessionId" value={session.id} />
+                  <input type="hidden" name="gymnastId" value={entry.gymnastId} />
+                  <button className="text-sm text-[var(--muted)]">Remove from session</button>
+                </form>
+              </div>
+            )) : (
+              <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">
+                No gymnasts are currently assigned to this session.
+              </p>
+            )}
+          </div>
+          {availableGymnasts.length > 0 && (
+            <form action={addGymnastToTrainingSession} className="mt-4 flex flex-wrap gap-2">
+              <input type="hidden" name="sessionId" value={session.id} />
+              <select name="gymnastId" required className="min-w-56 rounded-lg border border-[var(--border)] px-3 py-2">
+                <option value="">Add from group roster…</option>
+                {availableGymnasts.map((membership) => (
+                  <option key={membership.gymnastId} value={membership.gymnastId}>{membership.gymnast.name}</option>
+                ))}
+              </select>
+              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add to session</button>
+            </form>
+          )}
+        </article>
 
         <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="font-semibold">Session intent</h2>

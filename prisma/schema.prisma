@@ -127,6 +127,7 @@ model Gymnast {
   groups       GymnastTrainingGroup[]
   programmeAssignments GymnastProgrammeAssignment[]
   rulesetAssignments GymnastRulesetAssignment[]
+  trainingSessions TrainingSessionGymnast[]
 
   @@index([organisationId, name])
 }
@@ -249,10 +250,24 @@ model TrainingSession {
   programme CoachingProgramme? @relation(fields: [programmeId], references: [id], onDelete: SetNull)
   programmeStage ProgrammeStage? @relation(fields: [programmeStageId], references: [id], onDelete: SetNull)
   blocks SessionBlock[]
+  gymnasts TrainingSessionGymnast[]
 
   @@index([organisationId, sessionDate])
   @@index([trainingGroupId, sessionDate])
   @@index([createdByMembershipId, sessionDate])
+}
+
+model TrainingSessionGymnast {
+  sessionId  String
+  gymnastId  String
+  source     String   @default("GROUP")
+  assignedAt DateTime @default(now())
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, gymnastId])
+  @@index([gymnastId, assignedAt])
 }
 
 model SessionBlock {
