@@ -16,7 +16,7 @@ async function snapshot(gymnastId:string,organisationId:string,membershipId:stri
   routines:{where:{status:"ACTIVE"},select:{id:true,name:true,apparatus:true,purpose:true,rulesetProgramName:true,rulesetLevelName:true}},
   trainingEvidence:{orderBy:{recordedAt:"desc"},take:12,select:{outcome:true,note:true,recordedAt:true}},
   testingResults:{orderBy:{recordedAt:"desc"},take:8,include:{metric:{select:{name:true,unit:true}}}},
- }};
+ }});
  if(!g)return null;
  return JSON.stringify({capturedAt:new Date().toISOString(),groups:g.groups.map(x=>x.trainingGroup.name),programme:g.programmeAssignments[0]?{name:g.programmeAssignments[0].programme.name,stage:g.programmeAssignments[0].stage?.name??null}:null,ruleset:g.rulesetAssignments[0]?{programme:g.rulesetAssignments[0].rulesetProgram.name,level:g.rulesetAssignments[0].rulesetLevel.name}:null,routines:g.routines,recentTraining:g.trainingEvidence,recentTesting:g.testingResults.map(x=>({metric:x.metric.name,value:x.numberValue,unit:x.metric.unit,recordedAt:x.recordedAt}))});
 }
