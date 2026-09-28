@@ -1,5 +1,6 @@
 "use server";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { prisma } from "@/app/lib/prisma";
 import { createSession, destroySession, makePassword, normaliseEmail, verifyPassword } from "@/app/lib/auth";
 
@@ -40,10 +41,13 @@ export async function signIn(data: FormData) {
   if (!membership) redirect("/login?error=access");
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await createSession(user.id, membership.organisationId);
+  const preference=await prisma.membershipPresentationPreference.findUnique({where:{membershipId:membership.id},select:{theme:true}});
+  (await cookies()).set("viaform_theme",preference?.theme??"REFINED",{sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:31536000});
   redirect("/dashboard");
 }
 
 export async function signOut() {
   await destroySession();
+  (await cookies()).delete("viaform_theme");
   redirect("/login");
 }

@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 export default async function MorePage() {
   const c = await requireAuthContext();
   const cards = [
+    { label: "Appearance", href: "/appearance", detail: "Choose your Viaform theme and manage presentation preferences.", show: true },
     { label: "People & roles", href: "/people", detail: "Staff accounts, coaching roles, delegated responsibilities and access.", show: c.access.canManagePeopleAndRoles },
     { label: "Programmes", href: "/programmes", detail: "Club-owned coaching programmes, stages and pathway context.", show: c.access.canManageProgrammesAndMethodology || c.access.canUseCoachingWorkspace },
     { label: "Programme leadership", href: "/programme-leads", detail: "Assign Programme Leads and Head Coaches to explicit programme responsibilities.", show: c.access.canManageProgrammesAndMethodology },

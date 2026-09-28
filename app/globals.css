@@ -6,6 +6,35 @@
   --surface: #ffffff;
   --muted: #60727d;
   --border: #dbe3e7;
+  --accent: #315d73;
+  --accent-soft: #e6f0f4;
+  --header: #ffffff;
+  --nav-hover: #ffffff;
+  --shadow: 0 1px 2px rgba(20,43,58,.06);
+}
+html[data-theme="BOLD"] {
+  --background: #fff7fb;
+  --foreground: #251827;
+  --surface: #ffffff;
+  --muted: #765d6b;
+  --border: #ead6e0;
+  --accent: #c42d70;
+  --accent-soft: #fde5f0;
+  --header: #fff0f7;
+  --nav-hover: #fde5f0;
+  --shadow: 0 8px 24px rgba(129,36,79,.08);
+}
+html[data-theme="FOCUS"] {
+  --background: #f8fafc;
+  --foreground: #1e293b;
+  --surface: #ffffff;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --accent: #475569;
+  --accent-soft: #e2e8f0;
+  --header: #f8fafc;
+  --nav-hover: #f1f5f9;
+  --shadow: none;
 }
 
 * { box-sizing: border-box; }
@@ -16,3 +45,5 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 a { color: inherit; }
+
+::selection { background: var(--accent-soft); }

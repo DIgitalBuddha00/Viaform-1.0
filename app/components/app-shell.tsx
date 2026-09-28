@@ -17,15 +17,15 @@ export function AppShell({ children, organisationName, displayName, access }: Pr
     : navigation.map((item) => item.label);
   const roles = [...(access.isAdministrator ? ["Administrator"] : []), ...access.coachingRoles.map(coachingRoleLabel)];
   return <div className="min-h-screen pb-24 md:pb-8">
-    <header className="border-b border-[var(--border)] bg-[var(--surface)]">
+    <header className="border-b border-[var(--border)] bg-[var(--header)] shadow-[var(--shadow)]">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 md:px-8">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Viaform</p><p className="mt-1 text-lg font-semibold">{organisationName}</p></div>
-        <div className="flex items-center gap-3 text-right"><div className="hidden sm:block"><p className="text-sm font-semibold">{displayName}</p><p className="text-xs text-[var(--muted)]">{roles.join(" · ")}</p></div><form action={signOut}><button className="rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm font-semibold">Sign out</button></form></div>
+        <div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--accent)] text-sm font-bold text-white">V</span><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Viaform</p><p className="mt-1 text-lg font-semibold">{organisationName}</p></div></div>
+        <div className="flex items-center gap-3 text-right"><div className="hidden sm:block"><p className="text-sm font-semibold">{displayName}</p><p className="text-xs text-[var(--muted)]">{roles.join(" · ")}</p></div><span className="hidden h-9 w-9 place-items-center rounded-full bg-[var(--accent-soft)] text-sm font-bold text-[var(--foreground)] sm:grid">{displayName.split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase()}</span><form action={signOut}><button className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold">Sign out</button></form></div>
       </div>
     </header>
     <div className="mx-auto grid max-w-7xl md:grid-cols-[190px_minmax(0,1fr)]">
       <nav className="hidden border-r border-[var(--border)] px-4 py-6 md:block" aria-label="Primary">
-        <div className="grid gap-1">{navigation.map((item) => item.enabled ? <a key={item.label} href={item.href} className="rounded-xl px-3 py-2.5 text-sm font-semibold hover:bg-white">{item.label}</a> : <span key={item.label} className="rounded-xl px-3 py-2.5 text-sm text-[var(--muted)] opacity-55">{item.label}</span>)}</div>
+        <div className="grid gap-1">{navigation.map((item) => item.enabled ? <a key={item.label} href={item.href} className="rounded-xl px-3 py-2.5 text-sm font-semibold hover:bg-[var(--nav-hover)]">{item.label}</a> : <span key={item.label} className="rounded-xl px-3 py-2.5 text-sm text-[var(--muted)] opacity-55">{item.label}</span>)}</div>
       </nav>
       <main className="min-w-0 px-5 py-7 md:px-8 md:py-9">{children}</main>
     </div>
