@@ -37,10 +37,14 @@ export async function createMethodologyRecord(d:FormData){
   if(!title||!SCOPES.includes(scopeType as typeof SCOPES[number])||!PROVENANCE.includes(provenance as typeof PROVENANCE[number]))return;
   if(provenance==="CLUB_PROGRAMME"&&!programmeId)return;
   if(programmeId&&!await prisma.coachingProgramme.findFirst({where:{id:programmeId,organisationId:c.organisation.id}}))return;
+  const trustedContributorId=v(d,"trustedContributorId")||null;
+  const trustedContributor=trustedContributorId?await prisma.trustedContributor.findFirst({where:{id:trustedContributorId,organisationId:c.organisation.id,status:"ACTIVE"}}):null;
+  if(trustedContributorId&&!trustedContributor)return;
+  if(provenance==="TRUSTED_CONTRIBUTOR"&&!trustedContributor)return;
   await prisma.methodologyRecord.create({data:{
     organisationId:c.organisation.id,programmeId,createdByMembershipId:c.membership.id,title,scopeType,
     scopeRef:v(d,"scopeRef")||null,apparatus:v(d,"apparatus")||null,provenance,
-    contributorName:v(d,"contributorName")||null,technicalObjective:v(d,"technicalObjective")||null,
+    trustedContributorId:trustedContributor?.id??null,contributorName:trustedContributor?.name??(v(d,"contributorName")||null),technicalObjective:v(d,"technicalObjective")||null,
     technicalBoundaries:v(d,"technicalBoundaries")||null,defaultApproach:v(d,"defaultApproach")||null,
     alternativeApproaches:v(d,"alternativeApproaches")||null,uncertainty:v(d,"uncertainty")||null,
     sourceNote:v(d,"sourceNote")||null,sourceUrl:v(d,"sourceUrl")||null,

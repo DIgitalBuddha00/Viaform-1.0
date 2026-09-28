@@ -46,6 +46,7 @@ model Organisation {
   programmeLeadAssignments ProgrammeLeadAssignment[]
   methodologyRecords MethodologyRecord[]
   coachHandoffs CoachHandoff[]
+  trustedContributors TrustedContributor[]
 }
 
 model OrganisationMembership {
@@ -287,6 +288,7 @@ model MethodologyRecord {
   uncertainty           String?
   sourceNote            String?
   sourceUrl             String?
+  trustedContributorId  String?
   status                String   @default("DRAFT")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -296,10 +298,31 @@ model MethodologyRecord {
   programme CoachingProgramme? @relation(fields: [programmeId], references: [id], onDelete: SetNull)
   createdBy OrganisationMembership @relation("MethodologyCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Restrict)
   approvedBy OrganisationMembership? @relation("MethodologyApprovedBy", fields: [approvedByMembershipId], references: [id], onDelete: SetNull)
+  trustedContributor TrustedContributor? @relation(fields: [trustedContributorId], references: [id], onDelete: SetNull)
 
   @@index([organisationId, status, scopeType])
   @@index([organisationId, apparatus, status])
   @@index([programmeId, status])
+  @@index([trustedContributorId, status])
+}
+
+model TrustedContributor {
+  id             String   @id @default(cuid())
+  organisationId String
+  name           String
+  roleLabel      String?
+  organisationName String?
+  scopeNote      String?
+  sourceNote     String?
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  methodologyRecords MethodologyRecord[]
+
+  @@unique([organisationId, name])
+  @@index([organisationId, status, name])
 }
 
 model GymnastRoutine {
