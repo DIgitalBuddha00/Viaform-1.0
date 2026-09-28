@@ -39,6 +39,7 @@ export default async function RoutineWorkspace({
   const gymnast = await prisma.gymnast.findFirst({
     where: { id, ...gymnastScopeWhere(c.organisation.id, c.membership.id, c.access) },
     include: {
+      programmeAssignments: { include: { programme: true, stage: true } },
       routines: {
         where: { id: routineId, status: "ACTIVE" },
         include: {
@@ -70,6 +71,24 @@ export default async function RoutineWorkspace({
     (currentRules.package.code !== routine.rulesetPackageCode || currentRules.level.code !== routine.rulesetLevelCode),
   );
   const href = "/gymnasts/" + gymnast.id + "/routines/" + routine.id;
+  const trainingApparatus: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE" };
+  const recentEvidence = await prisma.trainingEvidence.findMany({
+    where: { gymnastId: gymnast.id, block: { apparatus: trainingApparatus[routine.apparatus] }, session: { organisationId: c.organisation.id } },
+    include: {
+      session: { select: { id: true, title: true, sessionDate: true } },
+      block: { select: { title: true } },
+      station: { select: { name: true } },
+    },
+    orderBy: { recordedAt: "desc" },
+    take: 24,
+  });
+  const evidenceCounts = recentEvidence.reduce((counts, item) => {
+    if (item.outcome === "MADE") counts.made += 1;
+    if (item.outcome === "MISSED") counts.missed += 1;
+    if (item.outcome === "SPOTTED") counts.spotted += 1;
+    return counts;
+  }, { made: 0, missed: 0, spotted: 0 });
+  const programmeContext = gymnast.programmeAssignments[0] ?? null;
 
   const [catalogueElements, catalogueVaults] = routine.rulesetPackageCode
     ? await Promise.all([
@@ -294,20 +313,93 @@ export default async function RoutineWorkspace({
         )}
 
         {tab === "strategy" && (
-          <article className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <p className="text-sm font-semibold text-[var(--muted)]">Coach-owned strategy</p><h2 className="mt-1 text-xl font-semibold">Strategy</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">Record the coach’s intended competitive or developmental approach. Viaform can place evidence beside this decision, but does not choose the strategy.</p>
-            <form action={updateRoutineContext} className="mt-4"><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="name" value={routine.name}/><input type="hidden" name="purpose" value={routine.purpose}/><input type="hidden" name="pathwayNote" value={routine.pathwayNote ?? ""}/><textarea name="strategyNote" defaultValue={routine.strategyNote ?? ""} placeholder="Coach strategy…" className="min-h-40 w-full rounded-xl border border-[var(--border)] px-3 py-3"/><button className="mt-3 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Save strategy</button></form>
-          </article>
-        )}
+          <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_360px]">
+            <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <p className="text-sm font-semibold text-[var(--muted)]">Coach-owned strategy</p>
+              <h2 className="mt-1 text-xl font-semibold">Strategy</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">Record the intended competitive or developmental approach. Evidence and verified rule context sit beside the decision; Viaform does not choose the routine strategy.</p>
+              <form action={updateRoutineContext} className="mt-4">
+                <input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="name" value={routine.name}/><input type="hidden" name="purpose" value={routine.purpose}/><input type="hidden" name="pathwayNote" value={routine.pathwayNote ?? ""}/>
+                <textarea name="strategyNote" defaultValue={routine.strategyNote ?? ""} placeholder="Coach strategy…" className="min-h-40 w-full rounded-xl border border-[var(--border)] px-3 py-3"/>
+                <button className="mt-3 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Save strategy</button>
+              </form>
+              <div className="mt-6 border-t border-[var(--border)] pt-5">
+                <p className="text-sm font-semibold">Worth considering</p>
+                {figEvaluation ? (figEvaluation.findings.length ? (
+                  <div className="mt-3 grid gap-2">
+                    {figEvaluation.findings.slice(0, 8).map((finding, index) => (
+                      <div key={finding.code + index} className="rounded-xl border border-[var(--border)] p-3">
+                        <p className="text-sm">{finding.message}</p>
+                        <p className="mt-1 text-xs text-[var(--muted)]">Verified FIG evaluation context · coach or judge decision required</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="mt-3 text-sm text-[var(--muted)]">No unresolved FIG evaluation items in the saved plan.</p>) : (
+                  <p className="mt-3 text-sm text-[var(--muted)]">No bounded FIG evaluation is available for this plan. Use the verified rules snapshot and coaching evidence as context.</p>
+                )}
+              </div>
+            </article>
+            <aside className="grid content-start gap-4">
+              <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <p className="text-sm font-semibold">Recent apparatus evidence</p>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl border border-[var(--border)] p-3"><strong className="block text-xl">{evidenceCounts.made}</strong><span className="text-xs text-[var(--muted)]">Made</span></div>
+                  <div className="rounded-xl border border-[var(--border)] p-3"><strong className="block text-xl">{evidenceCounts.spotted}</strong><span className="text-xs text-[var(--muted)]">Spotted</span></div>
+                  <div className="rounded-xl border border-[var(--border)] p-3"><strong className="block text-xl">{evidenceCounts.missed}</strong><span className="text-xs text-[var(--muted)]">Missed</span></div>
+                </div>
+                <p className="mt-3 text-xs leading-5 text-[var(--muted)]">{recentEvidence.length} recent observations shown as context only. Outcome counts do not determine readiness or routine selection.</p>
+                <a href={"/progress?gymnast=" + gymnast.id} className="mt-3 inline-block text-sm font-semibold">Open full Progress Hub →</a>
+              </article>
+              <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <p className="text-sm font-semibold">Verified rule context</p>
+                <p className="mt-2 text-sm">{routine.rulesetProgramName && routine.rulesetLevelName ? routine.rulesetProgramName + " · " + routine.rulesetLevelName : "No canonical snapshot"}</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">{applicableRules.length} verified rules available to this saved plan.</p>
+                <details className="mt-3"><summary className="cursor-pointer text-xs font-semibold">Show rule areas</summary>
+                  <div className="mt-2 flex flex-wrap gap-2">{[...new Set(applicableRules.map((rule) => rule.ruleType))].map((type) => <span key={type} className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{type.replaceAll("_", " ")}</span>)}</div>
+                </details>
+              </article>
+            </aside>
+          </div>
+        ))}
 
         {tab === "pathway" && (
-          <article className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <p className="text-sm font-semibold text-[var(--muted)]">Training pathway</p><h2 className="mt-1 text-xl font-semibold">Pathway</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">Capture what the coach wants to develop toward. Evidence and training links can be layered onto this without automatic progression.</p>
-            <form action={updateRoutineContext} className="mt-4"><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="name" value={routine.name}/><input type="hidden" name="purpose" value={routine.purpose}/><input type="hidden" name="strategyNote" value={routine.strategyNote ?? ""}/><textarea name="pathwayNote" defaultValue={routine.pathwayNote ?? ""} placeholder="Coach pathway focus…" className="min-h-40 w-full rounded-xl border border-[var(--border)] px-3 py-3"/><button className="mt-3 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Save pathway</button></form>
-          </article>
-        )}
+          <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_360px]">
+            <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <p className="text-sm font-semibold text-[var(--muted)]">Training pathway</p>
+              <h2 className="mt-1 text-xl font-semibold">Pathway</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">Capture what the coach wants to develop toward. The pathway is a coaching plan, not an automatic progression recommendation.</p>
+              <form action={updateRoutineContext} className="mt-4">
+                <input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="name" value={routine.name}/><input type="hidden" name="purpose" value={routine.purpose}/><input type="hidden" name="strategyNote" value={routine.strategyNote ?? ""}/>
+                <textarea name="pathwayNote" defaultValue={routine.pathwayNote ?? ""} placeholder="Coach pathway focus…" className="min-h-40 w-full rounded-xl border border-[var(--border)] px-3 py-3"/>
+                <button className="mt-3 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Save pathway</button>
+              </form>
+              <div className="mt-6 border-t border-[var(--border)] pt-5">
+                <p className="text-sm font-semibold">Recent evidence context</p>
+                <div className="mt-3 grid gap-2">
+                  {recentEvidence.slice(0, 8).map((entry) => (
+                    <div key={entry.id} className="rounded-xl border border-[var(--border)] p-3 text-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-2"><strong>{entry.outcome} · {entry.station?.name ?? entry.block.title}</strong><span className="text-xs text-[var(--muted)]">{entry.session.sessionDate.toISOString().slice(0, 10)}</span></div>
+                      <p className="mt-1 text-xs text-[var(--muted)]">{entry.session.title}{entry.note ? " · " + entry.note : ""}</p>
+                    </div>
+                  ))}
+                  {!recentEvidence.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">No recent apparatus-specific live-training evidence has been recorded.</p>}
+                </div>
+              </div>
+            </article>
+            <aside className="grid content-start gap-4">
+              <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <p className="text-sm font-semibold">Programme context</p>
+                {programmeContext ? (<><p className="mt-2 text-sm">{programmeContext.programme.name}</p><p className="mt-1 text-xs text-[var(--muted)]">{programmeContext.stage ? "Current stage · " + programmeContext.stage.name : "No individual programme stage assigned"}</p></>) : <p className="mt-2 text-sm text-[var(--muted)]">No individual programme pathway is assigned; group programme context may still apply.</p>}
+                <a href={"/gymnasts/" + gymnast.id} className="mt-3 inline-block text-sm font-semibold">Open gymnast context →</a>
+              </article>
+              <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <p className="text-sm font-semibold">Evidence boundary</p>
+                <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Made, Missed, Spotted, testing results and rule evaluation can inform the pathway. None of them independently authorise progression, removal of content or competition selection.</p>
+                <a href={"/progress?gymnast=" + gymnast.id} className="mt-3 inline-block text-sm font-semibold">Review longitudinal evidence →</a>
+              </article>
+            </aside>
+          </div>
+        ))}
 
         <p className="mt-8 border-t border-[var(--border)] pt-5 text-sm text-[var(--muted)]">Evidence → Context → Guidance → Coach judgement.</p>
       </section>
