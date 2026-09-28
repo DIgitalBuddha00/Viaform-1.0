@@ -4,8 +4,8 @@ export function primaryNavigation(access: AccessProfile): NavigationItem[] {
   if (!access.canUseCoachingWorkspace) {
     return [
       { label: "Home", href: "/dashboard", enabled: true },
-      ...(access.canManageProgrammesAndMethodology
-        ? [{ label: "More", href: "/programmes", enabled: true }]
+      ...(access.canManagePeopleAndRoles || access.canManageRotations || access.canConfigureFacilities || access.canManageProgrammesAndMethodology
+        ? [{ label: "More", href: "/more", enabled: true }]
         : []),
     ];
   }
@@ -18,7 +18,7 @@ export function primaryNavigation(access: AccessProfile): NavigationItem[] {
     { label: "Testing", href: "/testing", enabled: true },
     { label: "Routines", href: "/routines", enabled: true },
     { label: "Competitions", href: "/competitions", enabled: true },
-    { label: "More", href: "/programmes", enabled: true },
+    { label: "More", href: "/more", enabled: true },
   ];
 }
 export function coachingRoleLabel(role: string) {
