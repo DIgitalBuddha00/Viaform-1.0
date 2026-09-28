@@ -264,7 +264,7 @@ model RulesetPackage {
  program RulesetProgram @relation(fields:[programId],references:[id],onDelete:Cascade)
  vaults FigVaultDefinition[]
  elements FigElementDefinition[]
- apparatusRules FigApparatusRule[]
+ apparatusRules RulesetApparatusRule[]
  @@index([programId,effectiveDate,status])
 }
 model FigVaultDefinition {
@@ -303,7 +303,7 @@ model FigElementDefinition {
  @@unique([packageId,apparatus,officialNumber,variantKey])
  @@index([packageId,apparatus,groupCode,status])
 }
-model FigApparatusRule {
+model RulesetApparatusRule {
  id String @id @default(cuid())
  packageId String
  apparatus String
@@ -316,4 +316,5 @@ model FigApparatusRule {
  package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
  @@unique([packageId,apparatus,levelCode,ruleKey])
  @@index([packageId,apparatus,levelCode,ruleType])
+ @@map("FigApparatusRule")
 }

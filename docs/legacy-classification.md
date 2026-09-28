@@ -233,3 +233,9 @@ The routine evaluation layer now converts verified rule inputs into a transparen
 Recognition, connection validity and composition fulfilment remain adjudicated inputs. Unknown or incomplete evidence produces `COACH_DECISION_REQUIRED` findings and is not silently awarded. The current Junior appendix explicitly applies the 2025 Code with its listed modifications and directs Junior composition and connection value back to the apparatus sections. The evaluator therefore shares the verified apparatus counting and composition structure while preserving the Junior difficulty cap, short-exercise scale, prohibited elements, Vault differences and absence of dismount bonus.
 
 The same Phase 3 closure batch removes three operational dead ends: pure Administrators can reach More → Programmes without being assigned a coaching role; gymnast ruleset and level are selected as one constrained value so mismatched combinations cannot be submitted through the normal UI; and stopping a club ruleset now exposes the assignment-loss consequence behind an explicit confirmation step.
+
+### Gymnastics Ireland WAG pathway foundation
+
+Gymnastics Ireland WAG is now a Viaform-managed canonical ruleset rather than a club-created programme. The current General V4 January 2026 and Plus V4 February 2026 National Development Pathway documents establish Introductory Floor & Vault, General Levels 1–10 and Plus Levels 1–7 as assignable levels. Their shared progression, crossover, FIG-history, start-value and judging boundaries are stored as verified package rules with source pages.
+
+The 2025 editions were used only as comparison evidence. The 2026 revisions are authoritative. Prescribed apparatus routines are intentionally left for apparatus-by-apparatus audited imports; no routine text, start value or bonus is inferred from the older documents.
