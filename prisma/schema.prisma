@@ -142,6 +142,7 @@ model Gymnast {
   trainingAttendance TrainingAttendance[]
   testingSessions TestingSessionGymnast[]
   testingResults TestingResult[]
+  routines GymnastRoutine[]
 
   @@index([organisationId, name])
 }
@@ -233,6 +234,31 @@ model GymnastProgrammeAssignment {
   programme CoachingProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
   stage ProgrammeStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
   @@index([programmeId, stageId])
+}
+
+model GymnastRoutine {
+  id                   String   @id @default(cuid())
+  gymnastId            String
+  apparatus            String
+  name                 String
+  purpose              String   @default("CURRENT")
+  status               String   @default("ACTIVE")
+  rulesetProgramCode   String?
+  rulesetProgramName   String?
+  rulesetLevelCode     String?
+  rulesetLevelName     String?
+  rulesetPackageCode   String?
+  rulesetVersionLabel  String?
+  strategyNote         String?
+  pathwayNote          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+
+  @@unique([gymnastId, apparatus, name])
+  @@index([gymnastId, apparatus, status])
+  @@index([gymnastId, purpose, status])
 }
 
 model TrainingSession {

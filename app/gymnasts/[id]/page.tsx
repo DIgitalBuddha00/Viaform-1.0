@@ -202,12 +202,12 @@ export default async function GymnastOverview({ params }: { params: Promise<{ id
             <h2 className="font-semibold">Testing</h2>
             <p className="mt-2 text-sm text-[var(--muted)]">Open testing sessions and club-defined metrics.</p>
           </a>
-          <article className="rounded-2xl border border-dashed border-[var(--border)] p-5">
+          <a href={"/gymnasts/" + gymnast.id + "/routines"} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
             <h2 className="font-semibold">Routines</h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              {canonicalRules ? `${canonicalRules.level.name} canonical rules context is ready for routine construction.` : "Routine workspace will appear when this domain is rebuilt."}
+              {canonicalRules ? `${canonicalRules.level.name} rules context · open apparatus workspace.` : "Open the gymnast’s apparatus routine workspace."}
             </p>
-          </article>
+          </a>
           <a href={"/progress?gymnast=" + gymnast.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
             <h2 className="font-semibold">Progress</h2>
             <p className="mt-2 text-sm text-[var(--muted)]">Review longitudinal testing results and recent training evidence.</p>
