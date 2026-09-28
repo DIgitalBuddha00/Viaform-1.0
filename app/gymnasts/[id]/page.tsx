@@ -194,10 +194,10 @@ export default async function GymnastOverview({ params }: { params: Promise<{ id
         </article>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <article className="rounded-2xl border border-dashed border-[var(--border)] p-5">
+          <a href="/training" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
             <h2 className="font-semibold">Training</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">Live-training evidence is available through the session workspace.</p>
-          </article>
+            <p className="mt-2 text-sm text-[var(--muted)]">Open live and completed session evidence.</p>
+          </a>
           <a href={"/testing"} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
             <h2 className="font-semibold">Testing</h2>
             <p className="mt-2 text-sm text-[var(--muted)]">Open testing sessions and club-defined metrics.</p>

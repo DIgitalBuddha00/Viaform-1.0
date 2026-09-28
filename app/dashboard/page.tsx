@@ -1,18 +1,30 @@
 import { AppShell } from "@/app/components/app-shell";
+import { OverviewWidgets } from "@/app/components/overview-widgets";
 import { requireAuthContext } from "@/app/lib/auth";
-export const dynamic = "force-dynamic";
-
-export default async function Dashboard() {
-  const context = await requireAuthContext();
-  return <AppShell organisationName={context.organisation.name} displayName={context.user.displayName} access={context.access}>
-    <section>
-      <p className="text-sm font-semibold text-[var(--muted)]">Home</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">Your coaching workspace</h1>
-      <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">Viaform will bring together the evidence, context and working environments you use to support coaching decisions.</p>
-      <div className="mt-8 grid gap-4 lg:grid-cols-2">
-        <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm"><p className="text-sm font-semibold text-[var(--muted)]">Workspace status</p><h2 className="mt-2 text-xl font-semibold">Ready for core coaching</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">Identity, coaching scope, groups and gymnast overviews are active. Programme and pathway context is now being rebuilt on the canonical 1.0 model.</p></article>
-        <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm"><p className="text-sm font-semibold text-[var(--muted)]">Decision support</p><h2 className="mt-2 text-xl font-semibold">Evidence → Context → Guidance → Coach judgement</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">Working environments will appear here as they are rebuilt from the canonical 1.0 model.</p></article>
-      </div>
-    </section>
-  </AppShell>;
+import { groupScopeWhere } from "@/app/lib/coaching-scope";
+import { prisma } from "@/app/lib/prisma";
+export const dynamic="force-dynamic";
+const day=(d:Date)=>new Intl.DateTimeFormat("en-IE",{weekday:"short",day:"numeric",month:"short"}).format(d);
+export default async function Dashboard(){
+ const c=await requireAuthContext();
+ if(!c.access.canUseCoachingWorkspace)return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section><p className="text-sm font-semibold text-[var(--muted)]">Home</p><h1 className="mt-2 text-3xl font-semibold">Club operations</h1><p className="mt-3 max-w-2xl text-[var(--muted)]">Your account has operational access without a coaching role. Use More for the responsibilities delegated to you.</p><a href="/more" className="mt-6 inline-block rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 font-semibold">Open club operations →</a></section></AppShell>;
+ const now=new Date(),week=new Date(Date.now()+7*86400000),fortnight=new Date(Date.now()+14*86400000),scope=groupScopeWhere(c.organisation.id,c.membership.id,c.access);
+ const [groups,sessions,evidence,handoffs,competitions,reviews]=await Promise.all([
+  prisma.trainingGroup.findMany({where:scope,include:{_count:{select:{memberships:true}}},orderBy:{name:"asc"},take:8}),
+  prisma.trainingSession.findMany({where:{organisationId:c.organisation.id,sessionDate:{gte:now,lte:week},trainingGroup:scope},include:{trainingGroup:true},orderBy:[{sessionDate:"asc"},{startTime:"asc"}],take:8}),
+  prisma.trainingEvidence.findMany({where:{gymnast:{groups:{some:{trainingGroup:scope}}}},include:{gymnast:true},orderBy:{recordedAt:"desc"},take:6}),
+  prisma.coachHandoff.findMany({where:{organisationId:c.organisation.id,toMembershipId:c.membership.id,status:"ACTIVE"},include:{fromMembership:{include:{user:true}}},orderBy:{endsAt:"asc"},take:6}),
+  prisma.competitionEvent.findMany({where:{organisationId:c.organisation.id,eventDate:{gte:now,lte:fortnight},status:{in:["PLANNED","IN_PROGRESS"]}},orderBy:{eventDate:"asc"},take:6}),
+  c.access.isHeadCoach||c.access.coachingRoles.includes("PROGRAMME_LEAD")?prisma.methodologyRecord.findMany({where:{organisationId:c.organisation.id,status:"IN_REVIEW"},orderBy:{updatedAt:"asc"},take:6}):Promise.resolve([])
+ ]);
+ const card="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm";
+ const widgets=[
+  {id:"NEXT",title:"Next training",wide:true,content:<article className={card}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold text-[var(--muted)]">Next training</p><h2 className="mt-1 text-xl font-semibold">{sessions[0]?.title||"No session planned in the next 7 days"}</h2>{sessions[0]&&<p className="mt-2 text-sm text-[var(--muted)]">{sessions[0].trainingGroup.name} · {day(sessions[0].sessionDate)} · {sessions[0].startTime}–{sessions[0].endTime}</p>}</div><a href={sessions[0]?"/planning/"+sessions[0].id:"/planning"} className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">{sessions[0]?"Open session":"Open planning"} →</a></div></article>},
+  {id:"GROUPS",title:"My groups",content:<a href="/groups" className={card+" block h-full"}><p className="text-sm font-semibold text-[var(--muted)]">My groups</p><h2 className="mt-1 text-2xl font-semibold">{groups.length}</h2><div className="mt-3 grid gap-2 text-sm">{groups.slice(0,4).map(g=><span key={g.id}>{g.name} <small className="text-[var(--muted)]">· {g._count.memberships} gymnasts</small></span>)}</div><span className="mt-4 block text-sm font-semibold">Open groups →</span></a>},
+  {id:"EVIDENCE",title:"Recent evidence",content:<a href="/progress" className={card+" block h-full"}><p className="text-sm font-semibold text-[var(--muted)]">Recent evidence</p><h2 className="mt-1 text-2xl font-semibold">{evidence.length?"Latest coaching records":"No recent evidence"}</h2><div className="mt-3 grid gap-2">{evidence.slice(0,3).map(x=><span key={x.id} className="text-sm"><strong>{x.gymnast.name}</strong> · {x.outcome}</span>)}</div><span className="mt-4 block text-sm font-semibold">Open Progress →</span></a>},
+  {id:"ATTENTION",title:"Worth your attention",content:<a href="/updates" className={card+" block h-full"}><p className="text-sm font-semibold text-[var(--muted)]">Worth your attention</p><h2 className="mt-1 text-2xl font-semibold">{handoffs.length+reviews.length}</h2><p className="mt-2 text-sm text-[var(--muted)]">{handoffs.length} incoming handoff{handoffs.length===1?"":"s"} · {reviews.length} methodology review{reviews.length===1?"":"s"}</p><span className="mt-4 block text-sm font-semibold">Open digest →</span></a>},
+  {id:"WEEK",title:"Coming up",content:<a href="/calendar" className={card+" block h-full"}><p className="text-sm font-semibold text-[var(--muted)]">Coming up</p><div className="mt-3 grid gap-2">{sessions.slice(0,3).map(s=><span key={s.id} className="text-sm"><strong>{day(s.sessionDate)}</strong> · {s.trainingGroup.name}</span>)}{!sessions.length&&<span className="text-sm text-[var(--muted)]">No sessions in the next 7 days.</span>}</div><span className="mt-4 block text-sm font-semibold">Open calendar →</span></a>},
+  {id:"COMPETITIONS",title:"Competition horizon",content:<a href="/competitions" className={card+" block h-full"}><p className="text-sm font-semibold text-[var(--muted)]">Competition horizon</p><div className="mt-3 grid gap-2">{competitions.slice(0,3).map(e=><span key={e.id} className="text-sm"><strong>{e.name}</strong> · {day(e.eventDate)}</span>)}{!competitions.length&&<span className="text-sm text-[var(--muted)]">Nothing active in the next 14 days.</span>}</div><span className="mt-4 block text-sm font-semibold">Open competitions →</span></a>}
+ ];
+ return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section><p className="text-sm font-semibold text-[var(--muted)]">My Viaform</p><div className="mt-2 flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-semibold tracking-tight">Welcome, {c.user.displayName.split(" ")[0]}</h1><p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">Your coaching day at a glance. Evidence and context stay connected to the specialist workspaces where decisions are made.</p></div><div className="flex flex-wrap gap-2"><a href="/planning" className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">Review plan</a><a href="/training" className="rounded-xl bg-[var(--foreground)] px-3 py-2 text-sm font-semibold text-white">Open training</a></div></div><div className="mt-8"><OverviewWidgets storageKey={"viaform-home-"+c.membership.id} widgets={widgets}/></div></section></AppShell>;
 }

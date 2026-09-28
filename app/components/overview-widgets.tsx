@@ -1,0 +1,18 @@
+"use client";
+import {useEffect,useMemo,useState,type ReactNode} from "react";
+type Widget={id:string;title:string;content:ReactNode;wide?:boolean};
+type Saved={order:string[];hidden:string[];wide:string[]};
+export function OverviewWidgets({storageKey,widgets}:{storageKey:string;widgets:Widget[]}){
+ const ids=useMemo(()=>widgets.map(w=>w.id),[widgets]);
+ const [ready,setReady]=useState(false),[editing,setEditing]=useState(false),[saved,setSaved]=useState<Saved>({order:ids,hidden:[],wide:[]});
+ useEffect(()=>{try{const raw=localStorage.getItem(storageKey),p=raw?JSON.parse(raw):{};const order=[...(Array.isArray(p.order)?p.order:[]).filter((x:string)=>ids.includes(x)),...ids.filter(x=>!(Array.isArray(p.order)?p.order:[]).includes(x))];setSaved({order,hidden:(Array.isArray(p.hidden)?p.hidden:[]).filter((x:string)=>ids.includes(x)),wide:(Array.isArray(p.wide)?p.wide:[]).filter((x:string)=>ids.includes(x))})}catch{setSaved({order:ids,hidden:[],wide:[]})}setReady(true)},[storageKey,ids.join("|")]);
+ useEffect(()=>{if(ready)localStorage.setItem(storageKey,JSON.stringify(saved))},[ready,saved,storageKey]);
+ const map=new Map(widgets.map(w=>[w.id,w])),visible=saved.order.filter(id=>!saved.hidden.includes(id)).map(id=>map.get(id)).filter(Boolean) as Widget[],hidden=saved.order.filter(id=>saved.hidden.includes(id)).map(id=>map.get(id)).filter(Boolean) as Widget[];
+ const move=(id:string,d:number)=>setSaved(s=>{const o=[...s.order],i=o.indexOf(id),j=i+d;if(i<0||j<0||j>=o.length)return s;[o[i],o[j]]=[o[j],o[i]];return {...s,order:o}});
+ const hide=(id:string)=>setSaved(s=>({...s,hidden:s.hidden.includes(id)?s.hidden.filter(x=>x!==id):[...s.hidden,id]}));
+ const widen=(id:string)=>setSaved(s=>({...s,wide:s.wide.includes(id)?s.wide.filter(x=>x!==id):[...s.wide,id]}));
+ return <section><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold">Your overview</p><p className="mt-1 text-xs text-[var(--muted)]">Widgets summarise and navigate. Editing stays in the specialist workspace.</p></div><button type="button" onClick={()=>setEditing(x=>!x)} className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">{editing?"Done":"Arrange overview"}</button></div>
+ {editing&&<div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-[var(--border)] p-3 text-xs text-[var(--muted)]"><span>Move, widen or hide widgets. This first layout is saved on this device.</span><button type="button" className="font-semibold" onClick={()=>setSaved({order:ids,hidden:[],wide:[]})}>Reset default</button></div>}
+ <div className="grid gap-4 lg:grid-cols-2">{visible.map((w,i)=>{const wide=w.wide||saved.wide.includes(w.id);return <div key={w.id} className={wide?"lg:col-span-2":""}>{editing&&<div className="mb-1 flex flex-wrap items-center justify-between gap-2 rounded-t-xl border border-b-0 border-[var(--border)] px-3 py-2 text-xs"><strong>{w.title}</strong><span className="flex gap-2"><button disabled={i===0} onClick={()=>move(w.id,-1)}>←</button><button disabled={i===visible.length-1} onClick={()=>move(w.id,1)}>→</button>{!w.wide&&<button onClick={()=>widen(w.id)}>{wide?"Standard":"Wide"}</button>}<button onClick={()=>hide(w.id)}>Hide</button></span></div>}{w.content}</div>})}</div>
+ {editing&&hidden.length>0&&<div className="mt-4 flex flex-wrap gap-2 text-sm"><span className="text-[var(--muted)]">Hidden:</span>{hidden.map(w=><button key={w.id} onClick={()=>hide(w.id)} className="font-semibold">+ {w.title}</button>)}</div>}</section>;
+}

@@ -245,12 +245,9 @@ export default async function GroupOverview({ params }: { params: Promise<{ id: 
                 : "Plan training sessions for this group."}
             </p>
           </a>
-          {["Training", "Testing", "Progress"].map((x) => (
-            <article key={x} className="rounded-2xl border border-dashed border-[var(--border)] p-5">
-              <h2 className="font-semibold">{x}</h2>
-              <p className="mt-2 text-sm text-[var(--muted)]">Connects here when this domain is built.</p>
-            </article>
-          ))}
+          <a href="/training" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="font-semibold">Training</h2><p className="mt-2 text-sm text-[var(--muted)]">Run live sessions and capture coaching evidence for this group.</p></a>
+          <a href="/testing" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="font-semibold">Testing</h2><p className="mt-2 text-sm text-[var(--muted)]">Open testing sessions and club-defined metrics.</p></a>
+          <a href={"/progress?group=" + group.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="font-semibold">Progress</h2><p className="mt-2 text-sm text-[var(--muted)]">Review longitudinal evidence for gymnasts in this group.</p></a>
         </div>
       </section>
     </AppShell>
