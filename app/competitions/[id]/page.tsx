@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
 import {
   addCompetitionEntry,
+  recordCompetitionAthleteReflection,
+  recordCompetitionPerformance,
   removeCompetitionEntry,
   selectCompetitionRoutine,
   updateCompetitionEntryContext,
@@ -24,7 +26,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
       entries: {
         include: {
           gymnast: true,
-          apparatusPlans: { include: { routine: true }, orderBy: { apparatus: "asc" } },
+          apparatusPlans: { include: { routine: true, performance: { include: { athleteReflection: true } } }, orderBy: { apparatus: "asc" } },
         },
         orderBy: { gymnast: { name: "asc" } },
       },
@@ -107,6 +109,46 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                             <input name="planNote" defaultValue={plan.planNote ?? ""} placeholder="Plan note" disabled={event.status !== "PLANNED"} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-60"/>
                             {event.status === "PLANNED" && <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save apparatus plan</button>}
                           </form>
+                          <details className="mt-3 border-t border-[var(--border)] pt-3">
+                            <summary className="cursor-pointer text-xs font-semibold">{plan.performance?.status === "COMPETED" ? "Recorded outcome" : "Record outcome & perspectives"}</summary>
+                            <form action={recordCompetitionPerformance} className="mt-3 grid gap-2">
+                              <input type="hidden" name="eventId" value={event.id}/><input type="hidden" name="planId" value={plan.id}/>
+                              <select name="performanceStatus" defaultValue={plan.performance?.status ?? "NOT_RECORDED"} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+                                <option value="NOT_RECORDED">Not recorded</option><option value="COMPETED">Competed</option><option value="SCRATCHED">Scratched</option><option value="EXHIBITION">Exhibition</option>
+                              </select>
+                              <div className="grid grid-cols-2 gap-2">
+                                <input name="difficultyScore" type="number" min="0" step="0.001" defaultValue={plan.performance?.difficultyScore ?? ""} placeholder="D score" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                                <input name="executionScore" type="number" min="0" step="0.001" defaultValue={plan.performance?.executionScore ?? ""} placeholder="E score" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                                <input name="penalty" type="number" min="0" step="0.001" defaultValue={plan.performance?.penalty ?? ""} placeholder="Penalty" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                                <input name="finalScore" type="number" min="0" step="0.001" defaultValue={plan.performance?.finalScore ?? ""} placeholder="Final score" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                              </div>
+                              <input name="rank" type="number" min="1" step="1" defaultValue={plan.performance?.rank ?? ""} placeholder="Apparatus rank (optional)" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                              <textarea name="warmupNote" defaultValue={plan.performance?.warmupNote ?? ""} placeholder="Warm-up context" className="min-h-16 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                              <textarea name="judgeNote" defaultValue={plan.performance?.judgeNote ?? ""} placeholder={event.eventType === "EXTERNAL" ? "Judge / official-score context" : "Judge observation"} className="min-h-16 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                              <textarea name="coachObservation" defaultValue={plan.performance?.coachObservation ?? ""} placeholder="Coach observation" className="min-h-16 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save outcome</button>
+                            </form>
+                            <form action={recordCompetitionAthleteReflection} className="mt-4 grid gap-2 border-t border-[var(--border)] pt-3">
+                              <input type="hidden" name="eventId" value={event.id}/><input type="hidden" name="planId" value={plan.id}/>
+                              <p className="text-xs font-semibold">Athlete reflection</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <input name="rating" type="number" min="1" max="5" step="1" defaultValue={plan.performance?.athleteReflection?.rating ?? ""} placeholder="Feel 1–5" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                                <input name="confidence" type="number" min="1" max="10" step="1" defaultValue={plan.performance?.athleteReflection?.confidence ?? ""} placeholder="Confidence 1–10" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                              </div>
+                              <select name="feltPrepared" defaultValue={plan.performance?.athleteReflection?.feltPrepared == null ? "" : plan.performance.athleteReflection.feltPrepared ? "YES" : "NO"} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"><option value="">Felt prepared? —</option><option value="YES">Yes</option><option value="NO">No</option></select>
+                              <input name="whatFeltGood" defaultValue={plan.performance?.athleteReflection?.whatFeltGood ?? ""} placeholder="What felt good?" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                              <input name="whatFeltHard" defaultValue={plan.performance?.athleteReflection?.whatFeltHard ?? ""} placeholder="What felt difficult?" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                              <textarea name="athleteNote" defaultValue={plan.performance?.athleteReflection?.athleteNote ?? ""} placeholder="Athlete note" className="min-h-16 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
+                              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save athlete reflection</button>
+                            </form>
+                            {(plan.performance?.judgeNote || plan.performance?.coachObservation || plan.performance?.athleteReflection) && (
+                              <div className="mt-4 grid gap-2 border-t border-[var(--border)] pt-3 lg:grid-cols-3">
+                                <div className="rounded-lg border border-[var(--border)] p-3"><p className="text-[11px] font-semibold text-[var(--muted)]">Judge</p><p className="mt-2 text-xs">{plan.performance?.judgeNote || "No judge note."}</p></div>
+                                <div className="rounded-lg border border-[var(--border)] p-3"><p className="text-[11px] font-semibold text-[var(--muted)]">Coach</p><p className="mt-2 text-xs">{plan.performance?.coachObservation || "No coach observation."}</p></div>
+                                <div className="rounded-lg border border-[var(--border)] p-3"><p className="text-[11px] font-semibold text-[var(--muted)]">Athlete</p><p className="mt-2 text-xs">{plan.performance?.athleteReflection?.athleteNote || plan.performance?.athleteReflection?.whatFeltGood || "No athlete comment."}</p></div>
+                              </div>
+                            )}
+                          </details>
                         </div>
                       );
                     })}
@@ -152,7 +194,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
             <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <p className="font-semibold">Evidence boundary</p>
               <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-                This batch records entry context and planned routines. Competition outcomes, judge observations, coach observations and athlete reflections will be stored separately rather than rewriting the plan.
+                The pre-competition plan stays frozen as context. Recorded scores, judge notes, coach observations and athlete reflections are separate evidence streams. Differences between perspectives are prompts for review, not automatic conclusions.
               </p>
             </article>
           </aside>

@@ -12,6 +12,9 @@ const apparatusLabel: Record<string, string> = {
   BALANCE_BEAM: "Balance Beam",
   FLOOR_EXERCISE: "Floor Exercise",
   PHYSICAL_PREPARATION: "Physical Preparation",
+  BARS: "Uneven Bars",
+  BEAM: "Balance Beam",
+  FLOOR: "Floor Exercise",
 };
 const directionLabel: Record<string, string> = {
   HIGHER: "Higher value indicates more",
@@ -87,6 +90,25 @@ export default async function ProgressPage({
       ])
     : [[], [], []];
 
+  const competitionPerformances = selectedGymnast
+    ? await prisma.competitionPerformance.findMany({
+        where: {
+          apparatusPlan: {
+            entry: {
+              gymnastId: selectedGymnast.id,
+              event: { organisationId: c.organisation.id },
+            },
+          },
+        },
+        include: {
+          athleteReflection: true,
+          apparatusPlan: { include: { entry: { include: { event: true } } } },
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 40,
+      })
+    : [];
+
   const latest = metricResults[0] ?? null;
   const previous = metricResults[1] ?? null;
   const delta = latest && previous ? latest.numberValue - previous.numberValue : null;
@@ -141,6 +163,7 @@ export default async function ProgressPage({
               <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><p className="text-sm text-[var(--muted)]">Training observations</p><strong className="mt-2 block text-2xl">{trainingEvidence.length}</strong></article>
               <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><p className="text-sm text-[var(--muted)]">Made</p><strong className="mt-2 block text-2xl">{outcomeCounts.made}</strong></article>
               <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><p className="text-sm text-[var(--muted)]">Spotted / missed</p><strong className="mt-2 block text-2xl">{outcomeCounts.spotted} / {outcomeCounts.missed}</strong></article>
+              <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><p className="text-sm text-[var(--muted)]">Competition apparatus records</p><strong className="mt-2 block text-2xl">{competitionPerformances.length}</strong></article>
             </div>
 
             <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -199,6 +222,33 @@ export default async function ProgressPage({
               ) : (
                 <p className="mt-4 rounded-xl border border-dashed border-[var(--border)] p-5 text-sm text-[var(--muted)]">No testing results recorded for this gymnast yet.</p>
               )}
+            </article>
+
+            <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <p className="text-sm font-semibold text-[var(--muted)]">Competition context</p>
+              <h2 className="mt-1 text-xl font-semibold">Recent competition evidence</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">Scores and perspectives are shown as recorded evidence; they do not automatically change routine or progression decisions.</p>
+              <div className="mt-4 grid gap-2">
+                {competitionPerformances.map((performance) => {
+                  const event = performance.apparatusPlan.entry.event;
+                  return (
+                    <a key={performance.id} href={"/competitions/" + event.id} className="rounded-xl border border-[var(--border)] p-3 text-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold">{apparatusLabel[performance.apparatusPlan.apparatus] ?? performance.apparatusPlan.apparatus} · {performance.status}</p>
+                          <p className="mt-1 text-xs text-[var(--muted)]">{dateValue(event.eventDate)} · {event.name} · {event.eventType === "CONTROL" ? "Control" : "External"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{performance.finalScore == null ? "No score" : number(performance.finalScore)}</p>
+                          {performance.rank && <p className="text-xs text-[var(--muted)]">Rank {performance.rank}</p>}
+                        </div>
+                      </div>
+                      {(performance.judgeNote || performance.coachObservation || performance.athleteReflection?.athleteNote) && <p className="mt-2 text-xs text-[var(--muted)]">Judge, coach and athlete perspectives are available on the competition record.</p>}
+                    </a>
+                  );
+                })}
+                {!competitionPerformances.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-5 text-sm text-[var(--muted)]">No competition outcomes recorded yet.</p>}
+              </div>
             </article>
 
             <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">

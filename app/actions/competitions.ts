@@ -159,3 +159,97 @@ export async function updateCompetitionEvent(data: FormData) {
   revalidatePath("/competitions");
   revalidatePath("/competitions/" + event.id);
 }
+
+
+const PERFORMANCE_STATUS = ["NOT_RECORDED", "COMPETED", "SCRATCHED", "EXHIBITION"] as const;
+const optionalNumber = (data: FormData, key: string) => {
+  const raw = value(data, key);
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+export async function recordCompetitionPerformance(data: FormData) {
+  const c = await context();
+  const event = await visibleEvent(value(data, "eventId"), c);
+  if (!event || event.status === "CANCELLED") return;
+  const plan = await prisma.competitionApparatusPlan.findFirst({
+    where: { id: value(data, "planId"), entry: { competitionEventId: event.id } },
+    include: { performance: true },
+  });
+  if (!plan) return;
+  const status = value(data, "performanceStatus") || "NOT_RECORDED";
+  if (!PERFORMANCE_STATUS.includes(status as (typeof PERFORMANCE_STATUS)[number])) return;
+  const difficultyScore = optionalNumber(data, "difficultyScore");
+  const executionScore = optionalNumber(data, "executionScore");
+  const penalty = optionalNumber(data, "penalty");
+  const finalScore = optionalNumber(data, "finalScore");
+  const rankRaw = optionalNumber(data, "rank");
+  if (difficultyScore === undefined || executionScore === undefined || penalty === undefined || finalScore === undefined || rankRaw === undefined) return;
+  if ([difficultyScore, executionScore, penalty, finalScore].some((item) => typeof item === "number" && item < 0)) return;
+  if (rankRaw !== null && (!Number.isInteger(rankRaw) || rankRaw < 1)) return;
+
+  const payload = {
+    status,
+    difficultyScore,
+    executionScore,
+    penalty,
+    finalScore,
+    rank: rankRaw,
+    warmupNote: value(data, "warmupNote") || null,
+    judgeNote: value(data, "judgeNote") || null,
+    coachObservation: value(data, "coachObservation") || null,
+    performedAt: status === "COMPETED" || status === "EXHIBITION" ? new Date() : null,
+  };
+  await prisma.competitionPerformance.upsert({
+    where: { competitionApparatusPlanId: plan.id },
+    create: { competitionApparatusPlanId: plan.id, ...payload },
+    update: payload,
+  });
+  revalidatePath("/competitions/" + event.id);
+  revalidatePath("/progress");
+}
+
+export async function recordCompetitionAthleteReflection(data: FormData) {
+  const c = await context();
+  const event = await visibleEvent(value(data, "eventId"), c);
+  if (!event || event.status === "CANCELLED") return;
+  const plan = await prisma.competitionApparatusPlan.findFirst({
+    where: { id: value(data, "planId"), entry: { competitionEventId: event.id } },
+    include: { performance: true },
+  });
+  if (!plan) return;
+  const performance = plan.performance ?? await prisma.competitionPerformance.create({
+    data: { competitionApparatusPlanId: plan.id },
+  });
+  const ratingRaw = optionalNumber(data, "rating");
+  const confidenceRaw = optionalNumber(data, "confidence");
+  if (ratingRaw === undefined || confidenceRaw === undefined) return;
+  if (ratingRaw !== null && (!Number.isInteger(ratingRaw) || ratingRaw < 1 || ratingRaw > 5)) return;
+  if (confidenceRaw !== null && (!Number.isInteger(confidenceRaw) || confidenceRaw < 1 || confidenceRaw > 10)) return;
+  const prepared = value(data, "feltPrepared");
+  if (prepared && !["YES", "NO"].includes(prepared)) return;
+
+  await prisma.competitionAthleteReflection.upsert({
+    where: { competitionPerformanceId: performance.id },
+    create: {
+      competitionPerformanceId: performance.id,
+      rating: ratingRaw,
+      confidence: confidenceRaw,
+      feltPrepared: prepared ? prepared === "YES" : null,
+      whatFeltGood: value(data, "whatFeltGood") || null,
+      whatFeltHard: value(data, "whatFeltHard") || null,
+      athleteNote: value(data, "athleteNote") || null,
+    },
+    update: {
+      rating: ratingRaw,
+      confidence: confidenceRaw,
+      feltPrepared: prepared ? prepared === "YES" : null,
+      whatFeltGood: value(data, "whatFeltGood") || null,
+      whatFeltHard: value(data, "whatFeltHard") || null,
+      athleteNote: value(data, "athleteNote") || null,
+      reflectedAt: new Date(),
+    },
+  });
+  revalidatePath("/competitions/" + event.id);
+}

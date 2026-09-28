@@ -896,7 +896,45 @@ model CompetitionApparatusPlan {
 
   entry CompetitionEntry @relation(fields: [competitionEntryId], references: [id], onDelete: Cascade)
   routine GymnastRoutine? @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  performance CompetitionPerformance?
 
   @@unique([competitionEntryId, apparatus])
   @@index([routineId])
+}
+
+
+model CompetitionPerformance {
+  id                       String   @id @default(cuid())
+  competitionApparatusPlanId String @unique
+  status                   String   @default("NOT_RECORDED")
+  difficultyScore          Float?
+  executionScore           Float?
+  penalty                  Float?
+  finalScore               Float?
+  rank                     Int?
+  warmupNote               String?
+  judgeNote                String?
+  coachObservation         String?
+  performedAt              DateTime?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  apparatusPlan CompetitionApparatusPlan @relation(fields: [competitionApparatusPlanId], references: [id], onDelete: Cascade)
+  athleteReflection CompetitionAthleteReflection?
+}
+
+model CompetitionAthleteReflection {
+  id                       String   @id @default(cuid())
+  competitionPerformanceId String   @unique
+  rating                   Int?
+  confidence               Int?
+  feltPrepared             Boolean?
+  whatFeltGood             String?
+  whatFeltHard             String?
+  athleteNote              String?
+  reflectedAt              DateTime @default(now())
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  performance CompetitionPerformance @relation(fields: [competitionPerformanceId], references: [id], onDelete: Cascade)
 }
