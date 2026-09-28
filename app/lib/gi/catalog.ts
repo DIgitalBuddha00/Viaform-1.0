@@ -68,5 +68,14 @@ export const GI_WAG_VERIFIED_CONTENT = {
     totalContexts: 22,
     generalSourcePages: [20, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33],
     plusSourcePages: [16, 17, 20, 21, 22, 23, 24, 25, 26, 29, 30, 31],
+  },,
+  floorExercise: {
+    generalLevelContexts: 11,
+    generalTeamContexts: 2,
+    plusLevelContexts: 7,
+    plusTeamContexts: 3,
+    totalContexts: 23,
+    generalSourcePages: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33],
+    plusSourcePages: [16, 17, 20, 21, 22, 23, 24, 25, 26, 29, 30, 31],
   },
 } as const;
