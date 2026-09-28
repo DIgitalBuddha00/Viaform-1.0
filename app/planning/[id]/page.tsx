@@ -111,18 +111,8 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href="/planning" className="text-sm font-semibold text-[var(--muted)]">← Planning</a>
-        <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Planned session</p>
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold">{session.title}</h1>
-            <p className="mt-3 text-[var(--muted)]">
-              {session.trainingGroup.name} · {dateValue(session.sessionDate)} · {session.startTime}–{session.endTime}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status}</span>
+      <section className="workspace-page"><a href="/planning" className="workspace-back">← Planning</a><div className="workspace-hero"><div><p className="workspace-kicker">Planned session · {session.trainingGroup.name}</p><h1>{session.title}</h1><p className="workspace-meta">{dateValue(session.sessionDate)} · {session.startTime}–{session.endTime}</p></div><div className="workspace-actions">
+            <span className="workspace-button">{session.status}</span>
             <a href={"/training/" + session.id} className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">
               {session.status === "PLANNED" ? "Open live training" : session.status === "IN_PROGRESS" ? "Return to live training" : "View training record"}
             </a>

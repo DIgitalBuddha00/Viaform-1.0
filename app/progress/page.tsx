@@ -124,17 +124,7 @@ export default async function ProgressPage({
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-[var(--muted)]">Testing & progress</p>
-            <h1 className="mt-2 text-3xl font-semibold">Progress Hub</h1>
-            <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">
-              Review evidence across time without turning a result into an automatic judgement. Context stays visible and the coach decides what it means.
-            </p>
-          </div>
-          <a href="/testing" className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Open Testing</a>
-        </div>
+      <section className="workspace-page"><div className="workspace-hero"><div><p className="workspace-kicker">Testing & progress</p><h1>Progress Hub</h1><p className="workspace-meta">{selectedGymnast?.name ?? "No gymnast selected"}</p></div><div className="workspace-actions"><a href="/testing" className="workspace-button">Open Testing</a></div></div>
 
         <form method="get" className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <label className="text-sm font-medium">Gymnast

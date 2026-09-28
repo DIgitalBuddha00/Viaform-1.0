@@ -29,13 +29,7 @@ export default async function GymnastRoutinesPage({ params }: { params: Promise<
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href={"/gymnasts/" + gymnast.id} className="text-sm font-semibold text-[var(--muted)]">← {gymnast.name}</a>
-        <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Routines & technical coaching</p>
-        <h1 className="mt-2 text-3xl font-semibold">{gymnast.name} · Routines</h1>
-        <p className="mt-3 max-w-3xl leading-7 text-[var(--muted)]">
-          Build and compare apparatus plans without changing the gymnast’s assigned pathway. Viaform keeps verified rules and evidence in view; routine strategy remains a coach decision.
-        </p>
+      <section className="workspace-page"><a href={"/gymnasts/" + gymnast.id} className="workspace-back">← {gymnast.name}</a><div className="workspace-hero"><div><p className="workspace-kicker">Routines & technical coaching</p><h1>{gymnast.name} · Routines</h1><p className="workspace-meta">{gymnast.routines.length} active plan{gymnast.routines.length===1?"":"s"}</p></div></div>
 
         <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <p className="text-sm font-semibold">Current rules context</p>

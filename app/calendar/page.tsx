@@ -130,14 +130,7 @@ export default async function CalendarPage({
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-[var(--muted)]">Calendar</p>
-            <h1 className="mt-2 text-3xl font-semibold">{title}</h1>
-            <p className="mt-2 text-sm text-[var(--muted)]">{sessions.length} {sessions.length === 1 ? "session" : "sessions"} in view</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <section className="workspace-page"><div className="workspace-hero"><div><p className="workspace-kicker">Calendar</p><h1>{title}</h1><p className="workspace-meta">{sessions.length} {sessions.length === 1 ? "session" : "sessions"} in view</p></div><div className="workspace-actions">
             <div className="flex rounded-xl border border-[var(--border)] p-1">
               <a href={linkFor(anchor, "month")} className={"rounded-lg px-3 py-2 text-sm font-semibold " + (view === "month" ? "bg-[var(--foreground)] text-white" : "")}>Month</a>
               <a href={linkFor(anchor, "week")} className={"rounded-lg px-3 py-2 text-sm font-semibold " + (view === "week" ? "bg-[var(--foreground)] text-white" : "")}>Week</a>

@@ -136,12 +136,7 @@ export default async function RoutineWorkspace({
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href={"/gymnasts/" + gymnast.id + "/routines"} className="text-sm font-semibold text-[var(--muted)]">← {gymnast.name} · Routines</a>
-        <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-[var(--muted)]">{labels[routine.apparatus] ?? routine.apparatus} · {routine.purpose === "CURRENT" ? "Current" : "Alternative"}</p>
-            <h1 className="mt-2 text-3xl font-semibold">{routine.name}</h1>
+      <section className="workspace-page"><a href={"/gymnasts/" + gymnast.id + "/routines"} className="workspace-back">← {gymnast.name} · Routines</a><div className="workspace-hero"><div><p className="workspace-kicker">{labels[routine.apparatus] ?? routine.apparatus} · {routine.purpose === "CURRENT" ? "Current" : "Alternative"}</p><h1>{routine.name}</h1>
             <p className="mt-2 text-sm text-[var(--muted)]">
               {routine.rulesetProgramName && routine.rulesetLevelName
                 ? "Created under " + routine.rulesetProgramName + " · " + routine.rulesetLevelName + (routine.rulesetVersionLabel ? " · " + routine.rulesetVersionLabel : "")

@@ -61,13 +61,8 @@ export default async function TestingSessionPage({
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href="/testing" className="text-sm font-semibold text-[var(--muted)]">← Testing</a>
-        <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-[var(--muted)]">{session.trainingGroup.name} · {dateValue(session.testedAt)}</p>
-            <h1 className="mt-2 text-3xl font-semibold">{session.name}</h1>
-            {session.purpose && <p className="mt-2 text-sm">{session.purpose}</p>}
+      <section className="workspace-page"><a href="/testing" className="workspace-back">← Testing</a><div className="workspace-hero"><div><p className="workspace-kicker">{session.trainingGroup.name} · {dateValue(session.testedAt)}</p><h1>{session.name}</h1>
+            {session.purpose && <p className="workspace-meta">{session.purpose}</p>}
             {(session.conditions || session.notes) && (
               <p className="mt-2 text-sm text-[var(--muted)]">
                 {[session.conditions, session.notes].filter(Boolean).join(" · ")}

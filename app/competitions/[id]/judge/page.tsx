@@ -26,11 +26,7 @@ export default async function CompetitionJudgePage({ params }: { params: Promise
   if (!event) notFound();
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href={"/competitions/" + event.id} className="text-sm font-semibold text-[var(--muted)]">← Competition workspace</a>
-        <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Competition day · Judge view</p>
-        <h1 className="mt-1 text-3xl font-semibold">{event.name}</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">Fast score and judge-context capture. Scores are recorded evidence; Viaform does not invent deductions or replace the official result.</p>
+      <section className="workspace-page"><a href={"/competitions/" + event.id} className="workspace-back">← Competition workspace</a><div className="workspace-hero"><div><p className="workspace-kicker">Competition day · Judge view</p><h1>{event.name}</h1><p className="workspace-meta">{event.entries.length} gymnast{event.entries.length===1?"":"s"}</p></div></div>
         <div className="mt-6 grid gap-5">
           {event.entries.map((entry) => (
             <article key={entry.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">

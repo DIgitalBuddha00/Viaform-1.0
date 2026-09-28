@@ -108,12 +108,7 @@ export default async function LiveTrainingSessionPage({
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href="/training" className="text-sm font-semibold text-[var(--muted)]">← Training</a>
-        <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-[var(--muted)]">{session.trainingGroup.name}</p>
-            <h1 className="mt-2 text-3xl font-semibold">{session.title}</h1>
+      <section className="workspace-page"><a href="/training" className="workspace-back">← Training</a><div className="workspace-hero"><div><p className="workspace-kicker">{session.trainingGroup.name}</p><h1>{session.title}</h1>
             <p className="mt-2 text-sm text-[var(--muted)]">
               {session.startTime}–{session.endTime}
               {session.facilityAssignment ? " · " + session.facilityAssignment.location.name : ""}
