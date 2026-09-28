@@ -1,191 +1,36 @@
-import { AppShell } from "@/app/components/app-shell";
-import { archiveTestMetric, createTestMetric, createTestingSession, updateTestMetric } from "@/app/actions/testing";
-import { requireAuthContext } from "@/app/lib/auth";
-import { prisma } from "@/app/lib/prisma";
-import { groupScopeWhere } from "@/app/lib/coaching-scope";
-
-export const dynamic = "force-dynamic";
-
-const dateValue = (date: Date) => date.toISOString().slice(0, 10);
-const modeLabel: Record<string, string> = {
-  COUNTDOWN_TALLY: "Countdown + tally",
-  STOPWATCH: "Stopwatch",
-  REPETITION_TALLY: "Repetition tally",
-  MEASUREMENT: "Measurement",
-};
-
-export default async function TestingPage() {
-  const c = await requireAuthContext();
-  const groups = c.access.canUseCoachingWorkspace
-    ? await prisma.trainingGroup.findMany({
-        where: groupScopeWhere(c.organisation.id, c.membership.id, c.access),
-        include: { memberships: { select: { gymnastId: true } } },
-        orderBy: { name: "asc" },
-      })
-    : [];
-  const metrics = c.access.canUseCoachingWorkspace
-    ? await prisma.testMetric.findMany({
-        where: { organisationId: c.organisation.id, status: "ACTIVE" },
-        orderBy: [{ category: "asc" }, { name: "asc" }],
-      })
-    : [];
-  const sessions = c.access.canUseCoachingWorkspace
-    ? await prisma.testingSession.findMany({
-        where: {
-          organisationId: c.organisation.id,
-          trainingGroup: groupScopeWhere(c.organisation.id, c.membership.id, c.access),
-        },
-        include: { trainingGroup: true, gymnasts: true, results: { select: { id: true } } },
-        orderBy: [{ testedAt: "desc" }, { createdAt: "desc" }],
-        take: 30,
-      })
-    : [];
-
-  return (
-    <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <p className="text-sm font-semibold text-[var(--muted)]">Testing & progress</p>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h1 className="mt-2 text-3xl font-semibold">Testing</h1>
-          <a href="/progress" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Open Progress Hub</a>
-        </div>
-        <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">
-          Capture repeatable evidence quickly on the gym floor. Raw results are retained; Viaform does not turn a test result into a progression decision.
-        </p>
-
-        <form action={createTestingSession} className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-semibold">Start a group testing session</h2>
-          
-          <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <select name="groupId" required className="rounded-xl border border-[var(--border)] px-3 py-3">
-              <option value="">Choose group…</option>
-              {groups.map((group) => <option key={group.id} value={group.id}>{group.name} · {group.memberships.length}</option>)}
-            </select>
-            <input name="testedAt" type="date" required className="rounded-xl border border-[var(--border)] px-3 py-3" />
-            <input name="name" placeholder="Session name (optional)" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-            <input name="purpose" placeholder="Testing purpose (optional)" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-          </div>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <input name="conditions" placeholder="Conditions / preparation (optional)" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-            <input name="notes" placeholder="Session notes (optional)" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-          </div>
-          <button className="mt-3 rounded-xl bg-[var(--foreground)] px-4 py-3 font-semibold text-white">Start testing</button>
-        </form>
-
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
-          <div>
-            <div className="flex items-end justify-between gap-3">
-              <div><p className="text-sm font-semibold text-[var(--muted)]">History</p><h2 className="mt-1 text-2xl font-semibold">Testing sessions</h2></div>
-              <span className="text-sm text-[var(--muted)]">{sessions.length}</span>
-            </div>
-            <div className="mt-4 grid gap-3">
-              {sessions.length ? sessions.map((session) => (
-                <a key={session.id} href={"/testing/" + session.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{session.name}</p>
-                      <p className="mt-1 text-sm text-[var(--muted)]">{session.trainingGroup.name} · {dateValue(session.testedAt)}</p>
-                      {session.purpose && <p className="mt-2 text-sm">{session.purpose}</p>}
-                    </div>
-                    <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">
-                      {session.status} · {session.results.length} results
-                    </span>
-                  </div>
-                </a>
-              )) : (
-                <p className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--muted)]">No testing sessions yet.</p>
-              )}
-            </div>
-          </div>
-
-          <aside>
-            <div className="flex items-end justify-between gap-3">
-              <div><p className="text-sm font-semibold text-[var(--muted)]">Club metrics</p><h2 className="mt-1 text-2xl font-semibold">Custom tests</h2></div>
-              <span className="text-sm text-[var(--muted)]">{metrics.length}</span>
-            </div>
-            <div className="mt-4 grid gap-2">
-              {metrics.map((metric) => (
-                <details key={metric.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                  <summary className="cursor-pointer list-none">
-                    <p className="font-semibold">{metric.name}</p>
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      {metric.category} · {modeLabel[metric.captureMode] ?? metric.captureMode}
-                      {metric.unit ? " · " + metric.unit : ""}
-                      {metric.durationSeconds ? " · " + metric.durationSeconds + " sec" : ""}
-                    </p>
-                  </summary>
-                  <form action={updateTestMetric} className="mt-4 grid gap-2 border-t border-[var(--border)] pt-4">
-                    <input type="hidden" name="metricId" value={metric.id} />
-                    <input name="name" required defaultValue={metric.name} className="rounded-lg border border-[var(--border)] px-3 py-2" />
-                    <input name="category" defaultValue={metric.category} className="rounded-lg border border-[var(--border)] px-3 py-2" />
-                    <select name="apparatus" defaultValue={metric.apparatus ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
-                      <option value="">No apparatus</option>
-                      <option value="VAULT">Vault</option><option value="UNEVEN_BARS">Uneven Bars</option>
-                      <option value="BALANCE_BEAM">Balance Beam</option><option value="FLOOR_EXERCISE">Floor Exercise</option>
-                      <option value="PHYSICAL_PREPARATION">Physical Preparation</option>
-                    </select>
-                    <select name="captureMode" defaultValue={metric.captureMode} className="rounded-lg border border-[var(--border)] px-3 py-2">
-                      <option value="COUNTDOWN_TALLY">Countdown + tally</option>
-                      <option value="STOPWATCH">Stopwatch</option>
-                      <option value="REPETITION_TALLY">Repetition tally</option>
-                      <option value="MEASUREMENT">Measurement</option>
-                    </select>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input name="unit" defaultValue={metric.unit ?? ""} placeholder="Unit" className="rounded-lg border border-[var(--border)] px-3 py-2" />
-                      <input name="durationSeconds" type="number" min="1" max="3600" defaultValue={metric.durationSeconds ?? ""} placeholder="Countdown seconds" className="rounded-lg border border-[var(--border)] px-3 py-2" />
-                    </div>
-                    <select name="direction" defaultValue={metric.direction} className="rounded-lg border border-[var(--border)] px-3 py-2">
-                      <option value="COACH_INTERPRETATION">Coach interpretation</option>
-                      <option value="HIGHER">Higher value indicates more</option>
-                      <option value="LOWER">Lower value indicates less</option>
-                    </select>
-                    <textarea name="protocol" defaultValue={metric.protocol ?? ""} placeholder="Protocol" className="min-h-16 rounded-lg border border-[var(--border)] px-3 py-2" />
-                    <textarea name="description" defaultValue={metric.description ?? ""} placeholder="Description" className="min-h-16 rounded-lg border border-[var(--border)] px-3 py-2" />
-                    <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save changes</button>
-                  </form>
-                  <form action={archiveTestMetric} className="mt-2">
-                    <input type="hidden" name="metricId" value={metric.id} />
-                    <button className="text-xs font-semibold text-[var(--muted)]">Archive metric</button>
-                  </form>
-                </details>
-              ))}
-              {!metrics.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">No custom metrics yet.</p>}
-            </div>
-
-            <details className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <summary className="cursor-pointer font-semibold">Create custom metric</summary>
-              <form action={createTestMetric} className="mt-4 grid gap-3">
-                <input name="name" required placeholder="Metric name" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-                <input name="category" placeholder="Category, e.g. Physical preparation" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-                <select name="apparatus" className="rounded-xl border border-[var(--border)] px-3 py-3">
-                  <option value="">No apparatus</option>
-                  <option value="VAULT">Vault</option><option value="UNEVEN_BARS">Uneven Bars</option>
-                  <option value="BALANCE_BEAM">Balance Beam</option><option value="FLOOR_EXERCISE">Floor Exercise</option>
-                  <option value="PHYSICAL_PREPARATION">Physical Preparation</option>
-                </select>
-                <select name="captureMode" required className="rounded-xl border border-[var(--border)] px-3 py-3">
-                  <option value="COUNTDOWN_TALLY">Countdown + tally</option>
-                  <option value="STOPWATCH">Stopwatch</option>
-                  <option value="REPETITION_TALLY">Repetition tally</option>
-                  <option value="MEASUREMENT">Measurement</option>
-                </select>
-                <div className="grid grid-cols-2 gap-2">
-                  <input name="unit" placeholder="Unit, e.g. sec, cm, reps" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-                  <input name="durationSeconds" type="number" min="1" max="3600" placeholder="Countdown seconds" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-                </div>
-                <select name="direction" defaultValue="COACH_INTERPRETATION" className="rounded-xl border border-[var(--border)] px-3 py-3">
-                  <option value="COACH_INTERPRETATION">Coach interpretation</option>
-                  <option value="HIGHER">Higher value indicates more</option>
-                  <option value="LOWER">Lower value indicates less</option>
-                </select>
-                <textarea name="protocol" placeholder="Protocol / how to run this test" className="min-h-20 rounded-xl border border-[var(--border)] px-3 py-3" />
-                <textarea name="description" placeholder="What this metric records" className="min-h-20 rounded-xl border border-[var(--border)] px-3 py-3" />
-                <button className="rounded-xl border border-[var(--border)] px-4 py-3 font-semibold">Create metric</button>
-              </form>
-            </details>
-          </aside>
-        </div>
-      </section>
-    </AppShell>
-  );
+import {AppShell} from "@/app/components/app-shell";import {OverviewWidgets,type OverviewWidget} from "@/app/components/overview-widgets";import {archiveTestMetric,createTestMetric,createTestingSession,updateTestMetric} from "@/app/actions/testing";import {requireAuthContext} from "@/app/lib/auth";import {prisma} from "@/app/lib/prisma";import {groupScopeWhere} from "@/app/lib/coaching-scope";import {readOverviewLayout} from "@/app/lib/widget-layout";
+export const dynamic="force-dynamic";const date=(d:Date)=>new Intl.DateTimeFormat("en-IE",{day:"numeric",month:"short",year:"numeric"}).format(d);const mode:Record<string,string>={COUNTDOWN_TALLY:"Countdown + tally",STOPWATCH:"Stopwatch",REPETITION_TALLY:"Repetition tally",MEASUREMENT:"Measurement"};const card="overview-data-card";
+export default async function TestingPage({searchParams}:{searchParams:Promise<{view?:string}>}){const c=await requireAuthContext(),q=await searchParams,view=["live","history","manage"].includes(q.view??"")?q.view!:"overview",scope=groupScopeWhere(c.organisation.id,c.membership.id,c.access);
+ const [groups,metrics,sessions,recentResults,pref]=c.access.canUseCoachingWorkspace?await Promise.all([
+ prisma.trainingGroup.findMany({where:scope,include:{memberships:{select:{gymnastId:true}}},orderBy:{name:"asc"}}),
+ prisma.testMetric.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},orderBy:[{category:"asc"},{name:"asc"}]}),
+ prisma.testingSession.findMany({where:{organisationId:c.organisation.id,trainingGroup:scope},include:{trainingGroup:true,gymnasts:true,results:{select:{id:true,gymnastId:true}}},orderBy:[{testedAt:"desc"},{createdAt:"desc"}],take:40}),
+ prisma.testingResult.findMany({where:{session:{organisationId:c.organisation.id,trainingGroup:scope}},include:{gymnast:true,metric:true,session:{include:{trainingGroup:true}}},orderBy:{recordedAt:"desc"},take:12}),
+ prisma.membershipPresentationPreference.findUnique({where:{membershipId:c.membership.id}})
+ ]):[[],[],[],[],null];
+ const active=sessions.filter(s=>s.status==="IN_PROGRESS"),completed=sessions.filter(s=>s.status==="COMPLETED"),allGymnastIds=new Set(groups.flatMap(g=>g.memberships.map(m=>m.gymnastId))),testedIds=new Set(sessions.flatMap(s=>s.results.map(r=>r.gymnastId))),untested=Math.max(0,allGymnastIds.size-testedIds.size),physical=metrics.filter(m=>m.apparatus==="PHYSICAL_PREPARATION"||m.category.toLowerCase().includes("physical")),apparatus=new Set(metrics.map(m=>m.apparatus).filter(Boolean));
+ const small=(label:string,value:string|number,href:string)=><a href={href} className={card}><p>{label}</p><strong>{value}</strong></a>;
+ const widgets:OverviewWidget[]=[
+ {id:"ACTIVE",title:"Active testing",category:"Testing",default:true,defaultSize:"L",small:small("Active testing",active.length,"/testing?view=live"),medium:<a href="/testing?view=live" className={card}><p>Active testing</p><strong>{active.length||"None active"}</strong><div>{active.slice(0,3).map(s=><span key={s.id}>{s.trainingGroup.name} · {date(s.testedAt)}</span>)}</div></a>},
+ {id:"RECENT",title:"Recent testing",category:"Testing",default:true,small:small("Recent testing",completed.length,"/testing?view=history"),medium:<a href="/testing?view=history" className={card}><p>Recent testing</p><strong>{completed.length?"Completed sessions":"No completed sessions"}</strong><div>{completed.slice(0,3).map(s=><span key={s.id}>{s.trainingGroup.name} · {date(s.testedAt)} · {s.results.length} results</span>)}</div></a>},
+ {id:"COVERAGE",title:"Testing coverage",category:"Evidence",default:true,small:small("Testing coverage",testedIds.size+"/"+allGymnastIds.size,"/progress"),medium:<a href="/progress" className={card}><p>Testing coverage</p><strong>{testedIds.size} of {allGymnastIds.size}</strong><div><span>{untested} gymnast{untested===1?"":"s"} without recorded testing in current history</span></div></a>},
+ {id:"METRICS",title:"Metrics",category:"Testing",default:true,small:small("Metrics",metrics.length,"/testing?view=manage"),medium:<a href="/testing?view=manage" className={card}><p>Metrics</p><strong>{metrics.length}</strong><div>{metrics.slice(0,4).map(m=><span key={m.id}>{m.name} · {mode[m.captureMode]??m.captureMode}</span>)}</div></a>},
+ {id:"GROUPS",title:"Groups",category:"People",default:true,small:small("Groups",groups.length,"/groups"),medium:<a href="/groups" className={card}><p>Groups</p><strong>{groups.length}</strong><div>{groups.slice(0,4).map(g=><span key={g.id}>{g.name} · {g.memberships.length}</span>)}</div></a>},
+ {id:"ATTENTION",title:"Worth your attention",category:"Evidence",default:true,small:small("Worth your attention",untested,"/progress"),medium:<a href="/progress" className={card}><p>Worth your attention</p><strong>{untested}</strong><div><span>{untested?"Gymnasts without recorded testing":"No testing coverage gaps in current history"}</span></div></a>},
+ {id:"ACTIVITY",title:"Recent activity",category:"Evidence",default:true,small:small("Recent activity",recentResults.length,"/testing?view=history"),medium:<a href="/testing?view=history" className={card}><p>Recent activity</p><strong>{recentResults.length?"Latest results":"No recent results"}</strong><div>{recentResults.slice(0,4).map(r=><span key={r.id}>{r.gymnast.name} · {r.metric.name} · {r.numberValue}{r.metric.unit?" "+r.metric.unit:""}</span>)}</div></a>},
+ {id:"PROGRESS",title:"Progress",category:"Evidence",default:true,small:small("Progress","Open hub","/progress"),medium:<a href="/progress" className={card}><p>Progress</p><strong>{recentResults.length} recent results</strong><div><span>Review longitudinal evidence</span></div></a>},
+ {id:"GYMNASTS",title:"Gymnasts",category:"People",default:false,small:small("Gymnasts",allGymnastIds.size,"/groups?view=gymnasts"),medium:<a href="/groups?view=gymnasts" className={card}><p>Gymnasts</p><strong>{allGymnastIds.size}</strong><div><span>{testedIds.size} with testing results</span></div></a>},
+ {id:"APPARATUS",title:"Apparatus",category:"Evidence",default:false,small:small("Apparatus",apparatus.size,"/testing?view=manage"),medium:<a href="/testing?view=manage" className={card}><p>Apparatus</p><strong>{apparatus.size}</strong><div>{Array.from(apparatus).slice(0,4).map(x=><span key={x}>{String(x).replaceAll("_"," ")}</span>)}</div></a>},
+ {id:"PHYSICAL_PREPARATION",title:"Physical preparation",category:"Evidence",default:false,small:small("Physical preparation",physical.length,"/testing?view=manage"),medium:<a href="/testing?view=manage" className={card}><p>Physical preparation</p><strong>{physical.length} metrics</strong><div>{physical.slice(0,4).map(m=><span key={m.id}>{m.name}</span>)}</div></a>},
+ {id:"HISTORY",title:"Testing history",category:"Testing",default:false,small:small("Testing history",sessions.length,"/testing?view=history"),medium:<a href="/testing?view=history" className={card}><p>Testing history</p><strong>{sessions.length} sessions</strong><div>{sessions.slice(0,3).map(s=><span key={s.id}>{date(s.testedAt)} · {s.trainingGroup.name}</span>)}</div></a>},
+ {id:"PROTOCOLS",title:"Test protocols",category:"Testing",default:false,small:small("Test protocols",metrics.filter(m=>m.protocol).length,"/testing?view=manage"),medium:<a href="/testing?view=manage" className={card}><p>Test protocols</p><strong>{metrics.filter(m=>m.protocol).length}</strong><div>{metrics.filter(m=>m.protocol).slice(0,4).map(m=><span key={m.id}>{m.name}</span>)}</div></a>},
+ {id:"COACH_ACTIVITY",title:"Coach activity",category:"Coaching",default:false,small:small("Coach activity",recentResults.length+" results","/testing?view=history"),medium:<a href="/testing?view=history" className={card}><p>Coach activity</p><strong>{recentResults.length} recent results</strong><div><span>Recorded across {new Set(recentResults.map(r=>r.session.trainingGroupId)).size} groups</span></div></a>}
+ ];
+ return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section className="workspace-page"><div className="workspace-hero"><div><p className="workspace-kicker">Testing</p><h1>Testing</h1><p className="workspace-meta">{active.length} active · {completed.length} completed · {metrics.length} metrics</p></div><div className="workspace-actions"><a href="/progress" className="workspace-button">Progress</a>{view!=="live"&&<a href="/testing?view=live" className="workspace-button workspace-button-primary">Start testing</a>}</div></div>
+ <nav className="workspace-tabs"><a className={view==="overview"?"active":""} href="/testing">Overview</a><a className={view==="live"?"active":""} href="/testing?view=live">Live testing</a><a className={view==="history"?"active":""} href="/testing?view=history">History</a><a className={view==="manage"?"active":""} href="/testing?view=manage">Manage testing</a></nav>
+ {view==="overview"&&<div className="mt-7"><OverviewWidgets surface="TESTING" initialLayout={readOverviewLayout(pref,"TESTING")} widgets={widgets}/></div>}
+ {view==="live"&&<div className="mt-7 grid gap-5 lg:grid-cols-[1fr_360px]"><form action={createTestingSession} className="workspace-form-card"><h2>Start a group testing session</h2><div className="mt-4 grid gap-3 md:grid-cols-2"><select name="groupId" required><option value="">Choose group…</option>{groups.map(g=><option key={g.id} value={g.id}>{g.name} · {g.memberships.length}</option>)}</select><input name="testedAt" type="date" required/><input name="name" placeholder="Session name (optional)"/><input name="purpose" placeholder="Testing purpose (optional)"/><input name="conditions" placeholder="Conditions / preparation (optional)"/><input name="notes" placeholder="Session notes (optional)"/></div><button className="workspace-button workspace-button-primary mt-3">Start testing</button></form><aside><div className="section-heading"><h2>Active</h2><span>{active.length}</span></div><div className="mt-3 grid gap-2">{active.map(s=><a key={s.id} href={"/testing/"+s.id} className="workspace-row"><div><strong>{s.name}</strong><span>{s.trainingGroup.name} · {date(s.testedAt)}</span></div><em>{s.results.length} results</em></a>)}{!active.length&&<div className="empty-state">No active testing</div>}</div></aside></div>}
+ {view==="history"&&<div className="mt-7"><div className="section-heading"><h2>Testing sessions</h2><span>{sessions.length}</span></div><div className="mt-3 grid gap-3">{sessions.map(s=><a key={s.id} href={"/testing/"+s.id} className="workspace-row"><div><strong>{s.name}</strong><span>{s.trainingGroup.name} · {date(s.testedAt)}</span></div><em>{s.status} · {s.results.length} results</em></a>)}{!sessions.length&&<div className="empty-state">No testing sessions</div>}</div></div>}
+ {view==="manage"&&<div className="mt-7 grid gap-5 lg:grid-cols-[1fr_360px]"><div><div className="section-heading"><h2>Custom tests</h2><span>{metrics.length}</span></div><div className="mt-3 grid gap-2">{metrics.map(m=><details key={m.id} className="management-panel"><summary>{m.name} · {mode[m.captureMode]??m.captureMode}</summary><form action={updateTestMetric} className="workspace-form-grid"><input type="hidden" name="metricId" value={m.id}/><input name="name" required defaultValue={m.name}/><input name="category" defaultValue={m.category}/><select name="apparatus" defaultValue={m.apparatus??""}><option value="">No apparatus</option><option value="VAULT">Vault</option><option value="UNEVEN_BARS">Uneven Bars</option><option value="BALANCE_BEAM">Balance Beam</option><option value="FLOOR_EXERCISE">Floor Exercise</option><option value="PHYSICAL_PREPARATION">Physical Preparation</option></select><select name="captureMode" defaultValue={m.captureMode}><option value="COUNTDOWN_TALLY">Countdown + tally</option><option value="STOPWATCH">Stopwatch</option><option value="REPETITION_TALLY">Repetition tally</option><option value="MEASUREMENT">Measurement</option></select><input name="unit" defaultValue={m.unit??""} placeholder="Unit"/><input name="durationSeconds" type="number" min="1" max="3600" defaultValue={m.durationSeconds??""} placeholder="Countdown seconds"/><select name="direction" defaultValue={m.direction}><option value="COACH_INTERPRETATION">Coach interpretation</option><option value="HIGHER">Higher value indicates more</option><option value="LOWER">Lower value indicates less</option></select><textarea name="protocol" defaultValue={m.protocol??""} placeholder="Protocol"/><textarea name="description" defaultValue={m.description??""} placeholder="Description"/><button className="workspace-button">Save changes</button></form><form action={archiveTestMetric} className="px-4 pb-4"><input type="hidden" name="metricId" value={m.id}/><button className="text-xs font-semibold text-[var(--muted)]">Archive metric</button></form></details>)}</div></div><details className="management-panel" open={!metrics.length}><summary>Create custom metric</summary><form action={createTestMetric} className="workspace-form-grid"><input name="name" required placeholder="Metric name"/><input name="category" placeholder="Category"/><select name="apparatus"><option value="">No apparatus</option><option value="VAULT">Vault</option><option value="UNEVEN_BARS">Uneven Bars</option><option value="BALANCE_BEAM">Balance Beam</option><option value="FLOOR_EXERCISE">Floor Exercise</option><option value="PHYSICAL_PREPARATION">Physical Preparation</option></select><select name="captureMode" required><option value="COUNTDOWN_TALLY">Countdown + tally</option><option value="STOPWATCH">Stopwatch</option><option value="REPETITION_TALLY">Repetition tally</option><option value="MEASUREMENT">Measurement</option></select><input name="unit" placeholder="Unit"/><input name="durationSeconds" type="number" min="1" max="3600" placeholder="Countdown seconds"/><select name="direction" defaultValue="COACH_INTERPRETATION"><option value="COACH_INTERPRETATION">Coach interpretation</option><option value="HIGHER">Higher value indicates more</option><option value="LOWER">Lower value indicates less</option></select><textarea name="protocol" placeholder="Protocol"/><textarea name="description" placeholder="Description"/><button className="workspace-button workspace-button-primary">Create metric</button></form></details></div>}
+ </section></AppShell>;
 }
