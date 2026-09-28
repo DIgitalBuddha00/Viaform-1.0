@@ -1,255 +1,44 @@
-import { notFound } from "next/navigation";
-import { AppShell } from "@/app/components/app-shell";
-import { requireAuthContext } from "@/app/lib/auth";
-import { prisma } from "@/app/lib/prisma";
-import { groupScopeWhere } from "@/app/lib/coaching-scope";
-import { assignGroupProgramme, clearGroupProgramme } from "@/app/actions/programmes";
-import {
-  createGroupScheduleSlot,
-  deleteGroupScheduleSlot,
-  updateGroupScheduleSlot,
-} from "@/app/actions/planning";
-import { assignGroupFacility, clearGroupFacility } from "@/app/actions/facilities";
-
-export const dynamic = "force-dynamic";
-
-const DAYS = [
-  ["MONDAY", "Monday"],
-  ["TUESDAY", "Tuesday"],
-  ["WEDNESDAY", "Wednesday"],
-  ["THURSDAY", "Thursday"],
-  ["FRIDAY", "Friday"],
-  ["SATURDAY", "Saturday"],
-  ["SUNDAY", "Sunday"],
-] as const;
-
-function durationMinutes(startTime: string, endTime: string) {
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-  return Math.max(0, eh * 60 + em - (sh * 60 + sm));
-}
-
-function weeklyHours(slots: Array<{ startTime: string; endTime: string }>) {
-  const minutes = slots.reduce((total, slot) => total + durationMinutes(slot.startTime, slot.endTime), 0);
-  const hours = minutes / 60;
-  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
-}
-
-export default async function GroupOverview({ params }: { params: Promise<{ id: string }> }) {
-  const c = await requireAuthContext();
-  if (!c.access.canUseCoachingWorkspace) notFound();
-  const { id } = await params;
-  const group = await prisma.trainingGroup.findFirst({
-    where: { id, ...groupScopeWhere(c.organisation.id, c.membership.id, c.access) },
-    include: {
-      memberships: { include: { gymnast: true }, orderBy: { joinedAt: "asc" } },
-      coachAssignments: { include: { membership: { include: { user: true } } } },
-      programmeAssignments: { include: { programme: true, stage: true } },
-      scheduleSlots: { orderBy: [{ orderIndex: "asc" }, { startTime: "asc" }] },
-      facilityPreference: { include: { location: true } },
-    },
-  });
-  if (!group) notFound();
-
-  const programmeContext = group.programmeAssignments[0];
-  const programmes = c.access.canManageProgrammesAndMethodology
-    ? await prisma.coachingProgramme.findMany({
-        where: { organisationId: c.organisation.id, status: "ACTIVE" },
-        include: { stages: { where: { status: "ACTIVE" }, orderBy: { orderIndex: "asc" } } },
-        orderBy: { name: "asc" },
-      })
-    : [];
-  const canManageSchedule = c.access.canManageRotations;
-  const facilities = await prisma.facilityLocation.findMany({
-    where: { organisationId: c.organisation.id, status: "ACTIVE" },
-    orderBy: { name: "asc" },
-  });
-
-  return (
-    <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href="/groups" className="text-sm font-semibold text-[var(--muted)]">← My Groups</a>
-        <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Group overview</p>
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold">{group.name}</h1>
-            <p className="mt-3 text-[var(--muted)]">
-              {group.memberships.length} gymnasts · {group.coachAssignments.length} assigned coaches
-            </p>
-          </div>
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-right">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Weekly training</p>
-            <p className="mt-1 text-xl font-semibold">{weeklyHours(group.scheduleSlots)} hours</p>
-          </div>
-        </div>
-
-        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-semibold">Recurring training schedule</h2>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                The group’s normal weekly training times. Session planning will use these slots as its calendar foundation.
-              </p>
-            </div>
-            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-sm">
-              {group.scheduleSlots.length} {group.scheduleSlots.length === 1 ? "slot" : "slots"}
-            </span>
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            {group.scheduleSlots.length ? group.scheduleSlots.map((slot) => {
-              const day = DAYS.find(([value]) => value === slot.dayOfWeek)?.[1] ?? slot.dayOfWeek;
-              const minutes = durationMinutes(slot.startTime, slot.endTime);
-              return (
-                <details key={slot.id} className="rounded-xl border border-[var(--border)] px-4 py-3">
-                  <summary className="cursor-pointer list-none">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <span className="font-semibold">{day}</span>
-                        <span className="ml-2 text-sm text-[var(--muted)]">{slot.startTime}–{slot.endTime}</span>
-                        {slot.notes && <p className="mt-1 text-sm text-[var(--muted)]">{slot.notes}</p>}
-                      </div>
-                      <span className="text-sm text-[var(--muted)]">{(minutes / 60).toFixed(minutes % 60 ? 1 : 0)}h</span>
-                    </div>
-                  </summary>
-                  {canManageSchedule && (
-                    <div className="mt-4 border-t border-[var(--border)] pt-4">
-                      <form action={updateGroupScheduleSlot} className="grid gap-2 md:grid-cols-[150px_120px_120px_1fr_auto]">
-                        <input type="hidden" name="groupId" value={group.id} />
-                        <input type="hidden" name="scheduleId" value={slot.id} />
-                        <select name="dayOfWeek" defaultValue={slot.dayOfWeek} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                          {DAYS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                        </select>
-                        <input name="startTime" type="time" required defaultValue={slot.startTime} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-                        <input name="endTime" type="time" required defaultValue={slot.endTime} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-                        <input name="notes" defaultValue={slot.notes ?? ""} placeholder="Optional note" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-                        <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save</button>
-                      </form>
-                      <form action={deleteGroupScheduleSlot} className="mt-3">
-                        <input type="hidden" name="groupId" value={group.id} />
-                        <input type="hidden" name="scheduleId" value={slot.id} />
-                        <button className="text-sm text-[var(--muted)]">Delete schedule slot</button>
-                      </form>
-                    </div>
-                  )}
-                </details>
-              );
-            }) : (
-              <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">
-                No recurring training times have been added yet.
-              </p>
-            )}
-          </div>
-
-          {canManageSchedule && (
-            <form action={createGroupScheduleSlot} className="mt-4 grid gap-2 rounded-xl border border-[var(--border)] p-4 md:grid-cols-[150px_120px_120px_1fr_auto]">
-              <input type="hidden" name="groupId" value={group.id} />
-              <select name="dayOfWeek" required className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                {DAYS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-              <input name="startTime" type="time" required className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-              <input name="endTime" type="time" required className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-              <input name="notes" placeholder="Optional note" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
-              <button className="rounded-lg bg-[var(--foreground)] px-3 py-2 text-sm font-semibold text-white">Add time</button>
-            </form>
-          )}
-        </article>
-
-        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-semibold">Default training facility</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            {group.facilityPreference?.location.name || "No default facility assigned"}
-          </p>
-          {canManageSchedule && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <form action={assignGroupFacility} className="flex flex-wrap gap-2">
-                <input type="hidden" name="groupId" value={group.id} />
-                <select name="locationId" required defaultValue={group.facilityPreference?.locationId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
-                  <option value="">Choose facility…</option>
-                  {facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
-                </select>
-                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Set default</button>
-              </form>
-              {group.facilityPreference && (
-                <form action={clearGroupFacility}>
-                  <input type="hidden" name="groupId" value={group.id} />
-                  <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button>
-                </form>
-              )}
-              <a href="/facilities" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Manage facilities</a>
-            </div>
-          )}
-        </article>
-
-        <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-semibold">Programme context</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            {programmeContext
-              ? programmeContext.programme.name + (programmeContext.stage ? " · " + programmeContext.stage.name : "")
-              : "Not yet assigned"}
-          </p>
-          {c.access.canManageProgrammesAndMethodology && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <form action={assignGroupProgramme} className="flex flex-wrap gap-2">
-                <input type="hidden" name="groupId" value={group.id} />
-                <select name="programmeId" required className="rounded-lg border border-[var(--border)] px-3 py-2">
-                  <option value="">Programme…</option>
-                  {programmes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <select name="stageId" className="rounded-lg border border-[var(--border)] px-3 py-2">
-                  <option value="">No stage</option>
-                  {programmes.flatMap((p) => p.stages.map((s) => <option key={s.id} value={s.id}>{p.name} · {s.name}</option>))}
-                </select>
-                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Assign</button>
-              </form>
-              {programmeContext && (
-                <form action={clearGroupProgramme}>
-                  <input type="hidden" name="groupId" value={group.id} />
-                  <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button>
-                </form>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-8 grid gap-4 lg:grid-cols-2">
-          <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="font-semibold">Roster</h2>
-            <div className="mt-4 grid gap-2">
-              {group.memberships.length ? group.memberships.map((m) => (
-                <a key={m.gymnastId} href={"/gymnasts/" + m.gymnastId} className="rounded-xl border border-[var(--border)] px-4 py-3 font-medium">
-                  {m.gymnast.name}
-                  {m.isPrimary ? <span className="ml-2 text-xs font-normal text-[var(--muted)]">Primary group</span> : null}
-                </a>
-              )) : <p className="text-sm text-[var(--muted)]">No gymnasts assigned.</p>}
-            </div>
-          </article>
-          <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="font-semibold">Coaching team</h2>
-            <div className="mt-4 grid gap-2">
-              {group.coachAssignments.length ? group.coachAssignments.map((a) => (
-                <div key={a.membershipId} className="rounded-xl border border-[var(--border)] px-4 py-3">
-                  {a.membership.user.displayName}
-                </div>
-              )) : <p className="text-sm text-[var(--muted)]">No coaches explicitly assigned. Head Coach access remains available.</p>}
-            </div>
-          </article>
-        </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <a href="/planning" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="font-semibold">Planning</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              {group.scheduleSlots.length
-                ? `${weeklyHours(group.scheduleSlots)} weekly hours · plan training sessions`
-                : "Plan training sessions for this group."}
-            </p>
-          </a>
-          <a href="/training" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="font-semibold">Training</h2><p className="mt-2 text-sm text-[var(--muted)]">Run live sessions and capture coaching evidence for this group.</p></a>
-          <a href="/testing" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="font-semibold">Testing</h2><p className="mt-2 text-sm text-[var(--muted)]">Open testing sessions and club-defined metrics.</p></a>
-          <a href={"/progress?group=" + group.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="font-semibold">Progress</h2><p className="mt-2 text-sm text-[var(--muted)]">Review longitudinal evidence for gymnasts in this group.</p></a>
-        </div>
-      </section>
-    </AppShell>
-  );
+import {notFound} from "next/navigation";
+import {AppShell} from "@/app/components/app-shell";
+import {requireAuthContext} from "@/app/lib/auth";
+import {prisma} from "@/app/lib/prisma";
+import {groupScopeWhere} from "@/app/lib/coaching-scope";
+import {assignGroupProgramme,clearGroupProgramme} from "@/app/actions/programmes";
+import {createGroupScheduleSlot,deleteGroupScheduleSlot,updateGroupScheduleSlot} from "@/app/actions/planning";
+import {assignGroupFacility,clearGroupFacility} from "@/app/actions/facilities";
+export const dynamic="force-dynamic";
+const DAYS=[["MONDAY","Monday"],["TUESDAY","Tuesday"],["WEDNESDAY","Wednesday"],["THURSDAY","Thursday"],["FRIDAY","Friday"],["SATURDAY","Saturday"],["SUNDAY","Sunday"]] as const;
+const day=(d:Date)=>new Intl.DateTimeFormat("en-IE",{weekday:"short",day:"numeric",month:"short"}).format(d);
+function minutes(a:string,b:string){const [ah,am]=a.split(":").map(Number),[bh,bm]=b.split(":").map(Number);return Math.max(0,bh*60+bm-(ah*60+am))}
+function hours(slots:Array<{startTime:string;endTime:string}>){const h=slots.reduce((n,s)=>n+minutes(s.startTime,s.endTime),0)/60;return Number.isInteger(h)?String(h):h.toFixed(1)}
+export default async function GroupOverview({params}:{params:Promise<{id:string}>}){
+ const c=await requireAuthContext();if(!c.access.canUseCoachingWorkspace)notFound();const {id}=await params;
+ const group=await prisma.trainingGroup.findFirst({where:{id,...groupScopeWhere(c.organisation.id,c.membership.id,c.access)},include:{memberships:{include:{gymnast:true},orderBy:{joinedAt:"asc"}},coachAssignments:{include:{membership:{include:{user:true}}}},programmeAssignments:{include:{programme:true,stage:true}},scheduleSlots:{orderBy:[{orderIndex:"asc"},{startTime:"asc"}]},facilityPreference:{include:{location:true}}}});if(!group)notFound();
+ const now=new Date(),programme=group.programmeAssignments[0],canManage=c.access.canManageRotations;
+ const [sessions,evidence,programmes,facilities]=await Promise.all([
+  prisma.trainingSession.findMany({where:{organisationId:c.organisation.id,trainingGroupId:group.id,sessionDate:{gte:now}},orderBy:[{sessionDate:"asc"},{startTime:"asc"}],take:5}),
+  prisma.trainingEvidence.findMany({where:{session:{organisationId:c.organisation.id,trainingGroupId:group.id}},include:{gymnast:true,block:true},orderBy:{recordedAt:"desc"},take:6}),
+  c.access.canManageProgrammesAndMethodology?prisma.coachingProgramme.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},include:{stages:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}},orderBy:{name:"asc"}):Promise.resolve([]),
+  prisma.facilityLocation.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},orderBy:{name:"asc"})
+ ]);
+ const schedule=group.scheduleSlots.map(s=>(DAYS.find(([v])=>v===s.dayOfWeek)?.[1]??s.dayOfWeek).slice(0,3)+" "+s.startTime+"–"+s.endTime).join(" · ");
+ const card="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm";
+ return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section className="workspace-page">
+  <a href="/groups" className="workspace-back">← My Groups</a>
+  <div className="workspace-hero group-hero"><div><p className="workspace-kicker">Group overview</p><h1>{group.name}</h1><p className="workspace-meta">{programme?programme.programme.name+(programme.stage?" · "+programme.stage.name:""):"No programme"}{schedule?" · "+schedule:""}</p></div><div className="workspace-actions"><a href="/training" className="workspace-button workspace-button-primary">Start session</a><a href="#manage-group" className="workspace-button">Manage group</a></div></div>
+  <div className="overview-metrics"><div><strong>{group.memberships.length}</strong><span>Gymnasts</span></div><div><strong>{hours(group.scheduleSlots)}</strong><span>Hours / week</span></div><div><strong>{group.scheduleSlots.length}</strong><span>Sessions / week</span></div><div><strong>{group.coachAssignments.length}</strong><span>Coaches</span></div></div>
+  <div className="mt-6 grid gap-5 lg:grid-cols-2">
+   <article className={card}><div className="flex items-center justify-between gap-3"><div><p className="workspace-card-kicker">Next session</p><h2 className="mt-1 text-xl font-semibold">{sessions[0]?.title??"No session planned"}</h2></div>{sessions[0]&&<a href={"/planning/"+sessions[0].id} className="text-sm font-semibold">Open →</a>}</div>{sessions[0]&&<p className="mt-3 text-sm text-[var(--muted)]">{day(sessions[0].sessionDate)} · {sessions[0].startTime}–{sessions[0].endTime}</p>}</article>
+   <article className={card}><p className="workspace-card-kicker">Training context</p><h2 className="mt-1 text-xl font-semibold">{programme?programme.programme.name:"No programme assigned"}</h2><p className="mt-3 text-sm text-[var(--muted)]">{programme?.stage?.name??group.facilityPreference?.location.name??"No stage or facility set"}</p></article>
+   <article className={card}><div className="flex items-center justify-between"><div><p className="workspace-card-kicker">Roster</p><h2 className="mt-1 text-xl font-semibold">{group.memberships.length} gymnasts</h2></div></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{group.memberships.slice(0,9).map(m=><a key={m.gymnastId} href={"/gymnasts/"+m.gymnastId} className="rounded-xl border border-[var(--border)] px-3 py-3 text-sm font-semibold">{m.gymnast.name}{m.isPrimary&&<small className="mt-1 block font-normal text-[var(--muted)]">Primary</small>}</a>)}{!group.memberships.length&&<span className="text-sm text-[var(--muted)]">No gymnasts</span>}</div></article>
+   <article className={card}><div className="flex items-center justify-between"><div><p className="workspace-card-kicker">Recent activity</p><h2 className="mt-1 text-xl font-semibold">Training evidence</h2></div><a href={"/progress?group="+group.id} className="text-sm font-semibold">Progress →</a></div><div className="mt-4 grid gap-2">{evidence.slice(0,4).map(e=><div key={e.id} className="flex items-center justify-between gap-3 border-t border-[var(--border)] pt-2 first:border-0 first:pt-0"><span className="text-sm"><strong>{e.gymnast.name}</strong> · {e.outcome}</span><span className="text-xs text-[var(--muted)]">{e.block.apparatus??e.block.title}</span></div>)}{!evidence.length&&<span className="text-sm text-[var(--muted)]">No recent evidence</span>}</div></article>
+  </div>
+  <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><a href="/planning" className="workspace-tile"><strong>Planning</strong><span>{sessions.length?sessions.length+" upcoming":"No upcoming sessions"}</span></a><a href="/training" className="workspace-tile"><strong>Training</strong><span>Live sessions</span></a><a href="/testing" className="workspace-tile"><strong>Testing</strong><span>Sessions & metrics</span></a><a href={"/progress?group="+group.id} className="workspace-tile"><strong>Progress</strong><span>Evidence over time</span></a></div>
+  <details id="manage-group" className="management-panel mt-8"><summary>Manage group</summary><div className="management-grid">
+   <section><h2>Schedule</h2><div className="mt-3 grid gap-2">{group.scheduleSlots.map(s=><details key={s.id} className="rounded-xl border border-[var(--border)] p-3"><summary className="cursor-pointer text-sm font-semibold">{DAYS.find(([v])=>v===s.dayOfWeek)?.[1]??s.dayOfWeek} · {s.startTime}–{s.endTime}</summary>{canManage&&<div className="mt-3"><form action={updateGroupScheduleSlot} className="grid gap-2"><input type="hidden" name="groupId" value={group.id}/><input type="hidden" name="scheduleId" value={s.id}/><select name="dayOfWeek" defaultValue={s.dayOfWeek} className="rounded-lg border border-[var(--border)] px-3 py-2">{DAYS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><div className="flex gap-2"><input name="startTime" type="time" required defaultValue={s.startTime} className="min-w-0 flex-1 rounded-lg border border-[var(--border)] px-3 py-2"/><input name="endTime" type="time" required defaultValue={s.endTime} className="min-w-0 flex-1 rounded-lg border border-[var(--border)] px-3 py-2"/></div><input name="notes" defaultValue={s.notes??""} placeholder="Note" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="workspace-button">Save</button></form><form action={deleteGroupScheduleSlot} className="mt-2"><input type="hidden" name="groupId" value={group.id}/><input type="hidden" name="scheduleId" value={s.id}/><button className="text-sm text-[var(--muted)]">Delete</button></form></div>}</details>)}{!group.scheduleSlots.length&&<span className="text-sm text-[var(--muted)]">No schedule</span>}</div>{canManage&&<form action={createGroupScheduleSlot} className="mt-3 grid gap-2"><input type="hidden" name="groupId" value={group.id}/><select name="dayOfWeek" required className="rounded-lg border border-[var(--border)] px-3 py-2">{DAYS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><div className="flex gap-2"><input name="startTime" type="time" required className="min-w-0 flex-1 rounded-lg border border-[var(--border)] px-3 py-2"/><input name="endTime" type="time" required className="min-w-0 flex-1 rounded-lg border border-[var(--border)] px-3 py-2"/></div><input name="notes" placeholder="Note" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="workspace-button">Add time</button></form>}</section>
+   <section><h2>Programme</h2><p className="mt-2 text-sm text-[var(--muted)]">{programme?programme.programme.name+(programme.stage?" · "+programme.stage.name:""):"Not assigned"}</p>{c.access.canManageProgrammesAndMethodology&&<div className="mt-3"><form action={assignGroupProgramme} className="grid gap-2"><input type="hidden" name="groupId" value={group.id}/><select name="programmeId" required className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Programme…</option>{programmes.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><select name="stageId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">No stage</option>{programmes.flatMap(p=>p.stages.map(s=><option key={s.id} value={s.id}>{p.name} · {s.name}</option>))}</select><button className="workspace-button">Assign</button></form>{programme&&<form action={clearGroupProgramme} className="mt-2"><input type="hidden" name="groupId" value={group.id}/><button className="text-sm text-[var(--muted)]">Clear programme</button></form>}</div>}</section>
+   <section><h2>Facility</h2><p className="mt-2 text-sm text-[var(--muted)]">{group.facilityPreference?.location.name??"Not assigned"}</p>{canManage&&<div className="mt-3"><form action={assignGroupFacility} className="grid gap-2"><input type="hidden" name="groupId" value={group.id}/><select name="locationId" required defaultValue={group.facilityPreference?.locationId??""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Facility…</option>{facilities.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select><button className="workspace-button">Set facility</button></form>{group.facilityPreference&&<form action={clearGroupFacility} className="mt-2"><input type="hidden" name="groupId" value={group.id}/><button className="text-sm text-[var(--muted)]">Clear facility</button></form>}</div>}</section>
+   <section><h2>Coaching team</h2><div className="mt-3 grid gap-2">{group.coachAssignments.map(a=><div key={a.membershipId} className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm">{a.membership.user.displayName}</div>)}{!group.coachAssignments.length&&<span className="text-sm text-[var(--muted)]">No assigned coaches</span>}</div></section>
+  </div></details>
+ </section></AppShell>
 }
