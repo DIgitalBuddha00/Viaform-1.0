@@ -259,6 +259,7 @@ model CoachingProgramme {
   trainingSessions TrainingSession[]
   leads ProgrammeLeadAssignment[]
   methodologyRecords MethodologyRecord[]
+  extensionSkills ViaformSkill[]
 
   @@unique([organisationId, name])
   @@index([organisationId, programmeType, status])
@@ -278,6 +279,7 @@ model ProgrammeStage {
   groupAssignments TrainingGroupProgrammeAssignment[]
   gymnastAssignments GymnastProgrammeAssignment[]
   trainingSessions TrainingSession[]
+  skillRequirements ProgrammeStageSkill[]
 
   @@unique([programmeId, name])
   @@index([programmeId, orderIndex, status])
@@ -992,6 +994,7 @@ model RulesetLevel {
  updatedAt DateTime @updatedAt
  program RulesetProgram @relation(fields:[programId],references:[id],onDelete:Cascade)
  gymnastAssignments GymnastRulesetAssignment[]
+ skillRequirements RulesetLevelSkill[]
  @@unique([programId,code])
  @@index([programId,orderIndex,status])
 }
@@ -1050,6 +1053,7 @@ model FigVaultDefinition {
  package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
  routineSelections GymnastRoutineVault[]
  sessionWorkItems SessionBlockWorkItem[] @relation("WorkItemVaultDefinition")
+ canonicalSkills ViaformSkill[] @relation("SkillFigVault")
  trainingEvidence TrainingEvidence[] @relation("EvidenceVaultDefinition")
  @@unique([packageId,officialNumber,variantKey])
  @@index([packageId,groupNumber,status])
@@ -1073,6 +1077,7 @@ model FigElementDefinition {
  package RulesetPackage @relation(fields:[packageId],references:[id],onDelete:Cascade)
  routineSelections GymnastRoutineElement[]
  sessionWorkItems SessionBlockWorkItem[] @relation("WorkItemElementDefinition")
+ canonicalSkills ViaformSkill[] @relation("SkillFigElement")
  trainingEvidence TrainingEvidence[] @relation("EvidenceElementDefinition")
  @@unique([packageId,apparatus,officialNumber,variantKey])
  @@index([packageId,apparatus,groupCode,status])
@@ -1095,6 +1100,66 @@ model RulesetApparatusRule {
 
 
 
+
+
+model ViaformSkill {
+  id                   String   @id @default(cuid())
+  discipline           String   @default("WAG")
+  apparatus            String
+  name                 String
+  aliases              String   @default("[]")
+  provenance           String   @default("FIG")
+  sourceOrganisationId String?
+  figElementDefinitionId String?
+  figVaultDefinitionId   String?
+  canonicalKey         String   @unique
+  status               String   @default("ACTIVE")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  sourceOrganisation Organisation? @relation(fields: [sourceOrganisationId], references: [id], onDelete: Cascade)
+  figElementDefinition FigElementDefinition? @relation("SkillFigElement", fields: [figElementDefinitionId], references: [id], onDelete: Restrict)
+  figVaultDefinition FigVaultDefinition? @relation("SkillFigVault", fields: [figVaultDefinitionId], references: [id], onDelete: Restrict)
+  rulesetRequirements RulesetLevelSkill[]
+  programmeRequirements ProgrammeStageSkill[]
+
+  @@index([discipline, apparatus, status])
+  @@index([sourceOrganisationId, status])
+}
+
+model RulesetLevelSkill {
+  id        String   @id @default(cuid())
+  levelId   String
+  skillId   String
+  role      String   @default("REQUIREMENT")
+  notes     String?
+  orderIndex Int     @default(0)
+  createdAt DateTime @default(now())
+
+  level RulesetLevel @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  skill ViaformSkill @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@unique([levelId, skillId, role])
+  @@index([skillId])
+  @@index([levelId, orderIndex])
+}
+
+model ProgrammeStageSkill {
+  id         String   @id @default(cuid())
+  stageId    String
+  skillId    String
+  role       String   @default("DEVELOP")
+  notes      String?
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  stage ProgrammeStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  skill ViaformSkill @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@unique([stageId, skillId, role])
+  @@index([skillId])
+  @@index([stageId, orderIndex])
+}
 
 model CoachHandoff {
   id               String   @id @default(cuid())
