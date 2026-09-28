@@ -75,10 +75,22 @@ model OrganisationMembership {
   approvedMethodologyRecords MethodologyRecord[] @relation("MethodologyApprovedBy")
   sentCoachHandoffs CoachHandoff[] @relation("HandoffFrom")
   receivedCoachHandoffs CoachHandoff[] @relation("HandoffTo")
+  presentationPreference MembershipPresentationPreference?
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
   @@index([userId, isActive])
+}
+
+model MembershipPresentationPreference {
+  membershipId     String   @id
+  homeWidgetOrder  String   @default("[]")
+  homeWidgetHidden String   @default("[]")
+  homeWidgetWide   String   @default("[]")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  membership OrganisationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 }
 
 model AuthSession {
