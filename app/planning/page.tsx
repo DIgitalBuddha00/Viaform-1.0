@@ -1,5 +1,5 @@
 import { AppShell } from "@/app/components/app-shell";
-import { createTrainingSession } from "@/app/actions/training-planning";
+import { createTrainingSession, createTrainingWeekFromSchedule } from "@/app/actions/training-planning";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
@@ -43,6 +43,26 @@ export default async function PlanningPage() {
         <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">
           Turn the weekly group schedule into deliberate sessions. A planned session becomes the source for Live Training rather than a separate copy of the plan.
         </p>
+
+        <form action={createTrainingWeekFromSchedule} className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Build a week from the recurring schedule</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                Creates the group’s scheduled sessions for the selected week and skips matching sessions that already exist.
+              </p>
+            </div>
+            <a href="/calendar" className="text-sm font-semibold">Open weekly calendar →</a>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
+            <select name="groupId" required className="rounded-xl border border-[var(--border)] px-3 py-3">
+              <option value="">Choose group…</option>
+              {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+            <input name="weekStart" type="date" required className="rounded-xl border border-[var(--border)] px-3 py-3" />
+            <button className="rounded-xl border border-[var(--border)] px-4 py-3 font-semibold">Create scheduled sessions</button>
+          </div>
+        </form>
 
         <form action={createTrainingSession} className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="font-semibold">Plan a session</h2>

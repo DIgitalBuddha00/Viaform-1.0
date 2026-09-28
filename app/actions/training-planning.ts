@@ -54,6 +54,59 @@ async function visibleSession(sessionId: string, context: Awaited<ReturnType<typ
   });
 }
 
+function weekdayOffset(dayOfWeek: string) {
+  const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+  return days.indexOf(dayOfWeek);
+}
+
+function addUtcDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+async function createSessionFromGroup(params: {
+  context: Awaited<ReturnType<typeof coachingContext>>;
+  group: Awaited<ReturnType<typeof visibleGroup>>;
+  sessionDate: Date;
+  startTime: string;
+  endTime: string;
+  scheduleSlotId?: string | null;
+  title?: string | null;
+  sessionIntent?: string | null;
+  notes?: string | null;
+}) {
+  if (!params.group) return null;
+  const programmeContext = params.group.programmeAssignments[0];
+  return prisma.trainingSession.create({
+    data: {
+      organisationId: params.context.organisation.id,
+      trainingGroupId: params.group.id,
+      scheduleSlotId: params.scheduleSlotId ?? null,
+      createdByMembershipId: params.context.membership.id,
+      sessionDate: params.sessionDate,
+      startTime: params.startTime,
+      endTime: params.endTime,
+      title: params.title || params.group.name + " training",
+      sessionIntent: params.sessionIntent || null,
+      notes: params.notes || null,
+      programmeId: programmeContext?.programmeId ?? null,
+      programmeStageId: programmeContext?.stageId ?? null,
+      programmeNameSnapshot: programmeContext?.programme.name ?? null,
+      stageNameSnapshot: programmeContext?.stage?.name ?? null,
+      gymnasts: {
+        create: params.group.memberships.map((membership) => ({
+          gymnastId: membership.gymnastId,
+          source: "GROUP",
+        })),
+      },
+      facilityAssignment: params.group.facilityPreference
+        ? { create: { locationId: params.group.facilityPreference.locationId } }
+        : undefined,
+    },
+  });
+}
+
 export async function createTrainingSession(data: FormData) {
   const context = await coachingContext();
   const trainingGroupId = value(data, "groupId");
@@ -66,34 +119,18 @@ export async function createTrainingSession(data: FormData) {
     return;
   }
   const scheduleSlot = scheduleSlotId ? group.scheduleSlots.find((slot) => slot.id === scheduleSlotId) : null;
-  const programmeContext = group.programmeAssignments[0];
-  const session = await prisma.trainingSession.create({
-    data: {
-      organisationId: context.organisation.id,
-      trainingGroupId,
-      scheduleSlotId: scheduleSlot?.id ?? null,
-      createdByMembershipId: context.membership.id,
-      sessionDate: new Date(sessionDate + "T00:00:00.000Z"),
-      startTime,
-      endTime,
-      title: value(data, "title") || group.name + " training",
-      sessionIntent: value(data, "sessionIntent") || null,
-      notes: value(data, "notes") || null,
-      programmeId: programmeContext?.programmeId ?? null,
-      programmeStageId: programmeContext?.stageId ?? null,
-      programmeNameSnapshot: programmeContext?.programme.name ?? null,
-      stageNameSnapshot: programmeContext?.stage?.name ?? null,
-      gymnasts: {
-        create: group.memberships.map((membership) => ({
-          gymnastId: membership.gymnastId,
-          source: "GROUP",
-        })),
-      },
-      facilityAssignment: group.facilityPreference
-        ? { create: { locationId: group.facilityPreference.locationId } }
-        : undefined,
-    },
+  const session = await createSessionFromGroup({
+    context,
+    group,
+    sessionDate: new Date(sessionDate + "T00:00:00.000Z"),
+    startTime,
+    endTime,
+    scheduleSlotId: scheduleSlot?.id ?? null,
+    title: value(data, "title") || null,
+    sessionIntent: value(data, "sessionIntent") || null,
+    notes: value(data, "notes") || null,
   });
+  if (!session) return;
   revalidatePath("/planning");
   revalidatePath("/groups/" + trainingGroupId);
   redirect("/planning/" + session.id);
@@ -237,4 +274,48 @@ export async function removeGymnastFromTrainingSession(data: FormData) {
     prisma.trainingSessionGymnast.deleteMany({ where: { sessionId, gymnastId } }),
   ]);
   revalidatePath("/planning/" + sessionId);
+}
+
+
+export async function createTrainingWeekFromSchedule(data: FormData) {
+  const context = await coachingContext();
+  const trainingGroupId = value(data, "groupId");
+  const weekStart = value(data, "weekStart");
+  const group = await visibleGroup(trainingGroupId, context);
+  if (!group || !validDate(weekStart)) return;
+
+  const start = new Date(weekStart + "T00:00:00.000Z");
+  const utcDay = start.getUTCDay();
+  const mondayShift = utcDay === 0 ? -6 : 1 - utcDay;
+  const monday = addUtcDays(start, mondayShift);
+
+  for (const slot of group.scheduleSlots) {
+    const offset = weekdayOffset(slot.dayOfWeek);
+    if (offset < 0) continue;
+    const sessionDate = addUtcDays(monday, offset);
+    const existing = await prisma.trainingSession.findFirst({
+      where: {
+        organisationId: context.organisation.id,
+        trainingGroupId,
+        sessionDate,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      },
+      select: { id: true },
+    });
+    if (existing) continue;
+    await createSessionFromGroup({
+      context,
+      group,
+      sessionDate,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      scheduleSlotId: slot.id,
+      notes: slot.notes,
+    });
+  }
+
+  revalidatePath("/planning");
+  revalidatePath("/calendar");
+  revalidatePath("/groups/" + trainingGroupId);
 }
