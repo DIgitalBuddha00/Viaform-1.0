@@ -43,6 +43,8 @@ model Organisation {
   testMetrics TestMetric[]
   testingSessions TestingSession[]
   competitionEvents CompetitionEvent[]
+  programmeLeadAssignments ProgrammeLeadAssignment[]
+  methodologyRecords MethodologyRecord[]
 }
 
 model OrganisationMembership {
@@ -66,6 +68,9 @@ model OrganisationMembership {
   createdTestingSessions TestingSession[]
   recordedTestingResults TestingResult[]
   createdCompetitionEvents CompetitionEvent[]
+  programmeLeaderships ProgrammeLeadAssignment[]
+  createdMethodologyRecords MethodologyRecord[] @relation("MethodologyCreatedBy")
+  approvedMethodologyRecords MethodologyRecord[] @relation("MethodologyApprovedBy")
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
@@ -193,6 +198,8 @@ model CoachingProgramme {
   groupAssignments TrainingGroupProgrammeAssignment[]
   gymnastAssignments GymnastProgrammeAssignment[]
   trainingSessions TrainingSession[]
+  leads ProgrammeLeadAssignment[]
+  methodologyRecords MethodologyRecord[]
 
   @@unique([organisationId, name])
   @@index([organisationId, programmeType, status])
@@ -237,6 +244,57 @@ model GymnastProgrammeAssignment {
   programme CoachingProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
   stage ProgrammeStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
   @@index([programmeId, stageId])
+}
+
+
+
+model ProgrammeLeadAssignment {
+  id           String   @id @default(cuid())
+  organisationId String
+  programmeId  String
+  membershipId String
+  assignedAt   DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  programme CoachingProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  membership OrganisationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([programmeId, membershipId])
+  @@index([organisationId, membershipId])
+}
+
+model MethodologyRecord {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  programmeId           String?
+  createdByMembershipId String
+  approvedByMembershipId String?
+  scopeType             String   @default("GLOBAL")
+  scopeRef              String?
+  apparatus             String?
+  title                 String
+  provenance            String   @default("COACH_METHODOLOGY")
+  contributorName       String?
+  technicalObjective    String?
+  technicalBoundaries   String?
+  defaultApproach       String?
+  alternativeApproaches String?
+  uncertainty           String?
+  sourceNote            String?
+  sourceUrl             String?
+  status                String   @default("DRAFT")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  approvedAt            DateTime?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  programme CoachingProgramme? @relation(fields: [programmeId], references: [id], onDelete: SetNull)
+  createdBy OrganisationMembership @relation("MethodologyCreatedBy", fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+  approvedBy OrganisationMembership? @relation("MethodologyApprovedBy", fields: [approvedByMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, status, scopeType])
+  @@index([organisationId, apparatus, status])
+  @@index([programmeId, status])
 }
 
 model GymnastRoutine {
