@@ -1,4 +1,4 @@
-export type OverviewSurface="HOME"|"GROUP"|"GYMNAST"|"TESTING"|"COMPETITION";
+export type OverviewSurface="HOME"|"GROUP"|"GYMNAST"|"TESTING"|"COMPETITION"|"COMPETITIONS";
 export type WidgetSize="S"|"M"|"L";
 export type WidgetLayout={order:string[];hidden:string[];sizes:Record<string,WidgetSize>};
 type Stored={ [key:string]: unknown };

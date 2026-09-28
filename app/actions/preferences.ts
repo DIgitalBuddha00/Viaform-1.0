@@ -11,9 +11,10 @@ const CATALOGUE:Record<OverviewSurface,readonly string[]>={
  GROUP:["NEXT","WEEK","ROTATION","TRAINING_CONTEXT","ROSTER","PROGRESS","ACTIVITY","ATTENTION","ATTENDANCE","TESTING","ROUTINES","COMPETITIONS","PATHWAY","VOLUME","COACH_TEAM","HANDOFFS","FACILITIES","EVIDENCE_COVERAGE"],
  GYMNAST:["FOCUS","TRAINING","COMPETITION","DEVELOPMENT","ATHLETE_CONTEXT","ATTENTION","ACTIVITY","GOALS","NEXT","SCHEDULE","TESTING","ROUTINES","VAULT","ROUTINE_EVIDENCE","COMPETITION_HISTORY","PATHWAY","RULESET","ATTENDANCE","VOLUME","COACH_TEAM","EVIDENCE_COVERAGE"],
  TESTING:["ACTIVE","RECENT","COVERAGE","METRICS","GROUPS","ATTENTION","ACTIVITY","PROGRESS","GYMNASTS","APPARATUS","PHYSICAL_PREPARATION","HISTORY","EVIDENCE_COVERAGE","PROTOCOLS","COACH_ACTIVITY"],
+ COMPETITIONS:["NEXT","UPCOMING","ENTRIES","RECENT","RESULTS","CONTROL","EXTERNAL","ATHLETE_PERSPECTIVE","EVIDENCE_COVERAGE"],
  COMPETITION:["SNAPSHOT","ENTRIES","SCHEDULE","ROUTINES","PREPARATION","RESULTS","ATTENTION","ACTIVITY","GROUPS","TESTING","ENTRY_STATUS","APPARATUS","ROUTINE_CHANGES","EVIDENCE_COVERAGE","COACH_TEAM","ATHLETE_PERSPECTIVE","JUDGE_PERSPECTIVE","COACH_CONTEXT","PREVIOUS"]
 };
-const paths:Record<OverviewSurface,string>={HOME:"/dashboard",GROUP:"/groups",GYMNAST:"/gymnasts",TESTING:"/testing",COMPETITION:"/competitions"};
+const paths:Record<OverviewSurface,string>={HOME:"/dashboard",GROUP:"/groups",GYMNAST:"/gymnasts",TESTING:"/testing",COMPETITION:"/competitions",COMPETITIONS:"/competitions"};
 const parseObject=(value:string|undefined)=>{try{const x=JSON.parse(value??"{}");return x&&typeof x==="object"&&!Array.isArray(x)?x as Record<string,unknown>:{};}catch{return{}}};
 const unique=(v:unknown,allowed:readonly string[])=>Array.isArray(v)?v.filter((x):x is string=>typeof x==="string"&&allowed.includes(x)).filter((x,i,a)=>a.indexOf(x)===i):[];
 export async function saveOverviewWidgetLayout(surface:OverviewSurface,layout:WidgetLayout){
