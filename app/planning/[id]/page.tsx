@@ -115,7 +115,12 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
               {session.trainingGroup.name} · {dateValue(session.sessionDate)} · {session.startTime}–{session.endTime}
             </p>
           </div>
-          <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status}</span>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status}</span>
+            <a href={"/training/" + session.id} className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">
+              {session.status === "PLANNED" ? "Open live training" : session.status === "IN_PROGRESS" ? "Return to live training" : "View training record"}
+            </a>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-3">

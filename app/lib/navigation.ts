@@ -14,7 +14,7 @@ export function primaryNavigation(access: AccessProfile): NavigationItem[] {
     { label: "Calendar", href: "/calendar", enabled: true },
     { label: "My Groups", href: "/groups", enabled: true },
     { label: "Planning", href: "/planning", enabled: true },
-    { label: "Training", href: "/training", enabled: false },
+    { label: "Training", href: "/training", enabled: true },
     { label: "Testing", href: "/testing", enabled: false },
     { label: "Routines", href: "/routines", enabled: false },
     { label: "Competitions", href: "/competitions", enabled: false },

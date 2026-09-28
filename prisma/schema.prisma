@@ -58,6 +58,7 @@ model OrganisationMembership {
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   groupAssignments TrainingGroupCoach[]
   createdTrainingSessions TrainingSession[]
+  recordedTrainingEvidence TrainingEvidence[]
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
@@ -131,6 +132,7 @@ model Gymnast {
   rulesetAssignments GymnastRulesetAssignment[]
   trainingSessions TrainingSessionGymnast[]
   rotationAssignments SessionRotationGymnast[]
+  trainingEvidence TrainingEvidence[]
 
   @@index([organisationId, name])
 }
@@ -258,6 +260,7 @@ model TrainingSession {
   rotationGroups SessionRotationGroup[]
   rotationGymnasts SessionRotationGymnast[]
   rotationAssignments SessionRotationAssignment[]
+  evidence TrainingEvidence[]
 
   @@index([organisationId, sessionDate])
   @@index([trainingGroupId, sessionDate])
@@ -294,6 +297,7 @@ model SessionBlock {
   spaceAssignment SessionBlockSpace?
   resourceAssignments SessionBlockResource[]
   rotationAssignments SessionRotationAssignment[]
+  evidence TrainingEvidence[]
 
   @@index([sessionId, orderIndex])
 }
@@ -455,6 +459,26 @@ model SessionRotationAssignment {
   @@index([sessionId, startTime, endTime])
   @@index([rotationGroupId, orderIndex])
   @@index([trainingSpaceId, startTime, endTime])
+}
+
+model TrainingEvidence {
+  id                     String   @id @default(cuid())
+  sessionId              String
+  blockId                String
+  gymnastId              String
+  recordedByMembershipId String
+  outcome                String
+  note                   String?
+  recordedAt             DateTime @default(now())
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  recordedBy OrganisationMembership @relation(fields: [recordedByMembershipId], references: [id], onDelete: Restrict)
+
+  @@index([sessionId, blockId, recordedAt])
+  @@index([gymnastId, recordedAt])
+  @@index([recordedByMembershipId, recordedAt])
 }
 
 model RulesetProgram {
