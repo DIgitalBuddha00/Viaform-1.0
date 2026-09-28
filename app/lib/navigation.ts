@@ -13,7 +13,7 @@ export function primaryNavigation(access: AccessProfile): NavigationItem[] {
     { label: "Home", href: "/dashboard", enabled: true },
     { label: "Calendar", href: "/calendar", enabled: false },
     { label: "My Groups", href: "/groups", enabled: true },
-    { label: "Planning", href: "/planning", enabled: false },
+    { label: "Planning", href: "/planning", enabled: true },
     { label: "Training", href: "/training", enabled: false },
     { label: "Testing", href: "/testing", enabled: false },
     { label: "Routines", href: "/routines", enabled: false },

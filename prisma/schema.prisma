@@ -38,6 +38,7 @@ model Organisation {
   gymnasts    Gymnast[]
   coachingProgrammes CoachingProgramme[]
   rulesetAssignments OrganisationRulesetAssignment[]
+  trainingSessions TrainingSession[]
 }
 
 model OrganisationMembership {
@@ -55,6 +56,7 @@ model OrganisationMembership {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   groupAssignments TrainingGroupCoach[]
+  createdTrainingSessions TrainingSession[]
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
@@ -89,6 +91,7 @@ model TrainingGroup {
   coachAssignments TrainingGroupCoach[]
   programmeAssignments TrainingGroupProgrammeAssignment[]
   scheduleSlots TrainingGroupSchedule[]
+  trainingSessions TrainingSession[]
 
   @@unique([organisationId, name])
   @@index([organisationId, name])
@@ -106,6 +109,7 @@ model TrainingGroupSchedule {
   updatedAt       DateTime @updatedAt
 
   trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  trainingSessions TrainingSession[]
 
   @@unique([trainingGroupId, dayOfWeek, startTime, endTime])
   @@index([trainingGroupId, orderIndex])
@@ -169,6 +173,7 @@ model CoachingProgramme {
   stages ProgrammeStage[]
   groupAssignments TrainingGroupProgrammeAssignment[]
   gymnastAssignments GymnastProgrammeAssignment[]
+  trainingSessions TrainingSession[]
 
   @@unique([organisationId, name])
   @@index([organisationId, programmeType, status])
@@ -187,6 +192,7 @@ model ProgrammeStage {
   programme CoachingProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
   groupAssignments TrainingGroupProgrammeAssignment[]
   gymnastAssignments GymnastProgrammeAssignment[]
+  trainingSessions TrainingSession[]
 
   @@unique([programmeId, name])
   @@index([programmeId, orderIndex, status])
@@ -212,6 +218,59 @@ model GymnastProgrammeAssignment {
   programme CoachingProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
   stage ProgrammeStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
   @@index([programmeId, stageId])
+}
+
+model TrainingSession {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  trainingGroupId       String
+  scheduleSlotId        String?
+  createdByMembershipId String
+  sessionDate           DateTime
+  startTime             String
+  endTime               String
+  title                 String
+  sessionIntent         String?
+  notes                 String?
+  status                String   @default("PLANNED")
+  programmeId           String?
+  programmeStageId      String?
+  programmeNameSnapshot String?
+  stageNameSnapshot     String?
+  startedAt             DateTime?
+  endedAt               DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  scheduleSlot TrainingGroupSchedule? @relation(fields: [scheduleSlotId], references: [id], onDelete: SetNull)
+  createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+  programme CoachingProgramme? @relation(fields: [programmeId], references: [id], onDelete: SetNull)
+  programmeStage ProgrammeStage? @relation(fields: [programmeStageId], references: [id], onDelete: SetNull)
+  blocks SessionBlock[]
+
+  @@index([organisationId, sessionDate])
+  @@index([trainingGroupId, sessionDate])
+  @@index([createdByMembershipId, sessionDate])
+}
+
+model SessionBlock {
+  id             String   @id @default(cuid())
+  sessionId      String
+  title          String
+  category       String
+  apparatus      String?
+  durationMin    Int?
+  groupObjective String?
+  notes          String?
+  orderIndex     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, orderIndex])
 }
 
 model RulesetProgram {

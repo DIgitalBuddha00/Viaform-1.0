@@ -1,0 +1,191 @@
+import { notFound } from "next/navigation";
+import { AppShell } from "@/app/components/app-shell";
+import {
+  createSessionBlock,
+  deleteSessionBlock,
+  deleteTrainingSession,
+  updateSessionBlock,
+  updateTrainingSession,
+} from "@/app/actions/training-planning";
+import { requireAuthContext } from "@/app/lib/auth";
+import { prisma } from "@/app/lib/prisma";
+import { groupScopeWhere } from "@/app/lib/coaching-scope";
+
+export const dynamic = "force-dynamic";
+
+const CATEGORIES = [
+  ["WARM_UP", "Warm-up"], ["APPARATUS", "Apparatus"], ["PHYSICAL_PREPARATION", "Physical preparation"],
+  ["CONDITIONING", "Conditioning"], ["ROUTINES", "Routines"], ["TESTING", "Testing"], ["OTHER", "Other"],
+] as const;
+const APPARATUS = [
+  ["", "No apparatus"], ["VAULT", "Vault"], ["UNEVEN_BARS", "Uneven Bars"],
+  ["BALANCE_BEAM", "Balance Beam"], ["FLOOR_EXERCISE", "Floor Exercise"], ["PHYSICAL_PREPARATION", "Physical Preparation"],
+] as const;
+const dateValue = (date: Date) => date.toISOString().slice(0, 10);
+
+export default async function PlannedSessionPage({ params }: { params: Promise<{ id: string }> }) {
+  const c = await requireAuthContext();
+  if (!c.access.canUseCoachingWorkspace) notFound();
+  const { id } = await params;
+  const session = await prisma.trainingSession.findFirst({
+    where: {
+      id,
+      organisationId: c.organisation.id,
+      trainingGroup: groupScopeWhere(c.organisation.id, c.membership.id, c.access),
+    },
+    include: {
+      trainingGroup: { include: { memberships: true } },
+      blocks: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
+    },
+  });
+  if (!session) notFound();
+
+  const sessionMinutes = (() => {
+    const [sh, sm] = session.startTime.split(":").map(Number);
+    const [eh, em] = session.endTime.split(":").map(Number);
+    return Math.max(0, eh * 60 + em - (sh * 60 + sm));
+  })();
+  const plannedMinutes = session.blocks.reduce((sum, block) => sum + (block.durationMin ?? 0), 0);
+
+  return (
+    <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
+      <section>
+        <a href="/planning" className="text-sm font-semibold text-[var(--muted)]">← Planning</a>
+        <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Planned session</p>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold">{session.title}</h1>
+            <p className="mt-3 text-[var(--muted)]">
+              {session.trainingGroup.name} · {dateValue(session.sessionDate)} · {session.startTime}–{session.endTime}
+            </p>
+          </div>
+          <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status}</span>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Session time</p>
+            <p className="mt-2 text-2xl font-semibold">{sessionMinutes} min</p>
+          </article>
+          <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Planned blocks</p>
+            <p className="mt-2 text-2xl font-semibold">{plannedMinutes} min</p>
+          </article>
+          <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Group</p>
+            <p className="mt-2 text-2xl font-semibold">{session.trainingGroup.memberships.length}</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">gymnasts currently in group</p>
+          </article>
+        </div>
+
+        {(session.programmeNameSnapshot || session.stageNameSnapshot) && (
+          <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Programme context at planning</p>
+            <p className="mt-2 font-semibold">
+              {session.programmeNameSnapshot}{session.stageNameSnapshot ? " · " + session.stageNameSnapshot : ""}
+            </p>
+          </div>
+        )}
+
+        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-semibold">Session intent</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{session.sessionIntent || "No intent recorded yet."}</p>
+          {session.notes && <p className="mt-3 text-sm leading-6">{session.notes}</p>}
+          <details className="mt-4 border-t border-[var(--border)] pt-4">
+            <summary className="cursor-pointer text-sm font-semibold">Edit session details</summary>
+            <form action={updateTrainingSession} className="mt-4 grid gap-3 md:grid-cols-2">
+              <input type="hidden" name="sessionId" value={session.id} />
+              <input name="title" defaultValue={session.title} required className="rounded-xl border border-[var(--border)] px-3 py-3" />
+              <input name="sessionIntent" defaultValue={session.sessionIntent ?? ""} placeholder="Session intent" className="rounded-xl border border-[var(--border)] px-3 py-3" />
+              <input name="sessionDate" type="date" required defaultValue={dateValue(session.sessionDate)} className="rounded-xl border border-[var(--border)] px-3 py-3" />
+              <div className="grid grid-cols-2 gap-2">
+                <input name="startTime" type="time" required defaultValue={session.startTime} className="rounded-xl border border-[var(--border)] px-3 py-3" />
+                <input name="endTime" type="time" required defaultValue={session.endTime} className="rounded-xl border border-[var(--border)] px-3 py-3" />
+              </div>
+              <textarea name="notes" defaultValue={session.notes ?? ""} placeholder="Planning notes" className="min-h-24 rounded-xl border border-[var(--border)] px-3 py-3 md:col-span-2" />
+              <button className="rounded-xl border border-[var(--border)] px-4 py-3 font-semibold md:w-fit">Save session</button>
+            </form>
+          </details>
+        </article>
+
+        <div className="mt-8 flex flex-wrap items-end justify-between gap-3">
+          <div><p className="text-sm font-semibold text-[var(--muted)]">Structure</p><h2 className="mt-1 text-2xl font-semibold">Training blocks</h2></div>
+          <p className="text-sm text-[var(--muted)]">
+            {plannedMinutes <= sessionMinutes ? sessionMinutes - plannedMinutes + " min unallocated" : plannedMinutes - sessionMinutes + " min over session time"}
+          </p>
+        </div>
+
+        <div className="mt-4 grid gap-3">
+          {session.blocks.map((block, index) => (
+            <details key={block.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <summary className="cursor-pointer list-none">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Block {index + 1} · {block.category.replaceAll("_", " ")}</p>
+                    <h3 className="mt-1 font-semibold">{block.title}</h3>
+                    {block.groupObjective && <p className="mt-2 text-sm">{block.groupObjective}</p>}
+                  </div>
+                  <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">
+                    {block.apparatus ? block.apparatus.replaceAll("_", " ") + " · " : ""}{block.durationMin ? block.durationMin + " min" : "Open time"}
+                  </span>
+                </div>
+              </summary>
+              <form action={updateSessionBlock} className="mt-4 grid gap-2 border-t border-[var(--border)] pt-4 md:grid-cols-2">
+                <input type="hidden" name="sessionId" value={session.id} />
+                <input type="hidden" name="blockId" value={block.id} />
+                <input name="title" required defaultValue={block.title} className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                <select name="category" defaultValue={block.category} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                  {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+                <select name="apparatus" defaultValue={block.apparatus ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                  {APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}
+                </select>
+                <input name="durationMin" type="number" min="1" max="480" defaultValue={block.durationMin ?? ""} placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                <input name="groupObjective" defaultValue={block.groupObjective ?? ""} placeholder="Group objective" className="rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
+                <textarea name="notes" defaultValue={block.notes ?? ""} placeholder="Block notes" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
+                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save block</button>
+              </form>
+              <form action={deleteSessionBlock} className="mt-3">
+                <input type="hidden" name="sessionId" value={session.id} />
+                <input type="hidden" name="blockId" value={block.id} />
+                <button className="text-sm text-[var(--muted)]">Delete block</button>
+              </form>
+            </details>
+          ))}
+          {!session.blocks.length && (
+            <p className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--muted)]">
+              No blocks yet. Add the first part of the session below.
+            </p>
+          )}
+        </div>
+
+        <form action={createSessionBlock} className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <input type="hidden" name="sessionId" value={session.id} />
+          <h3 className="font-semibold">Add training block</h3>
+          <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+            <input name="title" required placeholder="Block title" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+            <select name="category" className="rounded-lg border border-[var(--border)] px-3 py-2">
+              {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <select name="apparatus" className="rounded-lg border border-[var(--border)] px-3 py-2">
+              {APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}
+            </select>
+            <input name="durationMin" type="number" min="1" max="480" placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+          </div>
+          <input name="groupObjective" placeholder="Group objective" className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2" />
+          <textarea name="notes" placeholder="Block notes" className="mt-2 min-h-20 w-full rounded-lg border border-[var(--border)] px-3 py-2" />
+          <button className="mt-3 rounded-xl bg-[var(--foreground)] px-4 py-3 font-semibold text-white">Add block</button>
+        </form>
+
+        <details className="mt-8 rounded-2xl border border-[var(--border)] p-4">
+          <summary className="cursor-pointer text-sm font-semibold">Delete planned session</summary>
+          <p className="mt-2 text-sm text-[var(--muted)]">This removes the plan and its blocks.</p>
+          <form action={deleteTrainingSession} className="mt-3">
+            <input type="hidden" name="sessionId" value={session.id} />
+            <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Confirm delete</button>
+          </form>
+        </details>
+      </section>
+    </AppShell>
+  );
+}

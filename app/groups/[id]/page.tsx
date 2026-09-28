@@ -205,14 +205,18 @@ export default async function GroupOverview({ params }: { params: Promise<{ id: 
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {["Planning", "Training", "Testing", "Progress"].map((x) => (
+          <a href="/planning" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="font-semibold">Planning</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              {group.scheduleSlots.length
+                ? `${weeklyHours(group.scheduleSlots)} weekly hours · plan training sessions`
+                : "Plan training sessions for this group."}
+            </p>
+          </a>
+          {["Training", "Testing", "Progress"].map((x) => (
             <article key={x} className="rounded-2xl border border-dashed border-[var(--border)] p-5">
               <h2 className="font-semibold">{x}</h2>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                {x === "Planning" && group.scheduleSlots.length
-                  ? `${weeklyHours(group.scheduleSlots)} weekly hours are ready for session planning.`
-                  : "Connects here when this domain is built."}
-              </p>
+              <p className="mt-2 text-sm text-[var(--muted)]">Connects here when this domain is built.</p>
             </article>
           ))}
         </div>
