@@ -225,3 +225,11 @@ The corrupted legacy generated Beam extraction is not imported. It is used only 
 The canonical Floor Exercise registry is rebuilt against every current CoP table page from 149–169. Its five groups contain 105 populated official-number cells represented by 129 canonical rows after distinct skills printed in shared cells are retained as variants. The audit includes the J-rated `5.1002` Biles and preserves source-marked same-box chronological identity without treating position or turn alternatives as unrelated elements.
 
 The March 2026 Floor registry is comparison evidence only. Current August 2026 numbering wins: the tuck hop or jump with 1/1 turn is `1.213`, while the whip-salto sequence is `5.104`, `5.204` and `5.304`. Legacy-only aliases and coaching metadata are excluded; blank cells, explanatory notes and diagram labels are not promoted.
+
+### FIG routine evaluation boundary
+
+The routine evaluation layer now converts verified rule inputs into a transparent breakdown rather than presenting an opaque automatic verdict. It applies chronological element repetition, same-number Dance limits, the Bars three-elements-per-root boundary, apparatus counting limits, the Junior difficulty cap, composition, connection value, Beam series bonus, Senior dismount bonus and short-exercise deductions. Difficulty and neutral deductions remain separate.
+
+Recognition, connection validity and composition fulfilment remain adjudicated inputs. Unknown or incomplete evidence produces `COACH_DECISION_REQUIRED` findings and is not silently awarded. Junior counting and composition policies must be supplied from a verified package; when absent, the evaluator identifies the gap rather than treating Senior rules as confirmed Junior rules.
+
+The same Phase 3 closure batch removes three operational dead ends: pure Administrators can reach More → Programmes without being assigned a coaching role; gymnast ruleset and level are selected as one constrained value so mismatched combinations cannot be submitted through the normal UI; and stopping a club ruleset now exposes the assignment-loss consequence behind an explicit confirmation step.

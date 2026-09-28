@@ -1,7 +1,14 @@
 import type { AccessProfile } from "./access-control";
 export type NavigationItem = { label: string; href: string; enabled: boolean };
 export function primaryNavigation(access: AccessProfile): NavigationItem[] {
-  if (!access.canUseCoachingWorkspace) return [{ label: "Home", href: "/dashboard", enabled: true }];
+  if (!access.canUseCoachingWorkspace) {
+    return [
+      { label: "Home", href: "/dashboard", enabled: true },
+      ...(access.canManageProgrammesAndMethodology
+        ? [{ label: "More", href: "/programmes", enabled: true }]
+        : []),
+    ];
+  }
   return [
     { label: "Home", href: "/dashboard", enabled: true },
     { label: "Calendar", href: "/calendar", enabled: false },

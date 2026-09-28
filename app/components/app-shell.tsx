@@ -12,6 +12,9 @@ type Props = {
 
 export function AppShell({ children, organisationName, displayName, access }: Props) {
   const navigation = primaryNavigation(access);
+  const mobileLabels = access.canUseCoachingWorkspace
+    ? ["Home", "My Groups", "Planning", "Training", "More"]
+    : navigation.map((item) => item.label);
   const roles = [...(access.isAdministrator ? ["Administrator"] : []), ...access.coachingRoles.map(coachingRoleLabel)];
   return <div className="min-h-screen pb-24 md:pb-8">
     <header className="border-b border-[var(--border)] bg-[var(--surface)]">
@@ -26,8 +29,8 @@ export function AppShell({ children, organisationName, displayName, access }: Pr
       </nav>
       <main className="min-w-0 px-5 py-7 md:px-8 md:py-9">{children}</main>
     </div>
-    {access.canUseCoachingWorkspace && <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-[var(--border)] bg-[var(--surface)] px-2 py-2 md:hidden" aria-label="Mobile primary">
-      {["Home","My Groups","Planning","Training","More"].map((label) => { const item = navigation.find((entry) => entry.label === label)!; return item.enabled ? <a key={label} href={item.href} className="rounded-lg px-1 py-2 text-center text-xs font-semibold">{label}</a> : <span key={label} className="px-1 py-2 text-center text-xs text-[var(--muted)] opacity-50">{label}</span>; })}
+    {mobileLabels.length > 1 && <nav className={`fixed inset-x-0 bottom-0 z-20 grid ${mobileLabels.length === 2 ? "grid-cols-2" : "grid-cols-5"} border-t border-[var(--border)] bg-[var(--surface)] px-2 py-2 md:hidden`} aria-label="Mobile primary">
+      {mobileLabels.map((label) => { const item = navigation.find((entry) => entry.label === label)!; return item.enabled ? <a key={label} href={item.href} className="rounded-lg px-1 py-2 text-center text-xs font-semibold">{label}</a> : <span key={label} className="px-1 py-2 text-center text-xs text-[var(--muted)] opacity-50">{label}</span>; })}
     </nav>}
   </div>;
 }
