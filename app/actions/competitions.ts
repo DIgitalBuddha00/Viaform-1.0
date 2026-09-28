@@ -42,6 +42,7 @@ export async function createCompetitionEvent(data: FormData) {
     },
   });
   revalidatePath("/competitions");
+  revalidatePath("/calendar");
   redirect("/competitions/" + event.id);
 }
 
@@ -158,6 +159,7 @@ export async function updateCompetitionEvent(data: FormData) {
   });
   revalidatePath("/competitions");
   revalidatePath("/competitions/" + event.id);
+  revalidatePath("/calendar");
 }
 
 
