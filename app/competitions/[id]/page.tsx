@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
+import { OverviewWidgets, type OverviewWidget } from "@/app/components/overview-widgets";
 import {
   addCompetitionEntry,
   recordCompetitionAthleteReflection,
@@ -12,6 +13,7 @@ import {
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { gymnastScopeWhere } from "@/app/lib/coaching-scope";
+import { readOverviewLayout } from "@/app/lib/widget-layout";
 
 export const dynamic = "force-dynamic";
 const apparatusLabel: Record<string, string> = { VAULT: "Vault", BARS: "Uneven Bars", BEAM: "Balance Beam", FLOOR: "Floor Exercise" };
@@ -34,7 +36,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
   });
   if (!event) notFound();
 
-  const [visibleGymnasts, routines] = await Promise.all([
+  const [visibleGymnasts, routines, preference] = await Promise.all([
     prisma.gymnast.findMany({
       where: gymnastScopeWhere(c.organisation.id, c.membership.id, c.access),
       orderBy: { name: "asc" },
@@ -46,30 +48,45 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
       },
       orderBy: [{ gymnastId: "asc" }, { apparatus: "asc" }, { updatedAt: "desc" }],
     }),
+    prisma.membershipPresentationPreference.findUnique({ where: { membershipId: c.membership.id } }),
   ]);
   const entered = new Set(event.entries.map((entry) => entry.gymnastId));
   const available = visibleGymnasts.filter((gymnast) => !entered.has(gymnast.id));
+  const entrantIds=event.entries.map(e=>e.gymnastId);
+  const [testingCount,previousEntryCount]=await Promise.all([
+    entrantIds.length?prisma.testingResult.count({where:{gymnastId:{in:entrantIds},session:{organisationId:c.organisation.id}}}):Promise.resolve(0),
+    entrantIds.length?prisma.competitionEntry.count({where:{gymnastId:{in:entrantIds},event:{organisationId:c.organisation.id,id:{not:event.id}}}}):Promise.resolve(0)
+  ]);
+  const plans=event.entries.flatMap(e=>e.apparatusPlans),performances=plans.map(p=>p.performance).filter(Boolean),recorded=performances.filter(p=>p?.status!=="NOT_RECORDED"),reflections=performances.filter(p=>p?.athleteReflection),routineSelected=plans.filter(p=>p.routineId),missingRoutines=plans.length-routineSelected.length;
   const eventDate = event.eventDate.toISOString().slice(0, 10);
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href="/competitions" className="text-sm font-semibold text-[var(--muted)]">← Competitions</a>
-        <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-[var(--muted)]">{event.eventType === "CONTROL" ? "Control competition" : "External competition"}</p>
-            <h1 className="mt-1 text-3xl font-semibold">{event.name}</h1>
-            <p className="mt-2 text-sm text-[var(--muted)]">{eventDate}{event.location ? " · " + event.location : ""} · {event.entries.length} entered</p>
-          </div>
-          <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">{event.status}</span>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          <a href={"/competitions/" + event.id + "/judge"} className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Judge view →</a>
-          <a href={"/competitions/" + event.id + "/reflection"} className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Athlete reflection capture →</a>
-        </div>
-
-        <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_340px]">
+      <section className="workspace-page">
+        <a href="/competitions" className="workspace-back">← Competitions</a>
+        <div className="workspace-hero competition-hero"><div><p className="workspace-kicker">{event.eventType === "CONTROL" ? "Control competition" : "External competition"}</p><h1>{event.name}</h1><p className="workspace-meta">{eventDate}{event.location ? " · " + event.location : ""} · {event.entries.length} entered · {event.status}</p></div><div className="workspace-actions"><a href={"/competitions/" + event.id + "/judge"} className="workspace-button">Judge view</a><a href={"/competitions/" + event.id + "/reflection"} className="workspace-button">Athlete reflection</a></div></div>
+        {(()=>{const small=(label:string,value:string|number,href:string)=><a href={href} className="overview-data-card"><p>{label}</p><strong>{value}</strong></a>;const widgets:OverviewWidget[]=[
+          {id:"SNAPSHOT",title:"Competition snapshot",category:"Competition",default:true,defaultSize:"L",small:small("Competition snapshot",event.status,"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Competition snapshot</p><strong>{event.name}</strong><div><span>{eventDate}{event.location?" · "+event.location:""}</span><span>{event.entries.length} entered · {event.status}</span></div></a>},
+          {id:"ENTRIES",title:"Entries",category:"People",default:true,small:small("Entries",event.entries.length,"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Entries</p><strong>{event.entries.length} gymnasts</strong><div>{event.entries.slice(0,4).map(e=><span key={e.id}>{e.gymnast.name}</span>)}</div></a>},
+          {id:"SCHEDULE",title:"Schedule",category:"Competition",default:true,small:small("Schedule",eventDate,"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Schedule</p><strong>{eventDate}</strong><div>{Array.from(new Set(event.entries.map(e=>e.sessionLabel).filter(Boolean))).slice(0,4).map(x=><span key={x!}>{x}</span>)}</div></a>},
+          {id:"ROUTINES",title:"Routines",category:"Technical",default:true,small:small("Routines",routineSelected.length+"/"+plans.length,"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Routines</p><strong>{routineSelected.length} of {plans.length} selected</strong><div><span>{missingRoutines} apparatus plan{missingRoutines===1?"":"s"} without a selected routine</span></div></a>},
+          {id:"PREPARATION",title:"Preparation evidence",category:"Evidence",default:true,small:small("Preparation evidence",testingCount,"/testing"),medium:<a href="/testing" className="overview-data-card"><p>Preparation evidence</p><strong>{testingCount} testing results</strong><div><span>Across entered gymnasts</span></div></a>},
+          {id:"RESULTS",title:"Results",category:"Evidence",default:true,small:small("Results",recorded.length+"/"+plans.length,"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Results</p><strong>{recorded.length} recorded</strong><div><span>{plans.length-recorded.length} apparatus outcomes not recorded</span></div></a>},
+          {id:"ATTENTION",title:"Worth your attention",category:"Evidence",default:true,small:small("Worth your attention",missingRoutines+(plans.length-recorded.length),"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Worth your attention</p><strong>{missingRoutines+(event.status==="COMPLETED"?plans.length-recorded.length:0)}</strong><div><span>{missingRoutines} routine selection{missingRoutines===1?"":"s"} outstanding</span>{event.status==="COMPLETED"&&<span>{plans.length-recorded.length} outcomes not recorded</span>}</div></a>},
+          {id:"ACTIVITY",title:"Recent activity",category:"Evidence",default:true,small:small("Recent activity",recorded.length+" outcomes","#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Recent activity</p><strong>{recorded.length?"Competition evidence":"No outcomes recorded"}</strong><div><span>{reflections.length} athlete reflection{reflections.length===1?"":"s"}</span></div></a>},
+          {id:"GROUPS",title:"Groups",category:"People",default:false,small:small("Groups",event.entries.length+" entries","/groups"),medium:<a href="/groups" className="overview-data-card"><p>Groups</p><strong>{event.entries.length} entered gymnasts</strong></a>},
+          {id:"TESTING",title:"Testing",category:"Evidence",default:false,small:small("Testing",testingCount,"/testing"),medium:<a href="/testing" className="overview-data-card"><p>Testing</p><strong>{testingCount} results</strong><div><span>Across entered gymnasts</span></div></a>},
+          {id:"ENTRY_STATUS",title:"Entry status",category:"Competition",default:false,small:small("Entry status",event.entries.length,"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Entry status</p><strong>{event.entries.length} entries</strong><div>{event.entries.slice(0,4).map(e=><span key={e.id}>{e.gymnast.name} · {e.status}</span>)}</div></a>},
+          {id:"APPARATUS",title:"Apparatus overview",category:"Technical",default:false,small:small("Apparatus",plans.length,"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Apparatus overview</p><strong>{plans.length} plans</strong><div>{Object.entries(plans.reduce<Record<string,number>>((a,p)=>(a[p.apparatus]=(a[p.apparatus]??0)+1,a),{})).map(([a,n])=><span key={a}>{apparatusLabel[a]??a} · {n}</span>)}</div></a>},
+          {id:"ROUTINE_CHANGES",title:"Routine changes",category:"Technical",default:false,small:small("Routine changes",missingRoutines+" open","#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Routine changes</p><strong>{missingRoutines?"Selections still open":"All plans selected"}</strong></a>},
+          {id:"EVIDENCE_COVERAGE",title:"Evidence coverage",category:"Evidence",default:false,small:small("Evidence coverage",recorded.length+"/"+plans.length,"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Evidence coverage</p><strong>{recorded.length} of {plans.length} outcomes</strong><div><span>{reflections.length} athlete reflections</span></div></a>},
+          {id:"COACH_TEAM",title:"Coach team",category:"Coaching",default:false,small:small("Coach team","Event context","#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Coach team</p><strong>Competition workspace</strong></a>},
+          {id:"ATHLETE_PERSPECTIVE",title:"Athlete perspective",category:"Perspectives",default:false,small:small("Athlete perspective",reflections.length,"/competitions/"+event.id+"/reflection"),medium:<a href={"/competitions/"+event.id+"/reflection"} className="overview-data-card"><p>Athlete perspective</p><strong>{reflections.length} reflections</strong></a>},
+          {id:"JUDGE_PERSPECTIVE",title:"Judge perspective",category:"Perspectives",default:false,small:small("Judge perspective",recorded.length,"/competitions/"+event.id+"/judge"),medium:<a href={"/competitions/"+event.id+"/judge"} className="overview-data-card"><p>Judge perspective</p><strong>{recorded.length} recorded outcomes</strong></a>},
+          {id:"COACH_CONTEXT",title:"Coach notes / context",category:"Perspectives",default:false,small:small("Coach context",event.entries.filter(e=>e.coachNote).length,"#competition-workspace"),medium:<a href="#competition-workspace" className="overview-data-card"><p>Coach notes / context</p><strong>{event.entries.filter(e=>e.coachNote).length} entry notes</strong></a>},
+          {id:"PREVIOUS",title:"Previous competitions",category:"Competition",default:false,small:small("Previous competitions",previousEntryCount,"/competitions"),medium:<a href="/competitions" className="overview-data-card"><p>Previous competitions</p><strong>{previousEntryCount} prior entries</strong><div><span>Across the current entrants</span></div></a>}
+        ];return <div className="mt-7"><OverviewWidgets surface="COMPETITION" initialLayout={readOverviewLayout(preference,"COMPETITION")} widgets={widgets}/></div>})()}
+        <div id="competition-workspace" className="mt-7 grid gap-4 lg:grid-cols-[1fr_340px]">
           <div className="grid gap-4">
             {event.entries.map((entry) => {
               const gymnastRoutines = routines.filter((routine) => routine.gymnastId === entry.gymnastId);
