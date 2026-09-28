@@ -182,9 +182,14 @@ export async function createSessionBlock(data: FormData) {
   const apparatusValue = value(data, "apparatus");
   const durationRaw = value(data, "durationMin");
   const durationMin = durationRaw ? Number(durationRaw) : null;
+  const targetGymnastId = value(data, "targetGymnastId") || null;
+  const targetCountRaw = value(data, "targetCount");
+  const targetCount = targetCountRaw ? Number(targetCountRaw) : null;
   if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number])) return;
   if (apparatusValue && !APPARATUS.includes(apparatusValue as (typeof APPARATUS)[number])) return;
   if (durationMin !== null && (!Number.isInteger(durationMin) || durationMin <= 0 || durationMin > 480)) return;
+  if (targetCount !== null && (!Number.isInteger(targetCount) || targetCount <= 0 || targetCount > 1000)) return;
+  if (targetGymnastId && !await prisma.trainingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId: targetGymnastId } } })) return;
   const last = await prisma.sessionBlock.findFirst({ where: { sessionId }, orderBy: { orderIndex: "desc" } });
   await prisma.sessionBlock.create({
     data: {
@@ -193,6 +198,8 @@ export async function createSessionBlock(data: FormData) {
       category,
       apparatus: apparatusValue || null,
       durationMin,
+      targetGymnastId,
+      targetCount,
       groupObjective: value(data, "groupObjective") || null,
       notes: value(data, "notes") || null,
       orderIndex: (last?.orderIndex ?? -1) + 1,
@@ -213,9 +220,14 @@ export async function updateSessionBlock(data: FormData) {
   const apparatusValue = value(data, "apparatus");
   const durationRaw = value(data, "durationMin");
   const durationMin = durationRaw ? Number(durationRaw) : null;
+  const targetGymnastId = value(data, "targetGymnastId") || null;
+  const targetCountRaw = value(data, "targetCount");
+  const targetCount = targetCountRaw ? Number(targetCountRaw) : null;
   if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number])) return;
   if (apparatusValue && !APPARATUS.includes(apparatusValue as (typeof APPARATUS)[number])) return;
   if (durationMin !== null && (!Number.isInteger(durationMin) || durationMin <= 0 || durationMin > 480)) return;
+  if (targetCount !== null && (!Number.isInteger(targetCount) || targetCount <= 0 || targetCount > 1000)) return;
+  if (targetGymnastId && !await prisma.trainingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId: targetGymnastId } } })) return;
   await prisma.sessionBlock.update({
     where: { id: blockId },
     data: {
@@ -223,6 +235,8 @@ export async function updateSessionBlock(data: FormData) {
       category,
       apparatus: apparatusValue || null,
       durationMin,
+      targetGymnastId,
+      targetCount,
       groupObjective: value(data, "groupObjective") || null,
       notes: value(data, "notes") || null,
     },

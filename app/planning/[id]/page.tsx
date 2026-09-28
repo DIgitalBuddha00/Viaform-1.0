@@ -62,6 +62,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
       blocks: {
         orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
         include: {
+          targetGymnast: { select: { name: true } },
           spaceAssignment: { include: { trainingSpace: true } },
           resourceAssignments: { include: { resource: { include: { trainingSpace: true } } } },
           stations: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
@@ -247,7 +248,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Block {index + 1} · {block.category.replaceAll("_", " ")}</p>
-                    <h3 className="mt-1 font-semibold">{block.title}</h3>
+                    <h3 className="mt-1 font-semibold">{block.title}</h3><p className="mt-1 text-xs text-[var(--muted)]">{block.targetGymnast?.name??"Whole group"}{block.targetCount?" · target "+block.targetCount:""}</p>
                     {block.groupObjective && <p className="mt-2 text-sm">{block.groupObjective}</p>}
                   </div>
                   <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">
@@ -266,6 +267,8 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                   {APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}
                 </select>
                 <input name="durationMin" type="number" min="1" max="480" defaultValue={block.durationMin ?? ""} placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                <select name="targetGymnastId" defaultValue={block.targetGymnastId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select>
+                <input name="targetCount" type="number" min="1" max="1000" defaultValue={block.targetCount ?? ""} placeholder="Target repetitions" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                 <input name="groupObjective" defaultValue={block.groupObjective ?? ""} placeholder="Group objective" className="rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
                 <textarea name="notes" defaultValue={block.notes ?? ""} placeholder="Block notes" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
                 <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save block</button>
@@ -408,6 +411,8 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
               {APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}
             </select>
             <input name="durationMin" type="number" min="1" max="480" placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+            <select name="targetGymnastId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select>
+            <input name="targetCount" type="number" min="1" max="1000" placeholder="Target repetitions" className="rounded-lg border border-[var(--border)] px-3 py-2" />
           </div>
           <input name="groupObjective" placeholder="Group objective" className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2" />
           <textarea name="notes" placeholder="Block notes" className="mt-2 min-h-20 w-full rounded-lg border border-[var(--border)] px-3 py-2" />

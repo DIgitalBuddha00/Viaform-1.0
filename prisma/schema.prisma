@@ -182,6 +182,9 @@ model Gymnast {
   handoffEntries CoachHandoffGymnast[]
   portalAccesses AthletePortalAccess[]
   macrocycles MacrocycleGymnast[]
+  trainingPlans TrainingPlan[]
+  trainingPlanItems TrainingPlanItem[]
+  targetedSessionBlocks SessionBlock[]
 
   @@index([organisationId, name])
 }
@@ -514,6 +517,8 @@ model TrainingSessionGymnast {
 model SessionBlock {
   id             String   @id @default(cuid())
   sessionId      String
+  targetGymnastId String?
+  targetCount    Int?
   title          String
   category       String
   apparatus      String?
@@ -525,6 +530,7 @@ model SessionBlock {
   updatedAt      DateTime @updatedAt
 
   session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  targetGymnast Gymnast? @relation(fields: [targetGymnastId], references: [id], onDelete: SetNull)
   spaceAssignment SessionBlockSpace?
   resourceAssignments SessionBlockResource[]
   rotationAssignments SessionRotationAssignment[]
@@ -532,6 +538,7 @@ model SessionBlock {
   stations SessionStation[]
 
   @@index([sessionId, orderIndex])
+  @@index([targetGymnastId])
 }
 
 model FacilityLocation {
@@ -1166,6 +1173,7 @@ model TrainingPlan {
   id                    String   @id @default(cuid())
   organisationId        String
   trainingGroupId       String
+  gymnastId             String?
   macrocycleId          String?
   createdByMembershipId String
   name                  String
@@ -1179,13 +1187,37 @@ model TrainingPlan {
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  gymnast Gymnast? @relation(fields: [gymnastId], references: [id], onDelete: SetNull)
   macrocycle Macrocycle? @relation(fields: [macrocycleId], references: [id], onDelete: SetNull)
   createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
   sessions TrainingSession[]
+  items TrainingPlanItem[]
 
   @@index([organisationId, status, startDate])
   @@index([trainingGroupId, startDate, endDate])
   @@index([macrocycleId])
+  @@index([gymnastId, startDate])
+}
+
+model TrainingPlanItem {
+  id          String   @id @default(cuid())
+  planId      String
+  gymnastId   String?
+  title       String
+  category    String
+  apparatus   String?
+  durationMin Int?
+  targetCount Int?
+  notes       String?
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  plan TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  gymnast Gymnast? @relation(fields: [gymnastId], references: [id], onDelete: SetNull)
+
+  @@index([planId, orderIndex])
+  @@index([gymnastId])
 }
 
 model MacrocycleGroup {
@@ -1220,10 +1252,34 @@ model MacrocyclePhase {
   endDate      DateTime
   orderIndex   Int      @default(0)
   notes        String?
+  goals        String?
+  apparatusFocus String?
+  conditioningFocus String?
+  artistryFocus String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   macrocycle Macrocycle @relation(fields: [macrocycleId], references: [id], onDelete: Cascade)
+  periods MacrocycleFocusPeriod[]
 
   @@index([macrocycleId, orderIndex, startDate])
+}
+
+model MacrocycleFocusPeriod {
+  id                String   @id @default(cuid())
+  phaseId           String
+  name              String
+  startDate         DateTime
+  endDate           DateTime
+  apparatusFocus    String?
+  conditioningFocus String?
+  artistryFocus     String?
+  notes             String?
+  orderIndex        Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  phase MacrocyclePhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+
+  @@index([phaseId, orderIndex, startDate])
 }

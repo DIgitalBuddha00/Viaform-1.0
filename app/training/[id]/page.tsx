@@ -50,7 +50,7 @@ export default async function LiveTrainingSessionPage({
       trainingGroup: true,
       blocks: {
         orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
-        include: { stations: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
+        include: { targetGymnast: { select: { name: true } }, stations: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
       },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
       evidence: { orderBy: { recordedAt: "asc" } },
@@ -190,7 +190,7 @@ export default async function LiveTrainingSessionPage({
                 className={"rounded-xl border px-4 py-3 text-sm " + (selectedBlock?.id === block.id ? "border-[var(--foreground)] font-semibold" : "border-[var(--border)]")}
               >
                 <span className="block">{block.title}</span>
-                <span className="mt-1 block text-xs text-[var(--muted)]">{block.apparatus ? apparatusLabel[block.apparatus] ?? block.apparatus : block.category}</span>
+                <span className="mt-1 block text-xs text-[var(--muted)]">{block.targetGymnast?.name??"Whole group"} · {block.apparatus ? apparatusLabel[block.apparatus] ?? block.apparatus : block.category}</span>
               </a>
             ))}
           </div>
@@ -235,7 +235,10 @@ export default async function LiveTrainingSessionPage({
                   <p className="mt-2 text-sm text-[var(--muted)]">
                     {selectedBlock.apparatus ? apparatusLabel[selectedBlock.apparatus] ?? selectedBlock.apparatus : selectedBlock.category}
                     {selectedBlock.durationMin ? " · " + selectedBlock.durationMin + " min" : ""}
+                    {selectedBlock.targetCount ? " · target " + selectedBlock.targetCount : ""}
+                    {selectedBlock.targetGymnast ? " · " + selectedBlock.targetGymnast.name : " · whole group"}
                   </p>
+                  {selectedBlock.notes&&<p className="mt-2 text-sm text-[var(--muted)]">{selectedBlock.notes}</p>}
                   {selectedBlock.groupObjective && <p className="mt-3 text-sm">{selectedBlock.groupObjective}</p>}
                   {selectedStation && (
                     <div className="mt-4 rounded-xl border border-[var(--border)] p-3 text-sm">
@@ -264,7 +267,7 @@ export default async function LiveTrainingSessionPage({
             </article>
 
             <div className="mt-5 grid gap-3">
-              {session.gymnasts.map((entry) => {
+              {session.gymnasts.filter(entry=>!selectedBlock.targetGymnastId||entry.gymnastId===selectedBlock.targetGymnastId).map((entry) => {
                 const evidence = blockEvidence.filter((item) => item.gymnastId === entry.gymnastId);
                 const latest = evidence[evidence.length - 1];
                 const routinePlan = currentRoutineByGymnast.get(entry.gymnastId) ?? null;

@@ -81,7 +81,7 @@ export async function recordTrainingEvidence(data: FormData) {
       where: { sessionId_gymnastId: { sessionId, gymnastId } },
     }),
   ]);
-  if (!block || !gymnast) return;
+  if (!block || !gymnast || (block.targetGymnastId && block.targetGymnastId !== gymnastId)) return;
   const station = stationId
     ? await prisma.sessionStation.findFirst({ where: { id: stationId, blockId } })
     : null;
