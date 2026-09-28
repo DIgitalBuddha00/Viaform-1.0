@@ -156,3 +156,46 @@ export function rulesByApparatus(context: GymnastRulesContext | null) {
     };
   }).filter((entry) => entry.specificRuleCount > 0);
 }
+
+
+export async function getRulesetSnapshotRules(
+  packageCode: string | null | undefined,
+  levelCode: string | null | undefined,
+  apparatus: RulesetApparatus,
+) {
+  if (!packageCode || !levelCode) return [];
+  const storageKeys = APPARATUS_STORAGE_KEYS[apparatus];
+  const inheritsSeniorFigCode =
+    packageCode === "FIG-WAG-2025-2028" && levelCode === "JUNIOR";
+  const levelCodes = inheritsSeniorFigCode ? ["ALL", "SENIOR", "JUNIOR"] : ["ALL", levelCode];
+  const rules = await prisma.rulesetApparatusRule.findMany({
+    where: {
+      package: { code: packageCode },
+      verificationStatus: "VERIFIED",
+      levelCode: { in: levelCodes },
+      apparatus: { in: ["ALL", ...storageKeys] },
+    },
+    orderBy: [{ apparatus: "asc" }, { ruleType: "asc" }, { ruleKey: "asc" }],
+  });
+
+  const priority = (rule: { levelCode: string; apparatus: string }) => {
+    const levelPriority = rule.levelCode === levelCode ? 4 : rule.levelCode === "SENIOR" ? 2 : 1;
+    const apparatusPriority = rule.apparatus === "ALL" ? 0 : 1;
+    return levelPriority + apparatusPriority;
+  };
+  const selected = new Map<string, (typeof rules)[number]>();
+  for (const rule of rules) {
+    const existing = selected.get(rule.ruleKey);
+    if (!existing || priority(rule) > priority(existing)) selected.set(rule.ruleKey, rule);
+  }
+
+  return [...selected.values()].map((rule) => ({
+    id: rule.id,
+    apparatus: rule.apparatus,
+    levelCode: rule.levelCode,
+    ruleType: rule.ruleType,
+    ruleKey: rule.ruleKey,
+    value: parseRuleValue(rule.valueJson),
+    sourcePage: rule.sourcePage,
+  }));
+}

@@ -14,7 +14,8 @@ import {
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { gymnastScopeWhere } from "@/app/lib/coaching-scope";
-import { getGymnastRulesContext, rulesForApparatus, type RulesetApparatus } from "@/app/lib/rulesets/context";
+import { getGymnastRulesContext, getRulesetSnapshotRules, type RulesetApparatus } from "@/app/lib/rulesets/context";
+import { evaluateStoredFigRoutine } from "@/app/lib/routines/evaluation";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,23 @@ export default async function RoutineWorkspace({
   if (!gymnast || !routine) notFound();
 
   const currentRules = await getGymnastRulesContext(gymnast.id, c.organisation.id);
-  const applicableRules = rulesForApparatus(currentRules, routine.apparatus as RulesetApparatus);
+  const applicableRules = await getRulesetSnapshotRules(
+    routine.rulesetPackageCode,
+    routine.rulesetLevelCode,
+    routine.apparatus as RulesetApparatus,
+  );
+  const figEvaluation = routine.rulesetProgramCode === "FIG_WAG"
+    ? evaluateStoredFigRoutine({
+        apparatus: routine.apparatus,
+        levelCode: routine.rulesetLevelCode,
+        elements: routine.elements,
+        rules: applicableRules,
+      })
+    : null;
+  const rulesContextChanged = Boolean(
+    currentRules &&
+    (currentRules.package.code !== routine.rulesetPackageCode || currentRules.level.code !== routine.rulesetLevelCode),
+  );
   const href = "/gymnasts/" + gymnast.id + "/routines/" + routine.id;
 
   const [catalogueElements, catalogueVaults] = routine.rulesetPackageCode
@@ -139,7 +156,31 @@ export default async function RoutineWorkspace({
                   <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Raw recognised DV</span><strong className="mt-1 block text-2xl">{rawRecognisedDv.toFixed(1)}</strong></div>
                 </div>
               )}
-              <p className="mt-4 text-xs leading-5 text-[var(--muted)]">Raw recognised DV is descriptive only. It is not the official counting difficulty or D-score; repetition, counting limits, composition, connections and other rules still require evaluation.</p>
+              {figEvaluation ? (
+                <div className="mt-5 rounded-xl border border-[var(--border)] p-4">
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div><span className="text-xs text-[var(--muted)]">Verified FIG evaluation</span><strong className="mt-1 block text-2xl">{figEvaluation.difficulty.toFixed(1)} counting DV</strong></div>
+                    <span className="text-xs font-semibold">{figEvaluation.status === "READY" ? "Evaluation complete" : "Coach / judge review required"}</span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                    <span>Counted {figEvaluation.countedElements.length}</span>
+                    <span>Excluded {figEvaluation.excludedElements.length}</span>
+                    <span>CR {figEvaluation.composition.toFixed(1)}</span>
+                    <span>CV {figEvaluation.connectionValue.toFixed(1)}</span>
+                  </div>
+                  {figEvaluation.findings.length > 0 && (
+                    <details className="mt-4">
+                      <summary className="cursor-pointer text-sm font-semibold">{figEvaluation.findings.length} unresolved evaluation {figEvaluation.findings.length === 1 ? "item" : "items"}</summary>
+                      <div className="mt-2 grid gap-2">
+                        {figEvaluation.findings.map((finding, index) => <p key={finding.code + index} className="rounded-lg border border-[var(--border)] p-2 text-xs text-[var(--muted)]">{finding.message}</p>)}
+                      </div>
+                    </details>
+                  )}
+                  <p className="mt-3 text-xs leading-5 text-[var(--muted)]">A D-score is not presented while required recognition, composition, connection, series or dismount decisions remain unresolved.</p>
+                </div>
+              ) : (
+                <p className="mt-4 text-xs leading-5 text-[var(--muted)]">Raw recognised DV is descriptive only. This ruleset is not being passed through the FIG evaluator.</p>
+              )}
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Strategy</span><p className="mt-2 text-sm">{routine.strategyNote || "Not yet recorded"}</p></div>
                 <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Pathway focus</span><p className="mt-2 text-sm">{routine.pathwayNote || "Not yet recorded"}</p></div>
@@ -147,14 +188,15 @@ export default async function RoutineWorkspace({
             </article>
             <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <p className="text-sm font-semibold">Current verified context</p>
-              {currentRules ? (
+              {routine.rulesetProgramName && routine.rulesetLevelName ? (
                 <>
-                  <p className="mt-2 text-sm">{currentRules.program.name} · {currentRules.level.name}</p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">{currentRules.package.versionLabel}</p>
+                  <p className="mt-2 text-sm">{routine.rulesetProgramName} · {routine.rulesetLevelName}</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">{routine.rulesetVersionLabel ?? "Version snapshot unavailable"}</p>
                   <p className="mt-4 text-2xl font-semibold">{applicableRules.length}</p>
-                  <p className="text-xs text-[var(--muted)]">applicable verified rules</p>
+                  <p className="text-xs text-[var(--muted)]">verified snapshot rules in use</p>
+                  {rulesContextChanged && <p className="mt-4 rounded-lg border border-[var(--border)] p-3 text-xs text-[var(--muted)]">The gymnast’s current rules assignment has changed since this plan was created. This routine continues to use its saved rules snapshot.</p>}
                 </>
-              ) : <p className="mt-2 text-sm text-[var(--muted)]">No verified canonical context assigned.</p>}
+              ) : <p className="mt-2 text-sm text-[var(--muted)]">No verified canonical context was snapshotted for this plan.</p>}
             </article>
           </div>
         )}
