@@ -18,7 +18,7 @@ export default async function GroupOverview({params}:{params:Promise<{id:string}
  const [sessions,evidence,programmes,facilities]=await Promise.all([
   prisma.trainingSession.findMany({where:{organisationId:c.organisation.id,trainingGroupId:group.id,sessionDate:{gte:now}},orderBy:[{sessionDate:"asc"},{startTime:"asc"}],take:5}),
   prisma.trainingEvidence.findMany({where:{session:{organisationId:c.organisation.id,trainingGroupId:group.id}},include:{gymnast:true,block:true},orderBy:{recordedAt:"desc"},take:6}),
-  c.access.canManageProgrammesAndMethodology?prisma.coachingProgramme.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},include:{stages:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}},orderBy:{name:"asc"}):Promise.resolve([]),
+  c.access.canManageProgrammesAndMethodology?prisma.coachingProgramme.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},include:{stages:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}},orderBy:{name:"asc"}}):Promise.resolve([]),
   prisma.facilityLocation.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},orderBy:{name:"asc"})
  ]);
  const schedule=group.scheduleSlots.map(s=>(DAYS.find(([v])=>v===s.dayOfWeek)?.[1]??s.dayOfWeek).slice(0,3)+" "+s.startTime+"–"+s.endTime).join(" · ");
