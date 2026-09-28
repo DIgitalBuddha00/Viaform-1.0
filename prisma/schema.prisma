@@ -42,6 +42,7 @@ model Organisation {
   facilityLocations FacilityLocation[]
   testMetrics TestMetric[]
   testingSessions TestingSession[]
+  competitionEvents CompetitionEvent[]
 }
 
 model OrganisationMembership {
@@ -64,6 +65,7 @@ model OrganisationMembership {
   recordedTrainingAttendance TrainingAttendance[]
   createdTestingSessions TestingSession[]
   recordedTestingResults TestingResult[]
+  createdCompetitionEvents CompetitionEvent[]
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
@@ -143,6 +145,7 @@ model Gymnast {
   testingSessions TestingSessionGymnast[]
   testingResults TestingResult[]
   routines GymnastRoutine[]
+  competitionEntries CompetitionEntry[]
 
   @@index([organisationId, name])
 }
@@ -258,6 +261,7 @@ model GymnastRoutine {
   elements GymnastRoutineElement[]
   vaults GymnastRoutineVault[]
   customItems GymnastRoutineCustomItem[]
+  competitionPlans CompetitionApparatusPlan[]
 
   @@unique([gymnastId, apparatus, name])
   @@index([gymnastId, apparatus, status])
@@ -830,4 +834,69 @@ model RulesetApparatusRule {
  @@unique([packageId,apparatus,levelCode,ruleKey])
  @@index([packageId,apparatus,levelCode,ruleType])
  @@map("FigApparatusRule")
+}
+
+
+model CompetitionEvent {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  createdByMembershipId String
+  name                  String
+  eventType             String   @default("EXTERNAL")
+  eventDate             DateTime
+  location              String?
+  status                String   @default("PLANNED")
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+  entries CompetitionEntry[]
+
+  @@index([organisationId, eventDate])
+  @@index([organisationId, eventType, status])
+}
+
+model CompetitionEntry {
+  id                    String   @id @default(cuid())
+  competitionEventId    String
+  gymnastId             String
+  rulesetProgramCode    String?
+  rulesetProgramName    String?
+  rulesetLevelCode      String?
+  rulesetLevelName      String?
+  rulesetPackageCode    String?
+  rulesetVersionLabel   String?
+  ageDivision           String?
+  sessionLabel          String?
+  squadLabel            String?
+  status                String   @default("ENTERED")
+  coachNote             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  event CompetitionEvent @relation(fields: [competitionEventId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  apparatusPlans CompetitionApparatusPlan[]
+
+  @@unique([competitionEventId, gymnastId])
+  @@index([gymnastId, createdAt])
+}
+
+model CompetitionApparatusPlan {
+  id                 String   @id @default(cuid())
+  competitionEntryId String
+  apparatus          String
+  routineId          String?
+  routineNameSnapshot String?
+  planNote           String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  entry CompetitionEntry @relation(fields: [competitionEntryId], references: [id], onDelete: Cascade)
+  routine GymnastRoutine? @relation(fields: [routineId], references: [id], onDelete: SetNull)
+
+  @@unique([competitionEntryId, apparatus])
+  @@index([routineId])
 }
