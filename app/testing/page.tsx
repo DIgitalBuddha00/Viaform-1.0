@@ -45,7 +45,10 @@ export default async function TestingPage() {
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
       <section>
         <p className="text-sm font-semibold text-[var(--muted)]">Testing & progress</p>
-        <h1 className="mt-2 text-3xl font-semibold">Testing</h1>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h1 className="mt-2 text-3xl font-semibold">Testing</h1>
+          <a href="/progress" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Open Progress Hub</a>
+        </div>
         <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">
           Capture repeatable evidence quickly on the gym floor. Raw results are retained; Viaform does not turn a test result into a progression decision.
         </p>

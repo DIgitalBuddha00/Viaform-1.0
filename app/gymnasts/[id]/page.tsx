@@ -194,16 +194,24 @@ export default async function GymnastOverview({ params }: { params: Promise<{ id
         </article>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {["Training", "Testing", "Routines", "Progress"].map((x) => (
-            <article key={x} className="rounded-2xl border border-dashed border-[var(--border)] p-5">
-              <h2 className="font-semibold">{x}</h2>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                {x === "Routines" && canonicalRules
-                  ? `${canonicalRules.level.name} canonical rules context is ready for routine construction.`
-                  : "Summary and navigation will appear as this domain is rebuilt."}
-              </p>
-            </article>
-          ))}
+          <article className="rounded-2xl border border-dashed border-[var(--border)] p-5">
+            <h2 className="font-semibold">Training</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">Live-training evidence is available through the session workspace.</p>
+          </article>
+          <a href={"/testing"} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="font-semibold">Testing</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">Open testing sessions and club-defined metrics.</p>
+          </a>
+          <article className="rounded-2xl border border-dashed border-[var(--border)] p-5">
+            <h2 className="font-semibold">Routines</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              {canonicalRules ? `${canonicalRules.level.name} canonical rules context is ready for routine construction.` : "Routine workspace will appear when this domain is rebuilt."}
+            </p>
+          </article>
+          <a href={"/progress?gymnast=" + gymnast.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="font-semibold">Progress</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">Review longitudinal testing results and recent training evidence.</p>
+          </a>
         </div>
       </section>
     </AppShell>
