@@ -53,6 +53,7 @@ model Organisation {
   macrocycles Macrocycle[]
   trainingPlans TrainingPlan[]
   clubRotationPlans ClubRotationPlan[]
+  extensionSkills ViaformSkill[]
 }
 
 model OrganisationMembership {
@@ -259,7 +260,6 @@ model CoachingProgramme {
   trainingSessions TrainingSession[]
   leads ProgrammeLeadAssignment[]
   methodologyRecords MethodologyRecord[]
-  extensionSkills ViaformSkill[]
 
   @@unique([organisationId, name])
   @@index([organisationId, programmeType, status])
