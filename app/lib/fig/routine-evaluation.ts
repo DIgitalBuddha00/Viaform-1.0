@@ -80,7 +80,14 @@ export type FigRoutineEvaluation = {
   findings: FigEvaluationFinding[];
 };
 
-export const FIG_SENIOR_COMPOSITION_REQUIREMENTS: Record<FigRoutineApparatus, readonly string[]> = {
+/**
+ * The apparatus composition requirements used by both Senior and Junior WAG.
+ *
+ * The Junior appendix says that the 2025 Code is used with the modifications
+ * listed on pages 182-183 and explicitly directs composition requirements to
+ * the respective apparatus sections. The appendix does not replace these CRs.
+ */
+export const FIG_APPARATUS_COMPOSITION_REQUIREMENTS: Record<FigRoutineApparatus, readonly string[]> = {
   BARS: [
     "FLIGHT_HIGH_TO_LOW",
     "FLIGHT_SAME_BAR",
@@ -100,6 +107,9 @@ export const FIG_SENIOR_COMPOSITION_REQUIREMENTS: Record<FigRoutineApparatus, re
     "BACKWARD_AND_FORWARD_SALTO",
   ],
 };
+
+// Retained for callers introduced before the Junior appendix was verified.
+export const FIG_SENIOR_COMPOSITION_REQUIREMENTS = FIG_APPARATUS_COMPOSITION_REQUIREMENTS;
 
 const roundTenth = (value: number) => Math.round((value + Number.EPSILON) * 10) / 10;
 
@@ -243,19 +253,11 @@ function reviewedValue(
 
 function compositionValue(
   apparatus: FigRoutineApparatus,
-  level: FigRulesetLevel,
   requirementKeys: readonly string[] | undefined,
   reviews: FigCompositionReview[] | undefined,
   findings: FigEvaluationFinding[],
 ) {
-  const expected = requirementKeys
-    ?? (level === "SENIOR" ? FIG_SENIOR_COMPOSITION_REQUIREMENTS[apparatus] : []);
-  if (level === "JUNIOR" && !requirementKeys) {
-    findings.push({
-      code: "JUNIOR_COMPOSITION_RULES_REQUIRED",
-      message: "Junior composition requirements must be supplied from a verified rules package.",
-    });
-  }
+  const expected = requirementKeys ?? FIG_APPARATUS_COMPOSITION_REQUIREMENTS[apparatus];
   const reviewByKey = new Map(reviews?.map((review) => [review.key, review]));
   let fulfilled = 0;
 
@@ -281,12 +283,6 @@ export function evaluateFigRoutine(input: FigRoutineEvaluationInput): FigRoutine
     ? { maximum: 8, includesDismount: true }
     : { maximum: 8, includesDismount: true, maximumAcro: 5, maximumDance: 5 };
   const countingPolicy = input.countingPolicy ?? defaultCountingPolicy;
-  if (level === "JUNIOR" && !input.countingPolicy) {
-    findings.push({
-      code: "JUNIOR_COUNTING_RULES_REQUIRED",
-      message: "Junior counting limits must be supplied from a verified rules package; the Senior structure is shown only as a provisional calculation.",
-    });
-  }
   const excludedElements: FigRoutineEvaluation["excludedElements"] = [];
   const prepared: FigCountedElement[] = input.elements.map((element, sourceIndex) => ({
     ...element,
@@ -377,7 +373,6 @@ export function evaluateFigRoutine(input: FigRoutineEvaluationInput): FigRoutine
   );
   const composition = compositionValue(
     input.apparatus,
-    level,
     input.compositionRequirementKeys,
     input.composition,
     findings,
