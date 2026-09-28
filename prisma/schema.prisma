@@ -188,6 +188,7 @@ model Gymnast {
   macrocycles MacrocycleGymnast[]
   trainingPlans TrainingPlan[]
   trainingPlanItems TrainingPlanItem[]
+  sessionBlockWorkItems SessionBlockWorkItem[]
   targetedSessionBlocks SessionBlock[]
 
   @@index([organisationId, name])
@@ -544,8 +545,30 @@ model SessionBlock {
   rotationAssignments SessionRotationAssignment[]
   evidence TrainingEvidence[]
   stations SessionStation[]
+  workItems SessionBlockWorkItem[]
 
   @@index([sessionId, orderIndex])
+  @@index([targetGymnastId])
+}
+
+model SessionBlockWorkItem {
+  id                 String   @id @default(cuid())
+  blockId            String
+  trainingPlanItemId String?
+  targetGymnastId    String?
+  title              String
+  targetCount        Int?
+  notes              String?
+  orderIndex         Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  trainingPlanItem TrainingPlanItem? @relation(fields: [trainingPlanItemId], references: [id], onDelete: SetNull)
+  targetGymnast Gymnast? @relation(fields: [targetGymnastId], references: [id], onDelete: SetNull)
+
+  @@index([blockId, orderIndex])
+  @@index([trainingPlanItemId])
   @@index([targetGymnastId])
 }
 
@@ -1275,6 +1298,7 @@ model TrainingPlanItem {
 
   plan TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   gymnast Gymnast? @relation(fields: [gymnastId], references: [id], onDelete: SetNull)
+  sessionWorkItems SessionBlockWorkItem[]
 
   @@index([planId, orderIndex])
   @@index([gymnastId])

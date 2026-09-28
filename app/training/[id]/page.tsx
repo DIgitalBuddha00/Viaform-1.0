@@ -51,7 +51,7 @@ export default async function LiveTrainingSessionPage({
       trainingGroup: true,
       blocks: {
         orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
-        include: { targetGymnast: { select: { name: true } }, stations: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
+        include: { targetGymnast: { select: { name: true } }, workItems: { include: { targetGymnast: { select: { name: true } } }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] }, stations: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
       },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
       evidence: { orderBy: { recordedAt: "asc" } },
@@ -68,6 +68,7 @@ export default async function LiveTrainingSessionPage({
     null;
 
   const selectedStation = selectedBlock?.stations.find((station) => station.id === query.station) ?? null;
+  const selectedWorkItems = selectedBlock?.workItems ?? [];
   const blockEvidence = selectedBlock
     ? session.evidence.filter((entry) =>
         entry.blockId === selectedBlock.id && (!selectedStation || entry.stationId === selectedStation.id)
@@ -138,6 +139,8 @@ export default async function LiveTrainingSessionPage({
             )}
           </div>
         </div>
+
+        {selectedBlock && selectedWorkItems.length > 0 && <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Planned skill work · {selectedBlock.title}</p><div className="mt-3 grid gap-2">{selectedWorkItems.map(item => <div key={item.id} className="rounded-xl border border-[var(--border)] px-3 py-3"><p className="font-semibold">{item.title}</p><p className="mt-1 text-xs text-[var(--muted)]">{item.targetGymnast?.name ?? "Whole group"}{item.targetCount ? " · target " + item.targetCount : ""}{item.notes ? " · " + item.notes : ""}</p></div>)}</div></section>}
 
         <details className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5" open={isLive && session.attendance.length < session.gymnasts.length}>
           <summary className="cursor-pointer list-none">

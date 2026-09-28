@@ -3,6 +3,9 @@ import { AppShell } from "@/app/components/app-shell";
 import {
   addGymnastToTrainingSession,
   createSessionBlock,
+  addSessionBlockWorkItem,
+  updateSessionBlockWorkItem,
+  deleteSessionBlockWorkItem,
   deleteSessionBlock,
   deleteTrainingSession,
   updateSessionBlock,
@@ -60,6 +63,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
           spaceAssignment: { include: { trainingSpace: true } },
           resourceAssignments: { include: { resource: { include: { trainingSpace: true } } } },
           stations: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
+          workItems: { include: { targetGymnast: { select: { name: true } }, trainingPlanItem: { select: { id: true, planId: true } } }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
         },
       },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
@@ -113,6 +117,8 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
   }) : [];
   const matchingRotations = rotationPlans.map(p => ({ ...p, variant: rotationVariant(p, session.sessionDate) }))
     .filter(p => p.slots.some(s => s.variantIndex === p.variant));
+  const trainingPlans = await prisma.trainingPlan.findMany({ where: { organisationId: c.organisation.id, trainingGroupId: session.trainingGroupId, status: "ACTIVE", startDate: { lte: session.sessionDate }, endDate: { gte: session.sessionDate } }, include: { items: { orderBy: { orderIndex: "asc" } } }, orderBy: { startDate: "desc" } });
+  const availablePlanItems = trainingPlans.flatMap(plan => plan.items.map(item => ({ ...item, planName: plan.name })));
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
@@ -253,7 +259,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Block {index + 1} · {block.category.replaceAll("_", " ")}</p>
-                    <h3 className="mt-1 font-semibold">{block.title}</h3><p className="mt-1 text-xs text-[var(--muted)]">{block.targetGymnast?.name??"Whole group"}{block.targetCount?" · target "+block.targetCount:""}</p>
+                    <h3 className="mt-1 font-semibold">{block.title}</h3><p className="mt-1 text-xs text-[var(--muted)]">{block.targetGymnast?.name??"Whole group"}</p>
                     {block.groupObjective && <p className="mt-2 text-sm">{block.groupObjective}</p>}
                   </div>
                   <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">
@@ -273,11 +279,16 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                 </select>
                 <input name="durationMin" type="number" min="1" max="480" defaultValue={block.durationMin ?? ""} placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                 <select name="targetGymnastId" defaultValue={block.targetGymnastId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select>
-                <input name="targetCount" type="number" min="1" max="1000" defaultValue={block.targetCount ?? ""} placeholder="Target repetitions" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                 <input name="groupObjective" defaultValue={block.groupObjective ?? ""} placeholder="Group objective" className="rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
                 <textarea name="notes" defaultValue={block.notes ?? ""} placeholder="Block notes" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
                 <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save block</button>
               </form>
+              <div className="mt-4 border-t border-[var(--border)] pt-4">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Skill work</p><p className="mt-1 text-sm text-[var(--muted)]">What will be trained in this area. Repetition targets belong to the work, not the block.</p></div><span className="text-sm text-[var(--muted)]">{block.workItems.length} items</span></div>
+                <div className="mt-3 grid gap-2">{block.workItems.map(item => <details key={item.id} className="rounded-xl border border-[var(--border)] p-3"><summary className="cursor-pointer text-sm font-semibold">{item.title}{item.targetGymnast ? " · " + item.targetGymnast.name : " · whole group"}{item.targetCount ? " · target " + item.targetCount : ""}</summary><form action={updateSessionBlockWorkItem} className="mt-3 grid gap-2 md:grid-cols-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><input type="hidden" name="workItemId" value={item.id}/><input name="title" required defaultValue={item.title} className="rounded-lg border border-[var(--border)] px-3 py-2"/><select name="targetGymnastId" defaultValue={item.targetGymnastId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select><input name="targetCount" type="number" min="1" max="1000" defaultValue={item.targetCount ?? ""} placeholder="Target repetitions (optional)" className="rounded-lg border border-[var(--border)] px-3 py-2"/><input name="notes" defaultValue={item.notes ?? ""} placeholder="Drill, sequence, or coaching notes" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save work</button></form><form action={deleteSessionBlockWorkItem} className="mt-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><input type="hidden" name="workItemId" value={item.id}/><button className="text-xs text-[var(--muted)]">Remove work</button></form></details>)}</div>
+                {availablePlanItems.length > 0 && <form action={addSessionBlockWorkItem} className="mt-3 flex flex-wrap gap-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><select name="trainingPlanItemId" required className="min-w-64 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"><option value="">Add from training plan…</option>{availablePlanItems.map(item => <option key={item.id} value={item.id}>{item.planName} · {item.title}{item.gymnastId ? " · individual" : ""}</option>)}</select><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add planned work</button></form>}
+                <details className="mt-3 rounded-xl border border-dashed border-[var(--border)] p-3"><summary className="cursor-pointer text-sm font-semibold">Add work manually</summary><form action={addSessionBlockWorkItem} className="mt-3 grid gap-2 md:grid-cols-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><input name="title" required maxLength={160} placeholder="Skill, drill, routine section, or task" className="rounded-lg border border-[var(--border)] px-3 py-2"/><select name="targetGymnastId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select><input name="targetCount" type="number" min="1" max="1000" placeholder="Target repetitions (optional)" className="rounded-lg border border-[var(--border)] px-3 py-2"/><input name="notes" placeholder="Drill, sequence, or coaching notes" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Add work</button></form></details>
+              </div>
               <div className="mt-4 border-t border-[var(--border)] pt-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Space & resources</p>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -412,12 +423,9 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
             <select name="category" className="rounded-lg border border-[var(--border)] px-3 py-2">
               {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-            <select name="apparatus" className="rounded-lg border border-[var(--border)] px-3 py-2">
-              {APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}
-            </select>
+            {activeFacility?.spaces.length ? <select name="spaceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Area / apparatus…</option>{activeFacility.spaces.map(space => <option key={space.id} value={space.id}>{space.name}{space.apparatus ? " · " + space.apparatus.replaceAll("_", " ") : ""}</option>)}</select> : <select name="apparatus" className="rounded-lg border border-[var(--border)] px-3 py-2">{APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}</select>}
             <input name="durationMin" type="number" min="1" max="480" placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
             <select name="targetGymnastId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select>
-            <input name="targetCount" type="number" min="1" max="1000" placeholder="Target repetitions" className="rounded-lg border border-[var(--border)] px-3 py-2" />
           </div>
           <input name="groupObjective" placeholder="Group objective" className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2" />
           <textarea name="notes" placeholder="Block notes" className="mt-2 min-h-20 w-full rounded-lg border border-[var(--border)] px-3 py-2" />
