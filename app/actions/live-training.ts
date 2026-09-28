@@ -59,6 +59,23 @@ export async function finishTrainingSession(data: FormData) {
   revalidatePath("/planning/" + sessionId);
 }
 
+export async function reopenTrainingSession(data: FormData) {
+  const context = await coachingContext();
+  const sessionId = value(data, "sessionId");
+  const session = await visibleSession(sessionId, context);
+  if (!session || session.status !== "COMPLETED") return;
+  await prisma.trainingSession.update({
+    where: { id: session.id },
+    data: { status: "IN_PROGRESS", endedAt: null },
+  });
+  revalidatePath("/planning");
+  revalidatePath("/planning/" + sessionId);
+  revalidatePath("/training");
+  revalidatePath("/training/" + sessionId);
+  revalidatePath("/calendar");
+  redirect("/training/" + sessionId);
+}
+
 export async function recordTrainingEvidence(data: FormData) {
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");

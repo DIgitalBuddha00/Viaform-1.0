@@ -158,6 +158,9 @@ export async function updateTrainingSession(data: FormData) {
   });
   revalidatePath("/planning");
   revalidatePath("/planning/" + session.id);
+  revalidatePath("/training");
+  revalidatePath("/training/" + session.id);
+  revalidatePath("/calendar");
   revalidatePath("/groups/" + session.trainingGroupId);
 }
 
@@ -168,8 +171,11 @@ export async function deleteTrainingSession(data: FormData) {
   if (!session) return;
   await prisma.trainingSession.delete({ where: { id: session.id } });
   revalidatePath("/planning");
+  revalidatePath("/training");
+  revalidatePath("/calendar");
+  revalidatePath("/progress");
   revalidatePath("/groups/" + session.trainingGroupId);
-  redirect("/planning");
+  redirect("/planning?view=sessions");
 }
 
 export async function createSessionBlock(data: FormData) {

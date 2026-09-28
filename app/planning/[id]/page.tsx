@@ -12,6 +12,7 @@ import {
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
+import { reopenTrainingSession } from "@/app/actions/live-training";
 import {
   assignSessionBlockResource,
   assignSessionBlockSpace,
@@ -69,6 +70,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
         },
       },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
+      _count: { select: { evidence: true, attendance: true } },
       facilityAssignment: { include: { location: true } },
       rotationGroups: {
         orderBy: [{ orderIndex: "asc" }, { name: "asc" }],
@@ -112,11 +114,12 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section className="workspace-page"><a href="/planning" className="workspace-back">← Planning</a><div className="workspace-hero"><div><p className="workspace-kicker">Planned session · {session.trainingGroup.name}</p><h1>{session.title}</h1><p className="workspace-meta">{dateValue(session.sessionDate)} · {session.startTime}–{session.endTime}</p></div><div className="workspace-actions">
+      <section className="workspace-page"><a href="/planning?view=sessions" className="workspace-back">← Sessions</a><div className="workspace-hero"><div><p className="workspace-kicker">{session.status === "COMPLETED" ? "Completed" : session.status === "IN_PROGRESS" ? "In progress" : "Planned"} · {session.trainingGroup.name}</p><h1>{session.title}</h1><p className="workspace-meta">{dateValue(session.sessionDate)} · {session.startTime}–{session.endTime}</p></div><div className="workspace-actions">
             <span className="workspace-button">{session.status}</span>
             <a href={"/training/" + session.id} className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">
               {session.status === "PLANNED" ? "Open live training" : session.status === "IN_PROGRESS" ? "Return to live training" : "View training record"}
             </a>
+            {session.status === "COMPLETED" && <form action={reopenTrainingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">Reopen session</button></form>}
           </div>
         </div>
 
@@ -580,8 +583,8 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
         </section>
 
         <details className="mt-8 rounded-2xl border border-[var(--border)] p-4">
-          <summary className="cursor-pointer text-sm font-semibold">Delete planned session</summary>
-          <p className="mt-2 text-sm text-[var(--muted)]">This removes the plan and its blocks.</p>
+          <summary className="cursor-pointer text-sm font-semibold">Remove session</summary>
+          <p className="mt-2 text-sm text-[var(--muted)]">{session._count.evidence || session._count.attendance ? `Also removes ${session._count.evidence} observations and ${session._count.attendance} attendance records.` : "This session will be deleted."}</p>
           <form action={deleteTrainingSession} className="mt-3">
             <input type="hidden" name="sessionId" value={session.id} />
             <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Confirm delete</button>

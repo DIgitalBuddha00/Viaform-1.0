@@ -5,6 +5,7 @@ import {
   markAllTrainingPresent,
   recordTrainingAttendance,
   recordTrainingEvidence,
+  reopenTrainingSession,
   startTrainingSession,
   undoLastTrainingEvidence,
 } from "@/app/actions/live-training";
@@ -116,6 +117,13 @@ export default async function LiveTrainingSessionPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status}</span>
+            <a href={"/planning/" + session.id} className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Edit session</a>
+            {session.status === "COMPLETED" && (
+              <form action={reopenTrainingSession}>
+                <input type="hidden" name="sessionId" value={session.id} />
+                <button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Reopen session</button>
+              </form>
+            )}
             {session.status === "PLANNED" && (
               <form action={startTrainingSession}>
                 <input type="hidden" name="sessionId" value={session.id} />
