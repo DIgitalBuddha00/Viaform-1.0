@@ -64,6 +64,11 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
           <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">{event.status}</span>
         </div>
 
+        <div className="mt-5 flex flex-wrap gap-2">
+          <a href={"/competitions/" + event.id + "/judge"} className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Judge view →</a>
+          <a href={"/competitions/" + event.id + "/reflection"} className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Athlete reflection capture →</a>
+        </div>
+
         <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_340px]">
           <div className="grid gap-4">
             {event.entries.map((entry) => {
