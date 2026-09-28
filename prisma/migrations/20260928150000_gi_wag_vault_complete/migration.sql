@@ -1,0 +1,192 @@
+-- Complete current Gymnastics Ireland WAG Vault requirements for the General and Plus pathways.
+-- Source authority: General V4 January 2026 and Plus V4 February 2026 NDP Guidelines.
+
+WITH "vaultRules" ("id","packageId","levelCode","valueJson","sourcePage") AS (
+  VALUES
+    (
+      'gi25_general_vault_intro',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'INTRO',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":10,"vaultTable":false,"matting":{"heightCm":60},"vaultOptions":["HANDSPRING_TO_FLAT_BACK"]}',
+      22
+    ),
+    (
+      'gi25_general_vault_1',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_1',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":10,"vaultTable":false,"matting":{"heightCm":60},"vaultOptions":["HANDSPRING_TO_FLAT_BACK"]}',
+      23
+    ),
+    (
+      'gi25_general_vault_2',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_2',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":10,"vaultTable":false,"matting":{"heightCm":80},"vaultOptions":["HANDSPRING_TO_FLAT_BACK"]}',
+      24
+    ),
+    (
+      'gi25_general_vault_3',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_3',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":15,"vaultTable":false,"matting":{"heightCm":100},"vaultOptions":["HANDSPRING_PREP_TO_FLAT_BACK"]}',
+      25
+    ),
+    (
+      'gi25_general_vault_4',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_4',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":25,"vaultTable":{"heightByAgeCm":{"UP_TO_U13":100,"U15":110,"O15":110}},"matting":{"safetyMatsBehindTableHigherByCm":20},"vaultOptions":["HANDSPRING_TO_FLAT_BACK"]}',
+      26
+    ),
+    (
+      'gi25_general_vault_5',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_5',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":25,"vaultTable":{"heightByAgeCm":{"UP_TO_U13":100,"U14":110,"O14":110}},"matting":{"landingMatCm":20,"additionalSafetyMatCm":20},"vaultOptions":["HANDSPRING_TO_STAND"]}',
+      27
+    ),
+    (
+      'gi25_general_vault_6',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_6',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":25,"vaultTable":{"heightCm":115},"matting":{"landingMatCm":20,"additionalSafetyMatCm":20},"vaultOptions":["HANDSPRING_TO_STAND"]}',
+      28
+    ),
+    (
+      'gi25_general_vault_7',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_7',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":25,"vaultTable":{"heightByAgeCm":{"U13":115,"U15":125,"O15":125}},"matting":{"higherThanTableCm":25},"vaultOptions":["HANDSPRING_FRONT_PREP_TO_STAND_FALL_FORWARD","TSUKAHARA_PREP_TO_STAND_FALL_BACK","YURCHENKO_PREP_TO_STAND_FALL_BACK"],"recognition":{"secondFlightAfterPassingVerticalJudged":false,"safeStopRequired":true,"repulsionAndLiftRequired":true}}',
+      29
+    ),
+    (
+      'gi25_general_vault_8',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_8',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":12.0,"difficulty":2.0,"execution":10.0},"runUpMaximumMetres":25,"vaultTable":{"heightByAgeCm":{"U13":115,"U15":125,"O15":125}},"matting":{"higherThanTableCm":25},"vaultOptions":["HANDSPRING_FRONT_PREP_TO_STAND_FALL_FORWARD","TSUKAHARA_PREP_TO_STAND_FALL_BACK","YURCHENKO_PREP_TO_STAND_FALL_BACK"],"recognition":{"secondFlightAfterPassingVerticalJudged":false,"safeStopRequired":true,"repulsionAndLiftRequired":true}}',
+      30
+    ),
+    (
+      'gi25_general_vault_9',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_9',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIG_D_PLUS_10"},"runUpMaximumMetres":25,"vaultsPerformed":1,"vaultTable":{"heightByAgeCm":{"U15":125,"O15":125}},"vaultOptions":["ANY_FIG_WAG_2025_2028_VAULT"]}',
+      31
+    ),
+    (
+      'gi25_general_vault_10',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'GENERAL_10',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIG"},"runUpMaximumMetres":25,"vaultsPerformed":1,"vaultTable":{"heightCm":125},"vaultOptions":["ANY_FIG_WAG_2025_2028_VAULT_INCLUDING_SALTO"],"judging":{"figSpecificDeductions":true,"modifiedUnderRotation":{"withoutFall":0.5,"withFall":1.0,"additionalFallDeduction":1.0}}}',
+      32
+    ),
+    (
+      'gi25_general_vault_advanced_teams',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'ADVANCED_TEAMS',
+      '{"competitionContext":"TEAM","assignableLevel":false,"sameRequirementsAs":"GENERAL_10","startValue":{"mode":"FIG"},"runUpMaximumMetres":25,"vaultsPerformed":1,"vaultTable":{"heightCm":125},"vaultOptions":["ANY_FIG_WAG_2025_2028_VAULT_INCLUDING_SALTO"],"judging":{"figSpecificDeductions":true,"modifiedUnderRotation":{"withoutFall":0.5,"withFall":1.0,"additionalFallDeduction":1.0}}}',
+      32
+    ),
+    (
+      'gi25_general_vault_intermediate_teams',
+      'canonical_gi_wag_general_2025_plus_v4_2026_01',
+      'INTERMEDIATE_TEAMS',
+      '{"competitionContext":"TEAM","assignableLevel":false,"startValue":{"mode":"FIG"},"runUpMaximumMetres":25,"vaultsPerformed":1,"vaultTable":{"heightByAgeCm":{"UNDER_14":115,"OPEN":125}},"vaultOptions":["ANY_FIG_WAG_2025_2028_NON_SALTO_VAULT"]}',
+      33
+    ),
+    (
+      'gi25_plus_vault_1',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_1',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":15,"vaultTable":false,"matting":{"heightCm":80,"landingAreaHigherByCm":20},"vaultOptions":["HANDSPRING_PREP_TO_BACK_LYING"]}',
+      20
+    ),
+    (
+      'gi25_plus_vault_2',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_2',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":15,"vaultTable":false,"matting":{"heightCm":100,"staggeredMatCm":20},"vaultOptions":["HANDSPRING_PREP_TO_BACK_LYING"],"supersededPrintedTextExcluded":true}',
+      21
+    ),
+    (
+      'gi25_plus_vault_3',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_3',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":15,"vaultTable":false,"matting":{"heightCm":80,"softSafetyMatHigherByCm":20},"vaultOptions":[{"key":"OPTION_1","vault":"ROUND_OFF_STRETCHED_JUMP_TO_NEAR_SHOULDER_STAND","armsByEars":true},{"key":"OPTION_2","vault":"HANDSPRING_TO_STAND_FALL_FORWARD"}],"bonuses":[{"value":0.2,"requiresOption":"OPTION_1"}]}',
+      22
+    ),
+    (
+      'gi25_plus_vault_4',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_4',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":12.0,"difficulty":2.0,"execution":10.0},"runUpMaximumMetres":15,"vaultTable":false,"matting":{"heightCm":40,"staggeredSoftMatCm":20},"vaultOptions":[{"key":"OPTION_1","vault":"ROUND_OFF_STRAIGHT_BACK_SALTO_TO_STAND_FALL_BACK"},{"key":"OPTION_2","vault":"STRAIGHT_FRONT_SALTO_FROM_SPRINGBOARD_TO_STAND_FALL_FORWARD","hipsOpen":true}],"bonuses":[{"value":0.2,"requiresOption":"OPTION_1"}]}',
+      23
+    ),
+    (
+      'gi25_plus_vault_5',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_5',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":12.0,"difficulty":2.0,"execution":10.0},"runUpMaximumMetres":22,"vaultTable":false,"matting":{"blockOrFirmMattingCm":[100,120],"standAndLandingMattingCm":[130,150],"tallerGymnastConfiguration":{"blockCm":120,"mattingCm":150}},"vaultOptions":[{"key":"OPTION_1","vault":"ROUND_OFF_FLIC_TO_STAND_FALL_BACK"},{"key":"OPTION_2","vault":"HANDSPRING_TO_STAND_FALL_FORWARD"},{"key":"OPTION_3","vault":"TSUK_PREP_TO_STAND_FALL_BACK"}],"bonuses":[{"value":0.2,"requiresOption":"OPTION_1"}]}',
+      24
+    ),
+    (
+      'gi25_plus_vault_6',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_6',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIXED","total":12.0,"difficulty":2.0,"execution":10.0},"runUpMaximumMetres":22,"vaultTable":{"heightByAgeCm":{"U13":115,"U14":125,"O14":125}},"matting":{"higherThanTableCm":35},"vaultOptions":[{"key":"OPTION_1","vault":"YURCHENKO_PREP_TO_STAND_FALL_BACK"},{"key":"OPTION_2","vault":"TSUK_PREP_TO_STAND_FALL_BACK"},{"key":"OPTION_3","vault":"HANDSPRING_FRONT_PREP_TO_STAND_FALL_FORWARD"}],"bonuses":[{"value":0.2,"requiresOption":"OPTION_1"}]}',
+      25
+    ),
+    (
+      'gi25_plus_vault_7',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_7',
+      '{"competitionContext":"LEVEL","startValue":{"mode":"FIG_D_PLUS_10"},"runUpMaximumMetres":25,"vaultsPerformed":1,"vaultTable":{"heightCm":125,"allAgeGroups":true},"vaultOptions":["ANY_CODED_FIG_WAG_2025_2028_VAULT"]}',
+      26
+    ),
+    (
+      'gi25_plus_vault_2_3_teams',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_2_3_TEAMS',
+      '{"competitionContext":"TEAM","assignableLevel":false,"startValue":{"mode":"FIXED","total":11.0,"difficulty":1.0,"execution":10.0},"runUpMaximumMetres":15,"matting":{"heightCm":80,"softSafetyMatHigherByCm":20},"vaultOptions":[{"key":"OPTION_1","vault":"ROUND_OFF_STRETCHED_JUMP_TO_NEAR_SHOULDER_STAND","armsByEars":true},{"key":"OPTION_2","vault":"HANDSPRING_PREP_TO_BACK_LYING"}],"bonuses":[{"value":0.2,"requiresOption":"OPTION_1"}]}',
+      29
+    ),
+    (
+      'gi25_plus_vault_4_5_teams',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_4_5_TEAMS',
+      '{"competitionContext":"TEAM","assignableLevel":false,"startValue":{"mode":"OPTION_DEPENDENT","values":[11.0,12.0]},"runUpMaximumMetres":22,"matting":{"blockOrFirmMattingCm":100,"baseStandHeightCm":100,"higherStandHeightCm":130,"landingMattingCm":130},"vaultOptions":[{"key":"OPTION_A","vault":"ROUND_OFF_FLIC_TO_STAND_FALL_BACK"},{"key":"OPTION_B","vault":"HANDSPRING_TO_STAND_FALL_FORWARD"},{"key":"OPTION_C","vault":"TSUK_PREP_TO_STAND_FALL_BACK"}],"startValueConditions":{"11.0":"STAND_AT_100CM","12.0":"STAND_AT_130CM"}}',
+      30
+    ),
+    (
+      'gi25_plus_vault_6_7_teams',
+      'canonical_gi_wag_plus_2025_plus_v4_2026_02',
+      'PLUS_6_7_TEAMS',
+      '{"competitionContext":"TEAM","assignableLevel":false,"startValue":{"mode":"FIG"},"runUpMaximumMetres":25,"vaultsPerformed":1,"vaultTable":{"heightCm":125,"allAgeGroups":true},"vaultOptions":["ANY_CODED_FIG_WAG_2025_2028_VAULT"]}',
+      31
+    )
+)
+INSERT INTO "FigApparatusRule" (
+  "id","packageId","apparatus","levelCode","ruleType","ruleKey","valueJson","sourcePage","verificationStatus"
+)
+SELECT
+  "vaultRules"."id",
+  "vaultRules"."packageId",
+  'VAULT',
+  "vaultRules"."levelCode",
+  'PRESCRIBED_ROUTINE',
+  'vault_routine',
+  "vaultRules"."valueJson",
+  "vaultRules"."sourcePage",
+  'VERIFIED'
+FROM "vaultRules"
+WHERE EXISTS (
+  SELECT 1 FROM "RulesetPackage" package WHERE package."id" = "vaultRules"."packageId"
+)
+AND NOT EXISTS (
+  SELECT 1
+  FROM "FigApparatusRule" existing
+  WHERE existing."packageId" = "vaultRules"."packageId"
+    AND existing."apparatus" = 'VAULT'
+    AND existing."levelCode" = "vaultRules"."levelCode"
+    AND existing."ruleKey" = 'vault_routine'
+);

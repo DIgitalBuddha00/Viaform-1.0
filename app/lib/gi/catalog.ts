@@ -40,3 +40,15 @@ export const GI_WAG_PACKAGES = {
     sourceDocument: "Women's Artistic Plus Levels National Development Pathway & Guidelines 2025+",
   },
 } as const;
+
+export const GI_WAG_VERIFIED_CONTENT = {
+  vault: {
+    generalLevelContexts: 11,
+    generalTeamContexts: 2,
+    plusLevelContexts: 7,
+    plusTeamContexts: 3,
+    totalContexts: 23,
+    generalSourcePages: [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33],
+    plusSourcePages: [20, 21, 22, 23, 24, 25, 26, 29, 30, 31],
+  },
+} as const;

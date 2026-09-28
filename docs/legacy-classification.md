@@ -239,3 +239,9 @@ The same Phase 3 closure batch removes three operational dead ends: pure Adminis
 Gymnastics Ireland WAG is now a Viaform-managed canonical ruleset rather than a club-created programme. The current General V4 January 2026 and Plus V4 February 2026 National Development Pathway documents establish Introductory Floor & Vault, General Levels 1–10 and Plus Levels 1–7 as assignable levels. Their shared progression, crossover, FIG-history, start-value and judging boundaries are stored as verified package rules with source pages.
 
 The 2025 editions were used only as comparison evidence. The 2026 revisions are authoritative. Prescribed apparatus routines are intentionally left for apparatus-by-apparatus audited imports; no routine text, start value or bonus is inferred from the older documents.
+
+### Gymnastics Ireland WAG Vault completion batch
+
+The current General V4 January 2026 and Plus V4 February 2026 Vault tables are represented across 23 level and team contexts. The verified records preserve fixed or FIG-derived start values, run-up limits, table and landing-mat configurations, current vault alternatives, option bonuses and the modified Level 10 under-rotation deductions. Struck-through Plus Level 2 text is explicitly excluded, and the 2026 Intermediate Team height split supersedes the 2025 single-height rule.
+
+The 2025 editions remain comparison evidence only. Bars, Beam and Floor content is still gated for its own rendered-page audit and is not implied by this Vault batch.
