@@ -5,14 +5,207 @@ import { prisma } from "@/app/lib/prisma";
 import { gymnastScopeWhere } from "@/app/lib/coaching-scope";
 import { assignGymnastProgramme, clearGymnastProgramme } from "@/app/actions/programmes";
 import { assignGymnastRuleset, clearGymnastRuleset } from "@/app/actions/rulesets";
-export const dynamic="force-dynamic";
-export default async function GymnastOverview({params}:{params:Promise<{id:string}>}) {
- const c=await requireAuthContext(); if(!c.access.canUseCoachingWorkspace) notFound(); const {id}=await params;
- const gymnast=await prisma.gymnast.findFirst({where:{id,...gymnastScopeWhere(c.organisation.id,c.membership.id,c.access)},include:{groups:{include:{trainingGroup:true},orderBy:{joinedAt:"asc"}},programmeAssignments:{include:{programme:true,stage:true}},rulesetAssignments:{include:{program:true,level:true}}}});
- if(!gymnast) notFound(); const primary=gymnast.groups.find(x=>x.isPrimary); const programmeContext=gymnast.programmeAssignments[0]; const rulesetContext=gymnast.rulesetAssignments[0]; const programmes=c.access.canManageProgrammesAndMethodology?await prisma.coachingProgramme.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},include:{stages:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}},orderBy:{name:"asc"}}):[]; const rulesets=c.access.canManageProgrammesAndMethodology?await prisma.organisationRulesetAssignment.findMany({where:{organisationId:c.organisation.id},include:{program:{include:{levels:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}}}}}):[];
- return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section>
- <a href="/groups" className="text-sm font-semibold text-[var(--muted)]">← My Groups</a><p className="mt-5 text-sm font-semibold text-[var(--muted)]">Gymnast overview</p><h1 className="mt-2 text-3xl font-semibold">{gymnast.name}</h1><p className="mt-3 text-[var(--muted)]">{primary?"Primary group: "+primary.trainingGroup.name:gymnast.groups.length?"No primary group":"Currently unassigned"}</p>
- <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="font-semibold">Programme context</h2><p className="mt-2 text-sm text-[var(--muted)]">{programmeContext?programmeContext.programme.name+(programmeContext.stage?" · "+programmeContext.stage.name:""):"Uses group context unless an individual pathway is assigned"}</p>{c.access.canManageProgrammesAndMethodology&&<div className="mt-4 flex flex-wrap gap-2"><form action={assignGymnastProgramme} className="flex flex-wrap gap-2"><input type="hidden" name="gymnastId" value={gymnast.id}/><select name="programmeId" required className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Programme…</option>{programmes.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><select name="stageId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">No stage</option>{programmes.flatMap(p=>p.stages.map(s=><option key={s.id} value={s.id}>{p.name} · {s.name}</option>))}</select><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Assign individual pathway</button></form>{programmeContext&&<form action={clearGymnastProgramme}><input type="hidden" name="gymnastId" value={gymnast.id}/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Use group context</button></form>}</div>}</article><article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="font-semibold">Ruleset context</h2><p className="mt-2 text-sm text-[var(--muted)]">{rulesetContext?rulesetContext.program.name+(rulesetContext.level?" · "+rulesetContext.level.name:""):"Not yet assigned"}</p>{c.access.canManageProgrammesAndMethodology&&<div className="mt-4 flex flex-wrap gap-2"><form action={assignGymnastRuleset} className="flex flex-wrap gap-2"><input type="hidden" name="gymnastId" value={gymnast.id}/><select name="rulesetAssignment" required className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Ruleset and level…</option>{rulesets.map(r=><optgroup key={r.programId} label={r.program.name}>{r.program.levels.length?r.program.levels.map(l=><option key={l.id} value={`${r.programId}:${l.id}`}>{l.name}</option>):<option value={`${r.programId}:`}>No level</option>}</optgroup>)}</select><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Assign ruleset</button></form>{rulesetContext&&<form action={clearGymnastRuleset}><input type="hidden" name="gymnastId" value={gymnast.id}/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button></form>}</div>}</article><article className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><h2 className="font-semibold">Groups</h2><div className="mt-4 flex flex-wrap gap-2">{gymnast.groups.length?gymnast.groups.map(g=><a key={g.trainingGroupId} href={"/groups/"+g.trainingGroupId} className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-medium">{g.trainingGroup.name}{g.isPrimary?" · primary":""}</a>):<span className="text-sm text-[var(--muted)]">No group memberships yet.</span>}</div></article>
- <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{["Training","Testing","Routines","Progress"].map(x=><article key={x} className="rounded-2xl border border-dashed border-[var(--border)] p-5"><h2 className="font-semibold">{x}</h2><p className="mt-2 text-sm text-[var(--muted)]">Summary and navigation will appear as this domain is rebuilt.</p></article>)}</div>
- </section></AppShell>;
+import { getGymnastRulesContext, rulesByApparatus } from "@/app/lib/rulesets/context";
+
+export const dynamic = "force-dynamic";
+
+export default async function GymnastOverview({ params }: { params: Promise<{ id: string }> }) {
+  const c = await requireAuthContext();
+  if (!c.access.canUseCoachingWorkspace) notFound();
+  const { id } = await params;
+  const gymnast = await prisma.gymnast.findFirst({
+    where: { id, ...gymnastScopeWhere(c.organisation.id, c.membership.id, c.access) },
+    include: {
+      groups: { include: { trainingGroup: true }, orderBy: { joinedAt: "asc" } },
+      programmeAssignments: { include: { programme: true, stage: true } },
+      rulesetAssignments: { include: { program: true, level: true } },
+    },
+  });
+  if (!gymnast) notFound();
+
+  const primary = gymnast.groups.find((x) => x.isPrimary);
+  const programmeContext = gymnast.programmeAssignments[0];
+  const rulesetContext = gymnast.rulesetAssignments[0];
+  const canonicalRules = rulesetContext
+    ? await getGymnastRulesContext(gymnast.id, c.organisation.id)
+    : null;
+  const apparatusContexts = rulesByApparatus(canonicalRules);
+  const sharedRuleCount = canonicalRules?.rules.filter((rule) => rule.apparatus === "ALL").length ?? 0;
+
+  const programmes = c.access.canManageProgrammesAndMethodology
+    ? await prisma.coachingProgramme.findMany({
+        where: { organisationId: c.organisation.id, status: "ACTIVE" },
+        include: { stages: { where: { status: "ACTIVE" }, orderBy: { orderIndex: "asc" } } },
+        orderBy: { name: "asc" },
+      })
+    : [];
+  const rulesets = c.access.canManageProgrammesAndMethodology
+    ? await prisma.organisationRulesetAssignment.findMany({
+        where: { organisationId: c.organisation.id },
+        include: {
+          program: {
+            include: {
+              levels: { where: { status: "ACTIVE" }, orderBy: { orderIndex: "asc" } },
+            },
+          },
+        },
+      })
+    : [];
+
+  return (
+    <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
+      <section>
+        <a href="/groups" className="text-sm font-semibold text-[var(--muted)]">← My Groups</a>
+        <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Gymnast overview</p>
+        <h1 className="mt-2 text-3xl font-semibold">{gymnast.name}</h1>
+        <p className="mt-3 text-[var(--muted)]">
+          {primary
+            ? "Primary group: " + primary.trainingGroup.name
+            : gymnast.groups.length
+              ? "No primary group"
+              : "Currently unassigned"}
+        </p>
+
+        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-semibold">Programme context</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            {programmeContext
+              ? programmeContext.programme.name + (programmeContext.stage ? " · " + programmeContext.stage.name : "")
+              : "Uses group context unless an individual pathway is assigned"}
+          </p>
+          {c.access.canManageProgrammesAndMethodology && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <form action={assignGymnastProgramme} className="flex flex-wrap gap-2">
+                <input type="hidden" name="gymnastId" value={gymnast.id} />
+                <select name="programmeId" required className="rounded-lg border border-[var(--border)] px-3 py-2">
+                  <option value="">Programme…</option>
+                  {programmes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <select name="stageId" className="rounded-lg border border-[var(--border)] px-3 py-2">
+                  <option value="">No stage</option>
+                  {programmes.flatMap((p) =>
+                    p.stages.map((s) => <option key={s.id} value={s.id}>{p.name} · {s.name}</option>),
+                  )}
+                </select>
+                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">
+                  Assign individual pathway
+                </button>
+              </form>
+              {programmeContext && (
+                <form action={clearGymnastProgramme}>
+                  <input type="hidden" name="gymnastId" value={gymnast.id} />
+                  <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+                    Use group context
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+        </article>
+
+        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-semibold">Ruleset context</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            {rulesetContext
+              ? rulesetContext.program.name + (rulesetContext.level ? " · " + rulesetContext.level.name : "")
+              : "Not yet assigned"}
+          </p>
+          {canonicalRules && (
+            <div className="mt-4 rounded-xl border border-[var(--border)] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Verified canonical context</p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    {canonicalRules.package.name} · {canonicalRules.package.versionLabel}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    {canonicalRules.package.sourceDocument}
+                  </p>
+                </div>
+                <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold">
+                  {canonicalRules.rules.length} verified rules
+                </span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {sharedRuleCount > 0 && (
+                  <span className="rounded-full border border-[var(--border)] px-3 py-2 text-xs">
+                    Shared · {sharedRuleCount}
+                  </span>
+                )}
+                {apparatusContexts.map((entry) => (
+                  <span key={entry.apparatus} className="rounded-full border border-[var(--border)] px-3 py-2 text-xs">
+                    {entry.label} · {entry.specificRuleCount}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
+                These verified rules are now resolved from the gymnast’s assigned level for use by routine,
+                training and decision-support services. Viaform provides context; recognition and coaching
+                decisions remain with the coach or judge.
+              </p>
+            </div>
+          )}
+          {rulesetContext && !canonicalRules && (
+            <p className="mt-4 rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">
+              This assignment does not yet resolve to a verified canonical rules package.
+            </p>
+          )}
+          {c.access.canManageProgrammesAndMethodology && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <form action={assignGymnastRuleset} className="flex flex-wrap gap-2">
+                <input type="hidden" name="gymnastId" value={gymnast.id} />
+                <select name="rulesetAssignment" required className="rounded-lg border border-[var(--border)] px-3 py-2">
+                  <option value="">Ruleset and level…</option>
+                  {rulesets.map((r) => (
+                    <optgroup key={r.programId} label={r.program.name}>
+                      {r.program.levels.length
+                        ? r.program.levels.map((l) => (
+                            <option key={l.id} value={`${r.programId}:${l.id}`}>{l.name}</option>
+                          ))
+                        : <option value={`${r.programId}:`}>No level</option>}
+                    </optgroup>
+                  ))}
+                </select>
+                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">
+                  Assign ruleset
+                </button>
+              </form>
+              {rulesetContext && (
+                <form action={clearGymnastRuleset}>
+                  <input type="hidden" name="gymnastId" value={gymnast.id} />
+                  <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button>
+                </form>
+              )}
+            </div>
+          )}
+        </article>
+
+        <article className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-semibold">Groups</h2>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {gymnast.groups.length
+              ? gymnast.groups.map((g) => (
+                  <a key={g.trainingGroupId} href={"/groups/" + g.trainingGroupId} className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-medium">
+                    {g.trainingGroup.name}{g.isPrimary ? " · primary" : ""}
+                  </a>
+                ))
+              : <span className="text-sm text-[var(--muted)]">No group memberships yet.</span>}
+          </div>
+        </article>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {["Training", "Testing", "Routines", "Progress"].map((x) => (
+            <article key={x} className="rounded-2xl border border-dashed border-[var(--border)] p-5">
+              <h2 className="font-semibold">{x}</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                {x === "Routines" && canonicalRules
+                  ? `${canonicalRules.level.name} canonical rules context is ready for routine construction.`
+                  : "Summary and navigation will appear as this domain is rebuilt."}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </AppShell>
+  );
 }
