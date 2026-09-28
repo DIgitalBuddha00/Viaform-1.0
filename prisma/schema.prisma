@@ -24,8 +24,6 @@ model User {
   memberships OrganisationMembership[]
   sessions    AuthSession[]
   athletePortalAccesses AthletePortalAccess[]
-  calendarEvents CalendarEvent[]
-  macrocycles Macrocycle[]
 }
 
 model Organisation {
@@ -51,6 +49,8 @@ model Organisation {
   coachHandoffs CoachHandoff[]
   trustedContributors TrustedContributor[]
   athletePortalAccesses AthletePortalAccess[]
+  calendarEvents CalendarEvent[]
+  macrocycles Macrocycle[]
 }
 
 model OrganisationMembership {
