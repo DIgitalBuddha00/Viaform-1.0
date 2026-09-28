@@ -67,6 +67,7 @@ export async function recordTrainingEvidence(data: FormData) {
   const stationId = value(data, "stationId") || null;
   const routineElementId = value(data, "routineElementId") || null;
   const routineVaultId = value(data, "routineVaultId") || null;
+  const routineCustomItemId = value(data, "routineCustomItemId") || null;
   const outcome = value(data, "outcome");
   const note = value(data, "note") || null;
   if (!OUTCOMES.includes(outcome as (typeof OUTCOMES)[number])) return;
@@ -85,7 +86,7 @@ export async function recordTrainingEvidence(data: FormData) {
     ? await prisma.sessionStation.findFirst({ where: { id: stationId, blockId } })
     : null;
   if (stationId && !station) return;
-  if (routineElementId && routineVaultId) return;
+  if ([routineElementId, routineVaultId, routineCustomItemId].filter(Boolean).length > 1) return;
 
   const routineApparatus: Record<string, string> = {
     VAULT: "VAULT",
@@ -96,6 +97,7 @@ export async function recordTrainingEvidence(data: FormData) {
   const expectedApparatus = block.apparatus ? routineApparatus[block.apparatus] : undefined;
   let verifiedRoutineElementId: string | null = null;
   let verifiedRoutineVaultId: string | null = null;
+  let verifiedRoutineCustomItemId: string | null = null;
   if (routineElementId) {
     if (!expectedApparatus || expectedApparatus === "VAULT") return;
     const item = await prisma.gymnastRoutineElement.findFirst({
@@ -120,6 +122,18 @@ export async function recordTrainingEvidence(data: FormData) {
     if (!item) return;
     verifiedRoutineVaultId = item.id;
   }
+  if (routineCustomItemId) {
+    if (!expectedApparatus) return;
+    const item = await prisma.gymnastRoutineCustomItem.findFirst({
+      where: {
+        id: routineCustomItemId,
+        routine: { gymnastId, apparatus: expectedApparatus, status: "ACTIVE" },
+      },
+      select: { id: true },
+    });
+    if (!item) return;
+    verifiedRoutineCustomItemId = item.id;
+  }
 
   await prisma.trainingEvidence.create({
     data: {
@@ -129,6 +143,7 @@ export async function recordTrainingEvidence(data: FormData) {
       gymnastId,
       routineElementId: verifiedRoutineElementId,
       routineVaultId: verifiedRoutineVaultId,
+      routineCustomItemId: verifiedRoutineCustomItemId,
       recordedByMembershipId: context.membership.id,
       outcome,
       note,

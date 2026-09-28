@@ -44,8 +44,8 @@ function countingPolicy(rules: ApplicableRulesetRule[]): FigCountingPolicy | und
   return {
     maximum: value.maximum,
     includesDismount: value.includesDismount,
-    maximumDance: minimumDance !== undefined ? value.maximum - minimumAcro! : undefined,
-    maximumAcro: minimumAcro !== undefined ? value.maximum - minimumDance! : undefined,
+    maximumDance: minimumDance !== undefined && minimumAcro !== undefined ? value.maximum - minimumAcro : undefined,
+    maximumAcro: minimumDance !== undefined && minimumAcro !== undefined ? value.maximum - minimumDance : undefined,
   };
 }
 

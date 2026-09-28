@@ -96,6 +96,7 @@ export default async function LiveTrainingSessionPage({
         include: {
           elements: { include: { elementDefinition: true }, orderBy: { orderIndex: "asc" } },
           vaults: { include: { vaultDefinition: true }, orderBy: { orderIndex: "asc" } },
+          customItems: { orderBy: { orderIndex: "asc" } },
         },
         orderBy: { updatedAt: "desc" },
       })
@@ -363,6 +364,27 @@ export default async function LiveTrainingSessionPage({
                                   </div>
                                 );
                               })}
+                          {routinePlan.customItems.map((item, index) => {
+                            const itemEvidence = evidence.filter((entry) => entry.routineCustomItemId === item.id);
+                            return (
+                              <div key={item.id} className="rounded-xl border border-[var(--border)] p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div><p className="text-sm font-semibold">{routinePlan.apparatus === "VAULT" ? (item.role === "PRIMARY" ? "Primary" : "Secondary") : index + 1} · {item.label}</p><p className="mt-1 text-xs text-[var(--muted)]">Coach-authored routine content</p></div>
+                                  <span className="text-xs text-[var(--muted)]">{itemEvidence.length} observations</span>
+                                </div>
+                                {isLive && (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
+                                      <form key={outcome} action={recordTrainingEvidence}>
+                                        <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="routineCustomItemId" value={item.id}/>
+                                        <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
+                                      </form>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                         <a href={"/gymnasts/" + entry.gymnastId + "/routines/" + routinePlan.id + "?tab=build"} className="mt-3 inline-block text-xs font-semibold">Open routine Build →</a>
                       </details>

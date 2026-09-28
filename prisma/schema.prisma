@@ -257,6 +257,7 @@ model GymnastRoutine {
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
   elements GymnastRoutineElement[]
   vaults GymnastRoutineVault[]
+  customItems GymnastRoutineCustomItem[]
 
   @@unique([gymnastId, apparatus, name])
   @@index([gymnastId, apparatus, status])
@@ -298,6 +299,23 @@ model GymnastRoutineVault {
 
   @@unique([routineId, orderIndex])
   @@index([routineId, vaultDefinitionId])
+}
+
+model GymnastRoutineCustomItem {
+  id           String   @id @default(cuid())
+  routineId    String
+  label        String
+  orderIndex   Int
+  role         String?
+  coachNote    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  routine GymnastRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  trainingEvidence TrainingEvidence[]
+
+  @@unique([routineId, orderIndex])
+  @@index([routineId])
 }
 
 model TrainingSession {
@@ -665,6 +683,7 @@ model TrainingEvidence {
   gymnastId              String
   routineElementId       String?
   routineVaultId         String?
+  routineCustomItemId    String?
   recordedByMembershipId String
   outcome                String
   note                   String?
@@ -676,11 +695,13 @@ model TrainingEvidence {
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
   routineElement GymnastRoutineElement? @relation(fields: [routineElementId], references: [id], onDelete: SetNull)
   routineVault GymnastRoutineVault? @relation(fields: [routineVaultId], references: [id], onDelete: SetNull)
+  routineCustomItem GymnastRoutineCustomItem? @relation(fields: [routineCustomItemId], references: [id], onDelete: SetNull)
   recordedBy OrganisationMembership @relation(fields: [recordedByMembershipId], references: [id], onDelete: Restrict)
 
   @@index([sessionId, blockId, recordedAt])
   @@index([routineElementId, recordedAt])
   @@index([routineVaultId, recordedAt])
+  @@index([routineCustomItemId, recordedAt])
   @@index([stationId, recordedAt])
   @@index([gymnastId, recordedAt])
   @@index([recordedByMembershipId, recordedAt])

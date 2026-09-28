@@ -1,13 +1,17 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
 import {
+  addRoutineCustomItem,
   addRoutineElement,
   addRoutineVault,
   archiveGymnastRoutine,
+  moveRoutineCustomItem,
   moveRoutineElement,
+  removeRoutineCustomItem,
   removeRoutineElement,
   removeRoutineVault,
   updateRoutineContext,
+  updateRoutineCustomItem,
   updateRoutineElement,
   updateRoutineVault,
 } from "@/app/actions/routines";
@@ -45,6 +49,7 @@ export default async function RoutineWorkspace({
         include: {
           elements: { include: { elementDefinition: true }, orderBy: { orderIndex: "asc" } },
           vaults: { include: { vaultDefinition: true }, orderBy: { orderIndex: "asc" } },
+          customItems: { orderBy: { orderIndex: "asc" } },
         },
       },
     },
@@ -91,7 +96,7 @@ export default async function RoutineWorkspace({
   const programmeContext = gymnast.programmeAssignments[0] ?? null;
   const linkedEvidence = new Map<string, { total: number; made: number; missed: number; spotted: number }>();
   for (const entry of recentEvidence) {
-    const key = entry.routineElementId ?? entry.routineVaultId;
+    const key = entry.routineElementId ?? entry.routineVaultId ?? entry.routineCustomItemId;
     if (!key) continue;
     const counts = linkedEvidence.get(key) ?? { total: 0, made: 0, missed: 0, spotted: 0 };
     counts.total += 1;
@@ -175,14 +180,14 @@ export default async function RoutineWorkspace({
               <h2 className="mt-1 text-xl font-semibold">Routine overview</h2>
               {routine.apparatus === "VAULT" ? (
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Saved vaults</span><strong className="mt-1 block text-2xl">{routine.vaults.length}</strong></div>
+                  <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Saved vaults</span><strong className="mt-1 block text-2xl">{routine.vaults.length + routine.customItems.length}</strong></div>
                   <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Primary D-value</span><strong className="mt-1 block text-2xl">{routine.vaults.find((item) => item.role === "PRIMARY")?.vaultDefinition.dValue.toFixed(1) ?? "—"}</strong></div>
                   <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Groups represented</span><strong className="mt-1 block text-2xl">{new Set(routine.vaults.map((item) => item.vaultDefinition.groupNumber)).size}</strong></div>
                 </div>
               ) : (
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Elements</span><strong className="mt-1 block text-2xl">{routine.elements.length}</strong></div>
-                  <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Recognised</span><strong className="mt-1 block text-2xl">{recognised.length}</strong></div>
+                  <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Elements</span><strong className="mt-1 block text-2xl">{routine.elements.length + routine.customItems.length}</strong></div>
+                  <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Canonical recognised</span><strong className="mt-1 block text-2xl">{recognised.length}</strong></div>
                   <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Raw recognised DV</span><strong className="mt-1 block text-2xl">{rawRecognisedDv.toFixed(1)}</strong></div>
                 </div>
               )}
@@ -265,7 +270,32 @@ export default async function RoutineWorkspace({
                     </details>
                   </div>
                 ))}
-                {!routine.elements.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-5 text-sm text-[var(--muted)]">No elements added yet.</p>}
+                {!catalogueElements.length && routine.customItems.map((item, index) => (
+                  <div key={item.id} className="rounded-xl border border-[var(--border)] p-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-xs font-semibold">{index + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold">{item.label}</p>
+                        <p className="mt-1 text-xs text-[var(--muted)]">Coach-authored content · not a canonical skill definition</p>
+                        {linkedEvidence.has(item.id) && <p className="mt-2 text-xs font-semibold">{linkedEvidence.get(item.id)!.total} recent linked observations · {linkedEvidence.get(item.id)!.made} made · {linkedEvidence.get(item.id)!.spotted} spotted · {linkedEvidence.get(item.id)!.missed} missed</p>}
+                      </div>
+                      <div className="flex gap-1">
+                        <form action={moveRoutineCustomItem}><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/><input type="hidden" name="direction" value="UP"/><button disabled={index === 0} className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs disabled:opacity-30">↑</button></form>
+                        <form action={moveRoutineCustomItem}><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/><input type="hidden" name="direction" value="DOWN"/><button disabled={index === routine.customItems.length - 1} className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs disabled:opacity-30">↓</button></form>
+                      </div>
+                    </div>
+                    <details className="mt-3"><summary className="cursor-pointer text-xs font-semibold">Coach notes</summary>
+                      <form action={updateRoutineCustomItem} className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                        <input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/>
+                        <input name="label" defaultValue={item.label} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/>
+                        <input name="coachNote" defaultValue={item.coachNote ?? ""} placeholder="Coach note" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/>
+                        <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save</button>
+                      </form>
+                      <form action={removeRoutineCustomItem} className="mt-2"><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/><button className="text-xs font-semibold text-[var(--muted)]">Remove from routine</button></form>
+                    </details>
+                  </div>
+                ))}
+                {!routine.elements.length && !routine.customItems.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-5 text-sm text-[var(--muted)]">No elements added yet.</p>}
               </div>
             </article>
             <aside className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -279,8 +309,17 @@ export default async function RoutineWorkspace({
                   </select>
                   <button className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Add to sequence</button>
                 </form>
-              ) : <p className="mt-3 text-sm text-[var(--muted)]">No verified element catalogue is stored for this routine’s ruleset package.</p>}
-              <p className="mt-4 text-xs leading-5 text-[var(--muted)]">Elements are drawn only from the verified canonical package snapshotted when this plan was created.</p>
+              ) : (
+                <>
+                  <p className="mt-3 text-sm text-[var(--muted)]">No verified element catalogue is stored for this routine’s ruleset package. You can still record the coach’s routine content without treating it as a canonical definition.</p>
+                  <form action={addRoutineCustomItem} className="mt-3 grid gap-3">
+                    <input type="hidden" name="routineId" value={routine.id}/>
+                    <input name="label" required placeholder="Skill / element description" className="min-h-12 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"/>
+                    <button className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Add coach-authored item</button>
+                  </form>
+                </>
+              )}
+              <p className="mt-4 text-xs leading-5 text-[var(--muted)]">{catalogueElements.length ? "Elements are drawn only from the verified canonical package snapshotted when this plan was created." : "Coach-authored items remain clearly separate from verified governing-body definitions and are not included in FIG evaluation."}</p>
             </aside>
           </div>
         )}
@@ -306,7 +345,22 @@ export default async function RoutineWorkspace({
                     <form action={removeRoutineVault} className="mt-2"><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/><button className="text-xs font-semibold text-[var(--muted)]">Remove vault</button></form>
                   </div>
                 ))}
-                {!routine.vaults.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-5 text-sm text-[var(--muted)]">No vaults selected yet.</p>}
+                {!catalogueVaults.length && routine.customItems.map((item) => (
+                  <div key={item.id} className="rounded-xl border border-[var(--border)] p-4">
+                    <p className="font-semibold">{item.role === "PRIMARY" ? "Primary" : "Secondary"} · {item.label}</p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">Coach-authored vault selection · not a canonical vault definition</p>
+                    {linkedEvidence.has(item.id) && <p className="mt-2 text-xs font-semibold">{linkedEvidence.get(item.id)!.total} recent linked observations · {linkedEvidence.get(item.id)!.made} made · {linkedEvidence.get(item.id)!.spotted} spotted · {linkedEvidence.get(item.id)!.missed} missed</p>}
+                    <form action={updateRoutineCustomItem} className="mt-3 grid gap-2 sm:grid-cols-[150px_1fr_1fr_auto]">
+                      <input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/>
+                      <select name="role" defaultValue={item.role ?? "SECONDARY"} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"><option value="PRIMARY">Primary</option><option value="SECONDARY">Secondary</option></select>
+                      <input name="label" defaultValue={item.label} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/>
+                      <input name="coachNote" defaultValue={item.coachNote ?? ""} placeholder="Coach note" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/>
+                      <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save</button>
+                    </form>
+                    <form action={removeRoutineCustomItem} className="mt-2"><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/><button className="text-xs font-semibold text-[var(--muted)]">Remove vault</button></form>
+                  </div>
+                ))}
+                {!routine.vaults.length && !routine.customItems.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-5 text-sm text-[var(--muted)]">No vaults selected yet.</p>}
               </div>
             </article>
             <aside className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -320,7 +374,16 @@ export default async function RoutineWorkspace({
                   </select>
                   <button className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Add vault</button>
                 </form>
-              ) : <p className="mt-3 text-sm text-[var(--muted)]">No verified vault catalogue is stored for this routine’s ruleset package.</p>}
+              ) : (
+                <>
+                  <p className="mt-3 text-sm text-[var(--muted)]">No verified vault catalogue is stored for this routine’s ruleset package. Record the coach’s selected vault without assigning canonical number, group or D-value.</p>
+                  <form action={addRoutineCustomItem} className="mt-3 grid gap-3">
+                    <input type="hidden" name="routineId" value={routine.id}/>
+                    <input name="label" required placeholder="Vault description" className="min-h-12 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"/>
+                    <button className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Add coach-authored vault</button>
+                  </form>
+                </>
+              )}
             </aside>
           </div>
         )}

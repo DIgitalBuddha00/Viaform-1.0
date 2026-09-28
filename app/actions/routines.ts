@@ -234,3 +234,99 @@ export async function removeRoutineVault(data: FormData) {
   });
   revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
 }
+
+
+async function routineHasCanonicalCatalogue(routine: Awaited<ReturnType<typeof visibleRoutine>>) {
+  if (!routine?.rulesetPackageCode) return false;
+  if (routine.apparatus === "VAULT") {
+    return (await prisma.figVaultDefinition.count({
+      where: { status: "ACTIVE", package: { code: routine.rulesetPackageCode, status: "ACTIVE" } },
+    })) > 0;
+  }
+  return (await prisma.figElementDefinition.count({
+    where: {
+      apparatus: routine.apparatus,
+      verificationStatus: "VERIFIED",
+      status: "ACTIVE",
+      package: { code: routine.rulesetPackageCode, status: "ACTIVE" },
+    },
+  })) > 0;
+}
+
+export async function addRoutineCustomItem(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  const label = value(data, "label");
+  if (!routine || !label || await routineHasCanonicalCatalogue(routine)) return;
+  const last = await prisma.gymnastRoutineCustomItem.findFirst({
+    where: { routineId: routine.id },
+    orderBy: { orderIndex: "desc" },
+    select: { orderIndex: true },
+  });
+  await prisma.gymnastRoutineCustomItem.create({
+    data: {
+      routineId: routine.id,
+      label,
+      orderIndex: (last?.orderIndex ?? -1) + 1,
+      role: routine.apparatus === "VAULT" ? ((last?.orderIndex ?? -1) < 0 ? "PRIMARY" : "SECONDARY") : null,
+    },
+  });
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
+
+export async function updateRoutineCustomItem(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  if (!routine) return;
+  const item = await prisma.gymnastRoutineCustomItem.findFirst({
+    where: { id: value(data, "itemId"), routineId: routine.id },
+  });
+  if (!item) return;
+  const role = routine.apparatus === "VAULT" ? value(data, "role") : null;
+  if (role && !["PRIMARY", "SECONDARY"].includes(role)) return;
+  await prisma.gymnastRoutineCustomItem.update({
+    where: { id: item.id },
+    data: {
+      label: value(data, "label") || item.label,
+      role,
+      coachNote: value(data, "coachNote") || null,
+    },
+  });
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
+
+export async function removeRoutineCustomItem(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  if (!routine) return;
+  await prisma.gymnastRoutineCustomItem.deleteMany({
+    where: { id: value(data, "itemId"), routineId: routine.id },
+  });
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
+
+export async function moveRoutineCustomItem(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  if (!routine || routine.apparatus === "VAULT") return;
+  const item = await prisma.gymnastRoutineCustomItem.findFirst({
+    where: { id: value(data, "itemId"), routineId: routine.id },
+  });
+  if (!item) return;
+  const direction = value(data, "direction");
+  if (!["UP", "DOWN"].includes(direction)) return;
+  const other = await prisma.gymnastRoutineCustomItem.findFirst({
+    where: {
+      routineId: routine.id,
+      orderIndex: direction === "UP" ? { lt: item.orderIndex } : { gt: item.orderIndex },
+    },
+    orderBy: { orderIndex: direction === "UP" ? "desc" : "asc" },
+  });
+  if (!other) return;
+  await prisma.$transaction([
+    prisma.gymnastRoutineCustomItem.update({ where: { id: item.id }, data: { orderIndex: -1 } }),
+    prisma.gymnastRoutineCustomItem.update({ where: { id: other.id }, data: { orderIndex: item.orderIndex } }),
+    prisma.gymnastRoutineCustomItem.update({ where: { id: item.id }, data: { orderIndex: other.orderIndex } }),
+  ]);
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
