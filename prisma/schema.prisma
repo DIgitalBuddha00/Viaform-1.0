@@ -298,6 +298,7 @@ model SessionBlock {
   resourceAssignments SessionBlockResource[]
   rotationAssignments SessionRotationAssignment[]
   evidence TrainingEvidence[]
+  stations SessionStation[]
 
   @@index([sessionId, orderIndex])
 }
@@ -461,10 +462,33 @@ model SessionRotationAssignment {
   @@index([trainingSpaceId, startTime, endTime])
 }
 
+model SessionStation {
+  id           String   @id @default(cuid())
+  blockId      String
+  name         String
+  objective    String?
+  drills       String?
+  equipment    String?
+  setup        String?
+  cues         String?
+  easierOption String?
+  harderOption String?
+  orderIndex   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  evidence TrainingEvidence[]
+
+  @@unique([blockId, name])
+  @@index([blockId, orderIndex])
+}
+
 model TrainingEvidence {
   id                     String   @id @default(cuid())
   sessionId              String
   blockId                String
+  stationId              String?
   gymnastId              String
   recordedByMembershipId String
   outcome                String
@@ -473,10 +497,12 @@ model TrainingEvidence {
 
   session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  station SessionStation? @relation(fields: [stationId], references: [id], onDelete: SetNull)
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
   recordedBy OrganisationMembership @relation(fields: [recordedByMembershipId], references: [id], onDelete: Restrict)
 
   @@index([sessionId, blockId, recordedAt])
+  @@index([stationId, recordedAt])
   @@index([gymnastId, recordedAt])
   @@index([recordedByMembershipId, recordedAt])
 }

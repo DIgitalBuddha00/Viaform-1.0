@@ -31,7 +31,7 @@ export default async function LiveTrainingSessionPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ block?: string }>;
+  searchParams: Promise<{ block?: string; station?: string }>;
 }) {
   const c = await requireAuthContext();
   if (!c.access.canUseCoachingWorkspace) notFound();
@@ -46,7 +46,10 @@ export default async function LiveTrainingSessionPage({
     },
     include: {
       trainingGroup: true,
-      blocks: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
+      blocks: {
+        orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+        include: { stations: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
+      },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
       evidence: { orderBy: { recordedAt: "asc" } },
       facilityAssignment: { include: { location: true } },
@@ -60,8 +63,11 @@ export default async function LiveTrainingSessionPage({
     session.blocks[0] ??
     null;
 
+  const selectedStation = selectedBlock?.stations.find((station) => station.id === query.station) ?? null;
   const blockEvidence = selectedBlock
-    ? session.evidence.filter((entry) => entry.blockId === selectedBlock.id)
+    ? session.evidence.filter((entry) =>
+        entry.blockId === selectedBlock.id && (!selectedStation || entry.stationId === selectedStation.id)
+      )
     : [];
   const made = blockEvidence.filter((entry) => entry.outcome === "MADE").length;
   const missed = blockEvidence.filter((entry) => entry.outcome === "MISSED").length;
@@ -121,6 +127,29 @@ export default async function LiveTrainingSessionPage({
           </div>
         ) : (
           <>
+            {selectedBlock.stations.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Circuit / station</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <a
+                    href={"/training/" + session.id + "?block=" + selectedBlock.id}
+                    className={"rounded-xl border px-3 py-2 text-sm " + (!selectedStation ? "border-[var(--foreground)] font-semibold" : "border-[var(--border)]")}
+                  >
+                    Whole block
+                  </a>
+                  {selectedBlock.stations.map((station) => (
+                    <a
+                      key={station.id}
+                      href={"/training/" + session.id + "?block=" + selectedBlock.id + "&station=" + station.id}
+                      className={"rounded-xl border px-3 py-2 text-sm " + (selectedStation?.id === station.id ? "border-[var(--foreground)] font-semibold" : "border-[var(--border)]")}
+                    >
+                      {station.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <article className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -131,6 +160,23 @@ export default async function LiveTrainingSessionPage({
                     {selectedBlock.durationMin ? " · " + selectedBlock.durationMin + " min" : ""}
                   </p>
                   {selectedBlock.groupObjective && <p className="mt-3 text-sm">{selectedBlock.groupObjective}</p>}
+                  {selectedStation && (
+                    <div className="mt-4 rounded-xl border border-[var(--border)] p-3 text-sm">
+                      <p className="font-semibold">{selectedStation.name}</p>
+                      {selectedStation.objective && <p className="mt-1">{selectedStation.objective}</p>}
+                      {selectedStation.drills && <p className="mt-2 text-[var(--muted)]">Skills / drills: {selectedStation.drills}</p>}
+                      {selectedStation.equipment && <p className="mt-1 text-[var(--muted)]">Equipment: {selectedStation.equipment}</p>}
+                      {selectedStation.setup && <p className="mt-1 text-[var(--muted)]">Setup: {selectedStation.setup}</p>}
+                      {selectedStation.cues && <p className="mt-1 text-[var(--muted)]">Cues: {selectedStation.cues}</p>}
+                      {(selectedStation.easierOption || selectedStation.harderOption) && (
+                        <p className="mt-1 text-[var(--muted)]">
+                          {selectedStation.easierOption ? "Easier: " + selectedStation.easierOption : ""}
+                          {selectedStation.easierOption && selectedStation.harderOption ? " · " : ""}
+                          {selectedStation.harderOption ? "Harder: " + selectedStation.harderOption : ""}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2 text-sm">
                   <span className="rounded-full border border-[var(--border)] px-3 py-1">Made {made}</span>
@@ -162,6 +208,7 @@ export default async function LiveTrainingSessionPage({
                               <input type="hidden" name="sessionId" value={session.id} />
                               <input type="hidden" name="blockId" value={selectedBlock.id} />
                               <input type="hidden" name="gymnastId" value={entry.gymnastId} />
+                              <input type="hidden" name="stationId" value={selectedStation?.id ?? ""} />
                               <button name="outcome" value={outcome} className="min-w-24 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">
                                 {outcomeLabel[outcome]}
                               </button>
@@ -172,6 +219,7 @@ export default async function LiveTrainingSessionPage({
                               <input type="hidden" name="sessionId" value={session.id} />
                               <input type="hidden" name="blockId" value={selectedBlock.id} />
                               <input type="hidden" name="gymnastId" value={entry.gymnastId} />
+                              <input type="hidden" name="stationId" value={selectedStation?.id ?? ""} />
                               <button className="rounded-xl px-3 py-3 text-sm text-[var(--muted)]">Undo</button>
                             </form>
                           )}

@@ -63,6 +63,7 @@ export async function recordTrainingEvidence(data: FormData) {
   const sessionId = value(data, "sessionId");
   const blockId = value(data, "blockId");
   const gymnastId = value(data, "gymnastId");
+  const stationId = value(data, "stationId") || null;
   const outcome = value(data, "outcome");
   const note = value(data, "note") || null;
   if (!OUTCOMES.includes(outcome as (typeof OUTCOMES)[number])) return;
@@ -77,11 +78,16 @@ export async function recordTrainingEvidence(data: FormData) {
     }),
   ]);
   if (!block || !gymnast) return;
+  const station = stationId
+    ? await prisma.sessionStation.findFirst({ where: { id: stationId, blockId } })
+    : null;
+  if (stationId && !station) return;
 
   await prisma.trainingEvidence.create({
     data: {
       sessionId,
       blockId,
+      stationId: station?.id ?? null,
       gymnastId,
       recordedByMembershipId: context.membership.id,
       outcome,
@@ -96,11 +102,12 @@ export async function undoLastTrainingEvidence(data: FormData) {
   const sessionId = value(data, "sessionId");
   const blockId = value(data, "blockId");
   const gymnastId = value(data, "gymnastId");
+  const stationId = value(data, "stationId") || null;
   const session = await visibleSession(sessionId, context);
   if (!session || session.status !== "IN_PROGRESS") return;
 
   const latest = await prisma.trainingEvidence.findFirst({
-    where: { sessionId, blockId, gymnastId },
+    where: { sessionId, blockId, gymnastId, stationId },
     orderBy: { recordedAt: "desc" },
   });
   if (!latest) return;

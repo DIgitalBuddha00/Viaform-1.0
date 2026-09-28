@@ -29,6 +29,11 @@ import {
   removeGymnastFromRotationGroup,
   updateRotationAssignment,
 } from "@/app/actions/rotations";
+import {
+  createSessionStation,
+  deleteSessionStation,
+  updateSessionStation,
+} from "@/app/actions/session-stations";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +64,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
         include: {
           spaceAssignment: { include: { trainingSpace: true } },
           resourceAssignments: { include: { resource: { include: { trainingSpace: true } } } },
+          stations: { orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
         },
       },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
@@ -330,6 +336,61 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                     </form>
                   ) : null;
                 })()}
+              </div>
+              <div className="mt-4 border-t border-[var(--border)] pt-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Circuit / stations</p>
+                    <p className="mt-1 text-sm text-[var(--muted)]">Optional tasks within this block. Live evidence can be captured against a specific station.</p>
+                  </div>
+                  <span className="text-sm text-[var(--muted)]">{block.stations.length} stations</span>
+                </div>
+                <div className="mt-3 grid gap-3">
+                  {block.stations.map((station, stationIndex) => (
+                    <details key={station.id} className="rounded-xl border border-[var(--border)] p-3">
+                      <summary className="cursor-pointer list-none">
+                        <span className="font-semibold">{stationIndex + 1}. {station.name}</span>
+                        {station.objective && <span className="ml-2 text-sm text-[var(--muted)]">· {station.objective}</span>}
+                      </summary>
+                      <form action={updateSessionStation} className="mt-3 grid gap-2 md:grid-cols-2">
+                        <input type="hidden" name="sessionId" value={session.id} />
+                        <input type="hidden" name="blockId" value={block.id} />
+                        <input type="hidden" name="stationId" value={station.id} />
+                        <input name="name" required defaultValue={station.name} placeholder="Station name" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <input name="objective" defaultValue={station.objective ?? ""} placeholder="Objective" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <textarea name="drills" defaultValue={station.drills ?? ""} placeholder="Skills / drills" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <textarea name="setup" defaultValue={station.setup ?? ""} placeholder="Setup" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <input name="equipment" defaultValue={station.equipment ?? ""} placeholder="Equipment" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <input name="cues" defaultValue={station.cues ?? ""} placeholder="Key coaching cues" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <input name="easierOption" defaultValue={station.easierOption ?? ""} placeholder="Easier option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <input name="harderOption" defaultValue={station.harderOption ?? ""} placeholder="Harder option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save station</button>
+                      </form>
+                      <form action={deleteSessionStation} className="mt-2">
+                        <input type="hidden" name="sessionId" value={session.id} />
+                        <input type="hidden" name="blockId" value={block.id} />
+                        <input type="hidden" name="stationId" value={station.id} />
+                        <button className="text-sm text-[var(--muted)]">Delete station</button>
+                      </form>
+                    </details>
+                  ))}
+                </div>
+                <details className="mt-3 rounded-xl border border-dashed border-[var(--border)] p-3">
+                  <summary className="cursor-pointer text-sm font-semibold">Add station</summary>
+                  <form action={createSessionStation} className="mt-3 grid gap-2 md:grid-cols-2">
+                    <input type="hidden" name="sessionId" value={session.id} />
+                    <input type="hidden" name="blockId" value={block.id} />
+                    <input name="name" required placeholder="Station name" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="objective" placeholder="Objective" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <textarea name="drills" placeholder="Skills / drills" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <textarea name="setup" placeholder="Setup" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="equipment" placeholder="Equipment" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="cues" placeholder="Key coaching cues" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="easierOption" placeholder="Easier option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="harderOption" placeholder="Harder option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Add station</button>
+                  </form>
+                </details>
               </div>
               <form action={deleteSessionBlock} className="mt-3">
                 <input type="hidden" name="sessionId" value={session.id} />
