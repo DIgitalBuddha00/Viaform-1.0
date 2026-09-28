@@ -40,6 +40,8 @@ model Organisation {
   rulesetAssignments OrganisationRulesetAssignment[]
   trainingSessions TrainingSession[]
   facilityLocations FacilityLocation[]
+  testMetrics TestMetric[]
+  testingSessions TestingSession[]
 }
 
 model OrganisationMembership {
@@ -60,6 +62,8 @@ model OrganisationMembership {
   createdTrainingSessions TrainingSession[]
   recordedTrainingEvidence TrainingEvidence[]
   recordedTrainingAttendance TrainingAttendance[]
+  createdTestingSessions TestingSession[]
+  recordedTestingResults TestingResult[]
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
@@ -96,6 +100,7 @@ model TrainingGroup {
   scheduleSlots TrainingGroupSchedule[]
   trainingSessions TrainingSession[]
   facilityPreference TrainingGroupFacility?
+  testingSessions TestingSession[]
 
   @@unique([organisationId, name])
   @@index([organisationId, name])
@@ -135,6 +140,8 @@ model Gymnast {
   rotationAssignments SessionRotationGymnast[]
   trainingEvidence TrainingEvidence[]
   trainingAttendance TrainingAttendance[]
+  testingSessions TestingSessionGymnast[]
+  testingResults TestingResult[]
 
   @@index([organisationId, name])
 }
@@ -479,6 +486,87 @@ model TrainingAttendance {
 
   @@id([sessionId, gymnastId])
   @@index([gymnastId, recordedAt])
+  @@index([recordedByMembershipId, recordedAt])
+}
+
+model TestMetric {
+  id              String   @id @default(cuid())
+  organisationId  String
+  name            String
+  category        String   @default("CUSTOM")
+  apparatus       String?
+  description     String?
+  protocol        String?
+  captureMode     String   @default("MEASUREMENT")
+  unit            String?
+  durationSeconds Int?
+  direction       String   @default("COACH_INTERPRETATION")
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  results TestingResult[]
+
+  @@unique([organisationId, name])
+  @@index([organisationId, category, status])
+}
+
+model TestingSession {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  trainingGroupId       String
+  createdByMembershipId String
+  name                  String
+  testedAt              DateTime
+  purpose               String?
+  conditions            String?
+  notes                 String?
+  status                String   @default("IN_PROGRESS")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+  gymnasts TestingSessionGymnast[]
+  results TestingResult[]
+
+  @@index([organisationId, testedAt])
+  @@index([trainingGroupId, testedAt])
+}
+
+model TestingSessionGymnast {
+  sessionId  String
+  gymnastId  String
+  assignedAt DateTime @default(now())
+
+  session TestingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, gymnastId])
+  @@index([gymnastId, assignedAt])
+}
+
+model TestingResult {
+  id                     String   @id @default(cuid())
+  sessionId              String
+  gymnastId              String
+  metricId               String
+  recordedByMembershipId String
+  numberValue            Float
+  note                   String?
+  recordedAt             DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  session TestingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  metric TestMetric @relation(fields: [metricId], references: [id], onDelete: Restrict)
+  recordedBy OrganisationMembership @relation(fields: [recordedByMembershipId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, gymnastId, metricId])
+  @@index([gymnastId, metricId, recordedAt])
+  @@index([metricId, recordedAt])
   @@index([recordedByMembershipId, recordedAt])
 }
 
