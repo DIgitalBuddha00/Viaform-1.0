@@ -87,7 +87,7 @@ model MembershipPresentationPreference {
   homeWidgetOrder  String   @default("[]")
   homeWidgetHidden String   @default("[]")
   homeWidgetWide   String   @default("[]")
-  theme            String   @default("REFINED")
+  theme            String   @default("preparation")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

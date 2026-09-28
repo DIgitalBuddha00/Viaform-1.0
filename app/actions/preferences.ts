@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import {isAppearanceTheme} from "@/app/lib/appearance";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 const HOME_WIDGETS=["NEXT","GROUPS","EVIDENCE","ATTENTION","WEEK","COMPETITIONS"] as const;
@@ -20,9 +21,8 @@ export async function resetHomeWidgetLayout(){
  revalidatePath("/dashboard");
 }
 
-const THEMES=["REFINED","BOLD","FOCUS"] as const;
 export async function setPresentationTheme(data:FormData){
- const c=await requireAuthContext(),raw=String(data.get("theme")??"REFINED"),theme=THEMES.includes(raw as (typeof THEMES)[number])?raw:"REFINED";
+ const c=await requireAuthContext(),raw=String(data.get("theme")??"preparation"),theme=isAppearanceTheme(raw)?raw:"preparation";
  await prisma.membershipPresentationPreference.upsert({where:{membershipId:c.membership.id},create:{membershipId:c.membership.id,theme},update:{theme}});
  (await cookies()).set("viaform_theme",theme,{sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:31536000});
  revalidatePath("/", "layout");

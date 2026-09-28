@@ -1,36 +1,20 @@
-import type { ReactNode } from "react";
-import { signOut } from "@/app/actions/auth";
-import type { AccessProfile } from "@/app/lib/access-control";
-import { coachingRoleLabel, primaryNavigation } from "@/app/lib/navigation";
-
-type Props = {
-  children: ReactNode;
-  organisationName: string;
-  displayName: string;
-  access: AccessProfile;
-};
-
-export function AppShell({ children, organisationName, displayName, access }: Props) {
-  const navigation = primaryNavigation(access);
-  const mobileLabels = access.canUseCoachingWorkspace
-    ? ["Home", "My Groups", "Planning", "Training", "More"]
-    : navigation.map((item) => item.label);
-  const roles = [...(access.isAdministrator ? ["Administrator"] : []), ...access.coachingRoles.map(coachingRoleLabel)];
-  return <div className="min-h-screen pb-24 md:pb-8">
-    <header className="border-b border-[var(--border)] bg-[var(--header)] shadow-[var(--shadow)]">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 md:px-8">
-        <div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--accent)] text-sm font-bold text-white">V</span><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Viaform</p><p className="mt-1 text-lg font-semibold">{organisationName}</p></div></div>
-        <div className="flex items-center gap-3 text-right"><div className="hidden sm:block"><p className="text-sm font-semibold">{displayName}</p><p className="text-xs text-[var(--muted)]">{roles.join(" · ")}</p></div><span className="hidden h-9 w-9 place-items-center rounded-full bg-[var(--accent-soft)] text-sm font-bold text-[var(--foreground)] sm:grid">{displayName.split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase()}</span><form action={signOut}><button className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold">Sign out</button></form></div>
-      </div>
-    </header>
-    <div className="mx-auto grid max-w-7xl md:grid-cols-[190px_minmax(0,1fr)]">
-      <nav className="hidden border-r border-[var(--border)] px-4 py-6 md:block" aria-label="Primary">
-        <div className="grid gap-1">{navigation.map((item) => item.enabled ? <a key={item.label} href={item.href} className="rounded-xl px-3 py-2.5 text-sm font-semibold hover:bg-[var(--nav-hover)]">{item.label}</a> : <span key={item.label} className="rounded-xl px-3 py-2.5 text-sm text-[var(--muted)] opacity-55">{item.label}</span>)}</div>
-      </nav>
-      <main className="min-w-0 px-5 py-7 md:px-8 md:py-9">{children}</main>
-    </div>
-    {mobileLabels.length > 1 && <nav className={`fixed inset-x-0 bottom-0 z-20 grid ${mobileLabels.length === 2 ? "grid-cols-2" : "grid-cols-5"} border-t border-[var(--border)] bg-[var(--surface)] px-2 py-2 md:hidden`} aria-label="Mobile primary">
-      {mobileLabels.map((label) => { const item = navigation.find((entry) => entry.label === label)!; return item.enabled ? <a key={label} href={item.href} className="rounded-lg px-1 py-2 text-center text-xs font-semibold">{label}</a> : <span key={label} className="px-1 py-2 text-center text-xs text-[var(--muted)] opacity-50">{label}</span>; })}
-    </nav>}
-  </div>;
+"use client";
+import type {ReactNode} from "react";
+import {usePathname} from "next/navigation";
+import {signOut} from "@/app/actions/auth";
+import type {AccessProfile} from "@/app/lib/access-control";
+import {coachingRoleLabel,primaryNavigation} from "@/app/lib/navigation";
+import {ViaformMark} from "@/app/components/viaform-mark";
+type Props={children:ReactNode;organisationName:string;displayName:string;access:AccessProfile};
+const icon:Record<string,string>={Home:"⌂",Calendar:"□","My Groups":"◉",Planning:"◇",Training:"△",Testing:"○",Routines:"≡",Competitions:"☆",More:"•••"};
+export function AppShell({children,organisationName,displayName,access}:Props){
+ const pathname=usePathname(),navigation=primaryNavigation(access).filter(x=>x.enabled);
+ const phone=access.canUseCoachingWorkspace?navigation.filter(x=>["Home","My Groups","Planning","Training","More"].includes(x.label)):navigation;
+ const roles=[...(access.isAdministrator?["Administrator"]:[]),...access.coachingRoles.map(coachingRoleLabel)];
+ const active=(href:string)=>href==="/dashboard"?pathname==="/dashboard":pathname===href||pathname.startsWith(href+"/");
+ const links=(items:typeof navigation,cls:string)=>items.map(item=><a key={item.href} href={item.href} aria-current={active(item.href)?"page":undefined} className={cls+(active(item.href)?" nav-active":"")}><span className="nav-symbol" aria-hidden="true">{icon[item.label]??"·"}</span><span>{item.label==="My Groups"?"Groups":item.label}</span></a>);
+ return <div className="app-shell"><div className="app-frame"><aside className="app-sidebar"><div className="app-sidebar-inner"><a href="/dashboard" className="brand-lockup"><ViaformMark/><span><strong>VIAFORM</strong><small>See more. Know why. Coach your way.</small></span></a><div className="sidebar-identity"><small>COACHING AS</small><strong>{displayName}</strong><span>{roles.join(" · ")}</span></div><nav className="sidebar-nav">{links(navigation,"nav-link")}</nav><a href="/appearance" className="sidebar-profile-link">Your Viaform</a></div></aside><div className="app-content"><header className="app-banner"><a href="/dashboard" className="app-banner-brand"><ViaformMark/><span><strong>VIAFORM</strong><small>{organisationName}</small></span></a><div className="app-banner-tools"><div className="banner-identity"><strong>{displayName}</strong><small>{roles.join(" · ")}</small></div><form action={signOut}><button className="signout-button">Sign out</button></form></div></header><main className="content-main">{children}</main></div></div>
+ {phone.length>1&&<nav className="phone-bottom-nav">{links(phone,"mobile-nav-link")}</nav>}
+ {navigation.length>1&&<nav className="tablet-bottom-nav">{links(navigation,"mobile-nav-link")}</nav>}
+ </div>;
 }

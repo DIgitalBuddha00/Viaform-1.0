@@ -1,6 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import {resolveAppearanceTheme} from "@/app/lib/appearance";
 import { prisma } from "@/app/lib/prisma";
 import { createSession, destroySession, makePassword, normaliseEmail, verifyPassword } from "@/app/lib/auth";
 
@@ -42,7 +43,7 @@ export async function signIn(data: FormData) {
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await createSession(user.id, membership.organisationId);
   const preference=await prisma.membershipPresentationPreference.findUnique({where:{membershipId:membership.id},select:{theme:true}});
-  (await cookies()).set("viaform_theme",preference?.theme??"REFINED",{sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:31536000});
+  (await cookies()).set("viaform_theme",resolveAppearanceTheme(preference?.theme),{sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:31536000});
   redirect("/dashboard");
 }
 

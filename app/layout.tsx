@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
+import { resolveAppearanceTheme } from "@/app/lib/appearance";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +10,6 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const raw=(await cookies()).get("viaform_theme")?.value;
-  const theme=raw==="BOLD"||raw==="FOCUS"||raw==="REFINED"?raw:"REFINED";
+  const theme=resolveAppearanceTheme((await cookies()).get("viaform_theme")?.value);
   return <html lang="en" data-theme={theme}><body>{children}</body></html>;
 }

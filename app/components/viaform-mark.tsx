@@ -1,0 +1,1 @@
+export function ViaformMark(){return <span className="viaform-mark" aria-hidden="true"><svg viewBox="0 0 48 48" role="presentation"><path className="viaform-path-ring" d="M37.4 10.2A18 18 0 1 0 41 31.5"/><path className="viaform-path-check" d="M10.8 20.5 22.1 35.2 40.4 12.6"/></svg></span>}
