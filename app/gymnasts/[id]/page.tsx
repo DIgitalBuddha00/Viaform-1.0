@@ -1,219 +1,52 @@
-import { notFound } from "next/navigation";
-import { AppShell } from "@/app/components/app-shell";
-import { requireAuthContext } from "@/app/lib/auth";
-import { prisma } from "@/app/lib/prisma";
-import { gymnastScopeWhere } from "@/app/lib/coaching-scope";
-import { assignGymnastProgramme, clearGymnastProgramme } from "@/app/actions/programmes";
-import { assignGymnastRuleset, clearGymnastRuleset } from "@/app/actions/rulesets";
-import { getGymnastRulesContext, rulesByApparatus } from "@/app/lib/rulesets/context";
-
-export const dynamic = "force-dynamic";
-
-export default async function GymnastOverview({ params }: { params: Promise<{ id: string }> }) {
-  const c = await requireAuthContext();
-  if (!c.access.canUseCoachingWorkspace) notFound();
-  const { id } = await params;
-  const gymnast = await prisma.gymnast.findFirst({
-    where: { id, ...gymnastScopeWhere(c.organisation.id, c.membership.id, c.access) },
-    include: {
-      groups: { include: { trainingGroup: true }, orderBy: { joinedAt: "asc" } },
-      programmeAssignments: { include: { programme: true, stage: true } },
-      rulesetAssignments: { include: { program: true, level: true } },
-    },
-  });
-  if (!gymnast) notFound();
-
-  const primary = gymnast.groups.find((x) => x.isPrimary);
-  const programmeContext = gymnast.programmeAssignments[0];
-  const rulesetContext = gymnast.rulesetAssignments[0];
-  const canonicalRules = rulesetContext
-    ? await getGymnastRulesContext(gymnast.id, c.organisation.id)
-    : null;
-  const apparatusContexts = rulesByApparatus(canonicalRules);
-  const sharedRuleCount = canonicalRules?.rules.filter((rule) => rule.apparatus === "ALL").length ?? 0;
-
-  const programmes = c.access.canManageProgrammesAndMethodology
-    ? await prisma.coachingProgramme.findMany({
-        where: { organisationId: c.organisation.id, status: "ACTIVE" },
-        include: { stages: { where: { status: "ACTIVE" }, orderBy: { orderIndex: "asc" } } },
-        orderBy: { name: "asc" },
-      })
-    : [];
-  const rulesets = c.access.canManageProgrammesAndMethodology
-    ? await prisma.organisationRulesetAssignment.findMany({
-        where: { organisationId: c.organisation.id },
-        include: {
-          program: {
-            include: {
-              levels: { where: { status: "ACTIVE" }, orderBy: { orderIndex: "asc" } },
-            },
-          },
-        },
-      })
-    : [];
-
-  return (
-    <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href="/groups" className="text-sm font-semibold text-[var(--muted)]">← My Groups</a>
-        <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Gymnast overview</p>
-        <h1 className="mt-2 text-3xl font-semibold">{gymnast.name}</h1>
-        <p className="mt-3 text-[var(--muted)]">
-          {primary
-            ? "Primary group: " + primary.trainingGroup.name
-            : gymnast.groups.length
-              ? "No primary group"
-              : "Currently unassigned"}
-        </p>
-
-        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-semibold">Programme context</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            {programmeContext
-              ? programmeContext.programme.name + (programmeContext.stage ? " · " + programmeContext.stage.name : "")
-              : "Uses group context unless an individual pathway is assigned"}
-          </p>
-          {c.access.canManageProgrammesAndMethodology && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <form action={assignGymnastProgramme} className="flex flex-wrap gap-2">
-                <input type="hidden" name="gymnastId" value={gymnast.id} />
-                <select name="programmeId" required className="rounded-lg border border-[var(--border)] px-3 py-2">
-                  <option value="">Programme…</option>
-                  {programmes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <select name="stageId" className="rounded-lg border border-[var(--border)] px-3 py-2">
-                  <option value="">No stage</option>
-                  {programmes.flatMap((p) =>
-                    p.stages.map((s) => <option key={s.id} value={s.id}>{p.name} · {s.name}</option>),
-                  )}
-                </select>
-                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">
-                  Assign individual pathway
-                </button>
-              </form>
-              {programmeContext && (
-                <form action={clearGymnastProgramme}>
-                  <input type="hidden" name="gymnastId" value={gymnast.id} />
-                  <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                    Use group context
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
-        </article>
-
-        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-semibold">Ruleset context</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            {rulesetContext
-              ? rulesetContext.program.name + (rulesetContext.level ? " · " + rulesetContext.level.name : "")
-              : "Not yet assigned"}
-          </p>
-          {canonicalRules && (
-            <div className="mt-4 rounded-xl border border-[var(--border)] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">Verified canonical context</p>
-                  <p className="mt-1 text-sm text-[var(--muted)]">
-                    {canonicalRules.package.name} · {canonicalRules.package.versionLabel}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">
-                    {canonicalRules.package.sourceDocument}
-                  </p>
-                </div>
-                <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold">
-                  {canonicalRules.rules.length} verified rules
-                </span>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {sharedRuleCount > 0 && (
-                  <span className="rounded-full border border-[var(--border)] px-3 py-2 text-xs">
-                    Shared · {sharedRuleCount}
-                  </span>
-                )}
-                {apparatusContexts.map((entry) => (
-                  <span key={entry.apparatus} className="rounded-full border border-[var(--border)] px-3 py-2 text-xs">
-                    {entry.label} · {entry.specificRuleCount}
-                  </span>
-                ))}
-              </div>
-              <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
-                These verified rules are now resolved from the gymnast’s assigned level for use by routine,
-                training and decision-support services. Viaform provides context; recognition and coaching
-                decisions remain with the coach or judge.
-              </p>
-            </div>
-          )}
-          {rulesetContext && !canonicalRules && (
-            <p className="mt-4 rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">
-              This assignment does not yet resolve to a verified canonical rules package.
-            </p>
-          )}
-          {c.access.canManageProgrammesAndMethodology && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <form action={assignGymnastRuleset} className="flex flex-wrap gap-2">
-                <input type="hidden" name="gymnastId" value={gymnast.id} />
-                <select name="rulesetAssignment" required className="rounded-lg border border-[var(--border)] px-3 py-2">
-                  <option value="">Ruleset and level…</option>
-                  {rulesets.map((r) => (
-                    <optgroup key={r.programId} label={r.program.name}>
-                      {r.program.levels.length
-                        ? r.program.levels.map((l) => (
-                            <option key={l.id} value={`${r.programId}:${l.id}`}>{l.name}</option>
-                          ))
-                        : <option value={`${r.programId}:`}>No level</option>}
-                    </optgroup>
-                  ))}
-                </select>
-                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">
-                  Assign ruleset
-                </button>
-              </form>
-              {rulesetContext && (
-                <form action={clearGymnastRuleset}>
-                  <input type="hidden" name="gymnastId" value={gymnast.id} />
-                  <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button>
-                </form>
-              )}
-            </div>
-          )}
-        </article>
-
-        <article className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-semibold">Groups</h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {gymnast.groups.length
-              ? gymnast.groups.map((g) => (
-                  <a key={g.trainingGroupId} href={"/groups/" + g.trainingGroupId} className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-medium">
-                    {g.trainingGroup.name}{g.isPrimary ? " · primary" : ""}
-                  </a>
-                ))
-              : <span className="text-sm text-[var(--muted)]">No group memberships yet.</span>}
-          </div>
-        </article>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <a href="/training" className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="font-semibold">Training</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">Open live and completed session evidence.</p>
-          </a>
-          <a href={"/testing"} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="font-semibold">Testing</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">Open testing sessions and club-defined metrics.</p>
-          </a>
-          <a href={"/gymnasts/" + gymnast.id + "/routines"} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="font-semibold">Routines</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              {canonicalRules ? `${canonicalRules.level.name} rules context · open apparatus workspace.` : "Open the gymnast’s apparatus routine workspace."}
-            </p>
-          </a>
-          <a href={"/progress?gymnast=" + gymnast.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="font-semibold">Progress</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">Review longitudinal testing results and recent training evidence.</p>
-          </a>
-        </div>
-      </section>
-    </AppShell>
-  );
+import {notFound} from "next/navigation";
+import {AppShell} from "@/app/components/app-shell";
+import {requireAuthContext} from "@/app/lib/auth";
+import {prisma} from "@/app/lib/prisma";
+import {gymnastScopeWhere} from "@/app/lib/coaching-scope";
+import {assignGymnastProgramme,clearGymnastProgramme} from "@/app/actions/programmes";
+import {assignGymnastRuleset,clearGymnastRuleset} from "@/app/actions/rulesets";
+import {getGymnastRulesContext,rulesByApparatus} from "@/app/lib/rulesets/context";
+export const dynamic="force-dynamic";
+const date=(d:Date)=>new Intl.DateTimeFormat("en-IE",{day:"numeric",month:"short",year:"numeric"}).format(d);
+const apparatus:Record<string,string>={VAULT:"Vault",BARS:"Uneven Bars",UNEVEN_BARS:"Uneven Bars",BEAM:"Balance Beam",BALANCE_BEAM:"Balance Beam",FLOOR:"Floor Exercise",FLOOR_EXERCISE:"Floor Exercise"};
+export default async function GymnastOverview({params}:{params:Promise<{id:string}>}){
+ const c=await requireAuthContext();if(!c.access.canUseCoachingWorkspace)notFound();const {id}=await params;
+ const gymnast=await prisma.gymnast.findFirst({where:{id,...gymnastScopeWhere(c.organisation.id,c.membership.id,c.access)},include:{groups:{include:{trainingGroup:true},orderBy:{joinedAt:"asc"}},programmeAssignments:{include:{programme:true,stage:true}},rulesetAssignments:{include:{program:true,level:true}}}});
+ if(!gymnast)notFound();
+ const primary=gymnast.groups.find(x=>x.isPrimary),programmeContext=gymnast.programmeAssignments[0],rulesetContext=gymnast.rulesetAssignments[0];
+ const canonicalRules=rulesetContext?await getGymnastRulesContext(gymnast.id,c.organisation.id):null,apparatusContexts=rulesByApparatus(canonicalRules),sharedRuleCount=canonicalRules?.rules.filter(r=>r.apparatus==="ALL").length??0;
+ const [recentEvidence,recentTests,routines,competitionEntries,evidenceCount,testCount]=await Promise.all([
+  prisma.trainingEvidence.findMany({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}},include:{session:{select:{id:true,title:true,sessionDate:true}},block:{select:{title:true,apparatus:true}}},orderBy:{recordedAt:"desc"},take:5}),
+  prisma.testingResult.findMany({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}},include:{metric:true,session:true},orderBy:{recordedAt:"desc"},take:5}),
+  prisma.gymnastRoutine.findMany({where:{gymnastId:gymnast.id,status:"ACTIVE"},include:{_count:{select:{elements:true,vaults:true,customItems:true}}},orderBy:{updatedAt:"desc"}}),
+  prisma.competitionEntry.findMany({where:{gymnastId:gymnast.id,event:{organisationId:c.organisation.id}},include:{event:true,apparatusPlans:{include:{performance:true}}},orderBy:{updatedAt:"desc"},take:6}),
+  prisma.trainingEvidence.count({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}}}),
+  prisma.testingResult.count({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}}})
+ ]);
+ const programmes=c.access.canManageProgrammesAndMethodology?await prisma.coachingProgramme.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},include:{stages:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}},orderBy:{name:"asc"}}):[];
+ const rulesets=c.access.canManageProgrammesAndMethodology?await prisma.organisationRulesetAssignment.findMany({where:{organisationId:c.organisation.id},include:{program:{include:{levels:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}}}}}):[];
+ const nextCompetition=[...competitionEntries].filter(x=>x.event.eventDate>=new Date()).sort((a,b)=>a.event.eventDate.getTime()-b.event.eventDate.getTime())[0]??null;
+ const latestCompetition=[...competitionEntries].sort((a,b)=>b.event.eventDate.getTime()-a.event.eventDate.getTime())[0]??null;
+ const card="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm";
+ return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section>
+  <a href="/groups" className="text-sm font-semibold text-[var(--muted)]">← My Groups</a>
+  <div className="mt-5 flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-semibold text-[var(--accent-strong)]">Gymnast overview</p><h1 className="mt-2 text-3xl font-semibold">{gymnast.name}</h1><p className="mt-2 text-[var(--muted)]">{primary?"Primary group: "+primary.trainingGroup.name:gymnast.groups.length?"No primary group":"Currently unassigned"}</p></div><div className="flex flex-wrap gap-2"><a href={"/progress?gymnast="+gymnast.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold">Progress</a><a href={"/gymnasts/"+gymnast.id+"/routines"} className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white">Routines</a></div></div>
+  <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+   <article className={card}><p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Training evidence</p><strong className="mt-2 block text-2xl">{evidenceCount}</strong><p className="mt-1 text-xs text-[var(--muted)]">{recentEvidence[0]?"Latest "+date(recentEvidence[0].recordedAt):"No observations yet"}</p></article>
+   <article className={card}><p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Testing results</p><strong className="mt-2 block text-2xl">{testCount}</strong><p className="mt-1 text-xs text-[var(--muted)]">{recentTests[0]?"Latest "+date(recentTests[0].recordedAt):"Not yet assessed"}</p></article>
+   <article className={card}><p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Active routines</p><strong className="mt-2 block text-2xl">{routines.length}</strong><p className="mt-1 text-xs text-[var(--muted)]">{routines.length?Array.from(new Set(routines.map(r=>apparatus[r.apparatus]??r.apparatus))).join(" · "):"No active routine yet"}</p></article>
+   <article className={card}><p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Competition</p><strong className="mt-2 block text-lg">{nextCompetition?nextCompetition.event.name:latestCompetition?latestCompetition.event.name:"No competition record"}</strong><p className="mt-1 text-xs text-[var(--muted)]">{nextCompetition?"Next · "+date(nextCompetition.event.eventDate):latestCompetition?"Latest · "+date(latestCompetition.event.eventDate):"Nothing recorded"}</p></article>
+  </div>
+  <div className="mt-6 grid gap-5 lg:grid-cols-2">
+   <article className={card}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-[var(--muted)]">Evidence snapshot</p><h2 className="mt-1 text-xl font-semibold">Recent training</h2></div><a href={"/progress?gymnast="+gymnast.id} className="text-sm font-semibold text-[var(--accent-strong)]">Review evidence →</a></div><div className="mt-4 grid gap-3">{recentEvidence.map(e=><a key={e.id} href={"/training/"+e.session.id} className="rounded-xl border border-[var(--border)] p-3"><div className="flex items-start justify-between gap-3"><strong className="text-sm">{e.outcome}</strong><span className="text-xs text-[var(--muted)]">{date(e.recordedAt)}</span></div><p className="mt-1 text-sm">{e.block.apparatus?apparatus[e.block.apparatus]??e.block.apparatus:e.block.title} · {e.session.title}</p>{e.note&&<p className="mt-1 text-xs text-[var(--muted)]">{e.note}</p>}</a>)}{!recentEvidence.length&&<p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">No training evidence recorded yet.</p>}</div></article>
+   <article className={card}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-[var(--muted)]">Evidence snapshot</p><h2 className="mt-1 text-xl font-semibold">Recent testing</h2></div><a href={"/progress?gymnast="+gymnast.id} className="text-sm font-semibold text-[var(--accent-strong)]">Open Progress →</a></div><div className="mt-4 grid gap-3">{recentTests.map(r=><a key={r.id} href={"/testing/"+r.sessionId} className="rounded-xl border border-[var(--border)] p-3"><div className="flex items-start justify-between gap-3"><strong className="text-sm">{r.metric.name}</strong><span className="text-xs text-[var(--muted)]">{date(r.recordedAt)}</span></div><p className="mt-1 text-sm">{r.numberValue}{r.metric.unit?" "+r.metric.unit:""} · {r.session.name}</p>{r.note&&<p className="mt-1 text-xs text-[var(--muted)]">{r.note}</p>}</a>)}{!recentTests.length&&<p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">Not yet assessed. No testing result has been recorded.</p>}</div></article>
+  </div>
+  <article className={"mt-5 "+card}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold text-[var(--muted)]">Routine workspace</p><h2 className="mt-1 text-xl font-semibold">Current routines</h2></div><a href={"/gymnasts/"+gymnast.id+"/routines"} className="text-sm font-semibold text-[var(--accent-strong)]">Open routines →</a></div><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{routines.map(r=><a key={r.id} href={"/gymnasts/"+gymnast.id+"/routines/"+r.id} className="rounded-xl border border-[var(--border)] p-4"><p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{apparatus[r.apparatus]??r.apparatus}</p><strong className="mt-1 block">{r.name}</strong><p className="mt-2 text-xs text-[var(--muted)]">{r._count.elements+r._count.vaults+r._count.customItems} routine item{r._count.elements+r._count.vaults+r._count.customItems===1?"":"s"} · {r.purpose.toLowerCase()}</p></a>)}{!routines.length&&<p className="text-sm text-[var(--muted)]">No active routines have been built yet.</p>}</div></article>
+  <article className={"mt-5 "+card}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold text-[var(--muted)]">Competition context</p><h2 className="mt-1 text-xl font-semibold">Entries & outcomes</h2></div><a href="/competitions" className="text-sm font-semibold text-[var(--accent-strong)]">Open competitions →</a></div><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[...competitionEntries].sort((a,b)=>b.event.eventDate.getTime()-a.event.eventDate.getTime()).slice(0,3).map(e=>{const recorded=e.apparatusPlans.filter(p=>p.performance&&p.performance.status!=="NOT_RECORDED").length;return <a key={e.id} href={"/competitions/"+e.event.id} className="rounded-xl border border-[var(--border)] p-4"><strong className="block">{e.event.name}</strong><p className="mt-1 text-sm text-[var(--muted)]">{date(e.event.eventDate)} · {e.status.toLowerCase()}</p><p className="mt-2 text-xs text-[var(--muted)]">{e.apparatusPlans.length} apparatus planned · {recorded} outcome{recorded===1?"":"s"} recorded</p></a>})}{!competitionEntries.length&&<p className="text-sm text-[var(--muted)]">No competition entries recorded.</p>}</div></article>
+  <div className="mt-6 grid gap-5 lg:grid-cols-2">
+   <article className={card}><h2 className="font-semibold">Programme context</h2><p className="mt-2 text-sm text-[var(--muted)]">{programmeContext?programmeContext.programme.name+(programmeContext.stage?" · "+programmeContext.stage.name:""):"Uses group context unless an individual pathway is assigned"}</p>{c.access.canManageProgrammesAndMethodology&&<div className="mt-4 flex flex-wrap gap-2"><form action={assignGymnastProgramme} className="flex flex-wrap gap-2"><input type="hidden" name="gymnastId" value={gymnast.id}/><select name="programmeId" required className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Programme…</option>{programmes.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><select name="stageId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">No stage</option>{programmes.flatMap(p=>p.stages.map(s=><option key={s.id} value={s.id}>{p.name} · {s.name}</option>))}</select><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Assign individual pathway</button></form>{programmeContext&&<form action={clearGymnastProgramme}><input type="hidden" name="gymnastId" value={gymnast.id}/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Use group context</button></form>}</div>}</article>
+   <article className={card}><h2 className="font-semibold">Ruleset context</h2><p className="mt-2 text-sm text-[var(--muted)]">{rulesetContext?rulesetContext.program.name+(rulesetContext.level?" · "+rulesetContext.level.name:""):"Not yet assigned"}</p>{canonicalRules&&<div className="mt-4 rounded-xl border border-[var(--border)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold">Verified canonical context</p><p className="mt-1 text-xs text-[var(--muted)]">{canonicalRules.package.name} · {canonicalRules.package.versionLabel}</p></div><span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold">{canonicalRules.rules.length} verified rules</span></div><div className="mt-3 flex flex-wrap gap-2">{sharedRuleCount>0&&<span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">Shared · {sharedRuleCount}</span>}{apparatusContexts.map(x=><span key={x.apparatus} className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{x.label} · {x.specificRuleCount}</span>)}</div></div>}{rulesetContext&&!canonicalRules&&<p className="mt-4 rounded-xl border border-dashed border-[var(--border)] p-3 text-sm text-[var(--muted)]">This assignment does not yet resolve to a verified canonical rules package.</p>}{c.access.canManageProgrammesAndMethodology&&<div className="mt-4 flex flex-wrap gap-2"><form action={assignGymnastRuleset} className="flex flex-wrap gap-2"><input type="hidden" name="gymnastId" value={gymnast.id}/><select name="rulesetAssignment" required className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Ruleset and level…</option>{rulesets.map(r=><optgroup key={r.programId} label={r.program.name}>{r.program.levels.length?r.program.levels.map(l=><option key={l.id} value={r.programId+":"+l.id}>{l.name}</option>):<option value={r.programId+":"}>No level</option>}</optgroup>)}</select><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Assign ruleset</button></form>{rulesetContext&&<form action={clearGymnastRuleset}><input type="hidden" name="gymnastId" value={gymnast.id}/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button></form>}</div>}</article>
+  </div>
+  <article className={"mt-5 "+card}><h2 className="font-semibold">Groups</h2><div className="mt-4 flex flex-wrap gap-2">{gymnast.groups.length?gymnast.groups.map(g=><a key={g.trainingGroupId} href={"/groups/"+g.trainingGroupId} className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-medium">{g.trainingGroup.name}{g.isPrimary?" · primary":""}</a>):<span className="text-sm text-[var(--muted)]">No group memberships yet.</span>}</div></article>
+ </section></AppShell>;
 }
