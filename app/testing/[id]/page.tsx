@@ -42,7 +42,13 @@ export default async function TestingSessionPage({
       },
     }),
     prisma.testMetric.findMany({
-      where: { organisationId: c.organisation.id, status: "ACTIVE" },
+      where: {
+        organisationId: c.organisation.id,
+        OR: [
+          { status: "ACTIVE" },
+          { results: { some: { sessionId: id } } },
+        ],
+      },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     }),
   ]);
@@ -86,7 +92,7 @@ export default async function TestingSessionPage({
                 {metrics.map((metric) => (
                   <a key={metric.id} href={"/testing/" + session.id + "?metric=" + metric.id} className={"rounded-xl border px-4 py-3 text-sm " + (selectedMetric?.id === metric.id ? "border-[var(--foreground)] font-semibold" : "border-[var(--border)]")}>
                     <span className="block">{metric.name}</span>
-                    <span className="mt-1 block text-xs text-[var(--muted)]">{modeLabel[metric.captureMode] ?? metric.captureMode}{metric.unit ? " · " + metric.unit : ""}</span>
+                    <span className="mt-1 block text-xs text-[var(--muted)]">{modeLabel[metric.captureMode] ?? metric.captureMode}{metric.unit ? " · " + metric.unit : ""}{metric.status !== "ACTIVE" ? " · archived" : ""}</span>
                   </a>
                 ))}
               </div>
@@ -128,7 +134,7 @@ export default async function TestingSessionPage({
                           durationSeconds={selectedMetric.durationSeconds}
                           initialValue={result?.numberValue ?? null}
                           initialNote={result?.note ?? null}
-                          disabled={!isLive}
+                          disabled={!isLive || selectedMetric.status !== "ACTIVE"}
                         />
                       </article>
                     );

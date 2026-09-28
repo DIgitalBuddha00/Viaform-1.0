@@ -1,5 +1,5 @@
 import { AppShell } from "@/app/components/app-shell";
-import { createTestMetric, createTestingSession } from "@/app/actions/testing";
+import { archiveTestMetric, createTestMetric, createTestingSession, updateTestMetric } from "@/app/actions/testing";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
@@ -105,14 +105,49 @@ export default async function TestingPage() {
             </div>
             <div className="mt-4 grid gap-2">
               {metrics.map((metric) => (
-                <div key={metric.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                  <p className="font-semibold">{metric.name}</p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">
-                    {metric.category} · {modeLabel[metric.captureMode] ?? metric.captureMode}
-                    {metric.unit ? " · " + metric.unit : ""}
-                    {metric.durationSeconds ? " · " + metric.durationSeconds + " sec" : ""}
-                  </p>
-                </div>
+                <details key={metric.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                  <summary className="cursor-pointer list-none">
+                    <p className="font-semibold">{metric.name}</p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {metric.category} · {modeLabel[metric.captureMode] ?? metric.captureMode}
+                      {metric.unit ? " · " + metric.unit : ""}
+                      {metric.durationSeconds ? " · " + metric.durationSeconds + " sec" : ""}
+                    </p>
+                  </summary>
+                  <form action={updateTestMetric} className="mt-4 grid gap-2 border-t border-[var(--border)] pt-4">
+                    <input type="hidden" name="metricId" value={metric.id} />
+                    <input name="name" required defaultValue={metric.name} className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="category" defaultValue={metric.category} className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <select name="apparatus" defaultValue={metric.apparatus ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                      <option value="">No apparatus</option>
+                      <option value="VAULT">Vault</option><option value="UNEVEN_BARS">Uneven Bars</option>
+                      <option value="BALANCE_BEAM">Balance Beam</option><option value="FLOOR_EXERCISE">Floor Exercise</option>
+                      <option value="PHYSICAL_PREPARATION">Physical Preparation</option>
+                    </select>
+                    <select name="captureMode" defaultValue={metric.captureMode} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                      <option value="COUNTDOWN_TALLY">Countdown + tally</option>
+                      <option value="STOPWATCH">Stopwatch</option>
+                      <option value="REPETITION_TALLY">Repetition tally</option>
+                      <option value="MEASUREMENT">Measurement</option>
+                    </select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input name="unit" defaultValue={metric.unit ?? ""} placeholder="Unit" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                      <input name="durationSeconds" type="number" min="1" max="3600" defaultValue={metric.durationSeconds ?? ""} placeholder="Countdown seconds" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    </div>
+                    <select name="direction" defaultValue={metric.direction} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                      <option value="COACH_INTERPRETATION">Coach interpretation</option>
+                      <option value="HIGHER">Higher value indicates more</option>
+                      <option value="LOWER">Lower value indicates less</option>
+                    </select>
+                    <textarea name="protocol" defaultValue={metric.protocol ?? ""} placeholder="Protocol" className="min-h-16 rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <textarea name="description" defaultValue={metric.description ?? ""} placeholder="Description" className="min-h-16 rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save changes</button>
+                  </form>
+                  <form action={archiveTestMetric} className="mt-2">
+                    <input type="hidden" name="metricId" value={metric.id} />
+                    <button className="text-xs font-semibold text-[var(--muted)]">Archive metric</button>
+                  </form>
+                </details>
               ))}
               {!metrics.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">No custom metrics yet.</p>}
             </div>

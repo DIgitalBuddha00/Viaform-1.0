@@ -62,6 +62,55 @@ export async function createTestMetric(data: FormData) {
   revalidatePath("/testing");
 }
 
+
+export async function updateTestMetric(data: FormData) {
+  const context = await coachingContext();
+  const metricId = value(data, "metricId");
+  const metric = await prisma.testMetric.findFirst({
+    where: { id: metricId, organisationId: context.organisation.id, status: "ACTIVE" },
+  });
+  if (!metric) return;
+
+  const name = value(data, "name");
+  const captureMode = value(data, "captureMode");
+  const direction = value(data, "direction") || "COACH_INTERPRETATION";
+  const durationRaw = value(data, "durationSeconds");
+  const durationSeconds = durationRaw ? Number(durationRaw) : null;
+  if (!name || !MODES.includes(captureMode as (typeof MODES)[number])) return;
+  if (!DIRECTIONS.includes(direction as (typeof DIRECTIONS)[number])) return;
+  if (durationSeconds !== null && (!Number.isInteger(durationSeconds) || durationSeconds < 1 || durationSeconds > 3600)) return;
+  if (captureMode === "COUNTDOWN_TALLY" && durationSeconds === null) return;
+
+  await prisma.testMetric.update({
+    where: { id: metric.id },
+    data: {
+      name,
+      category: value(data, "category") || "CUSTOM",
+      apparatus: value(data, "apparatus") || null,
+      description: value(data, "description") || null,
+      protocol: value(data, "protocol") || null,
+      captureMode,
+      unit: value(data, "unit") || null,
+      durationSeconds,
+      direction,
+    },
+  }).catch(() => null);
+  revalidatePath("/testing");
+  revalidatePath("/progress");
+}
+
+export async function archiveTestMetric(data: FormData) {
+  const context = await coachingContext();
+  const metricId = value(data, "metricId");
+  const metric = await prisma.testMetric.findFirst({
+    where: { id: metricId, organisationId: context.organisation.id, status: "ACTIVE" },
+  });
+  if (!metric) return;
+  await prisma.testMetric.update({ where: { id: metric.id }, data: { status: "ARCHIVED" } });
+  revalidatePath("/testing");
+  revalidatePath("/progress");
+}
+
 export async function createTestingSession(data: FormData) {
   const context = await coachingContext();
   const trainingGroupId = value(data, "groupId");
