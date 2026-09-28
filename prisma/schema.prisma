@@ -88,9 +88,27 @@ model TrainingGroup {
   memberships  GymnastTrainingGroup[]
   coachAssignments TrainingGroupCoach[]
   programmeAssignments TrainingGroupProgrammeAssignment[]
+  scheduleSlots TrainingGroupSchedule[]
 
   @@unique([organisationId, name])
   @@index([organisationId, name])
+}
+
+model TrainingGroupSchedule {
+  id              String @id @default(cuid())
+  trainingGroupId String
+  dayOfWeek       String
+  startTime       String
+  endTime         String
+  notes           String?
+  orderIndex      Int @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingGroupId, dayOfWeek, startTime, endTime])
+  @@index([trainingGroupId, orderIndex])
 }
 
 model Gymnast {
