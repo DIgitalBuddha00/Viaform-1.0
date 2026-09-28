@@ -10,6 +10,7 @@ export default async function MorePage() {
     { label: "Programmes", href: "/programmes", detail: "Club-owned coaching programmes, stages and pathway context.", show: c.access.canManageProgrammesAndMethodology || c.access.canUseCoachingWorkspace },
     { label: "Programme leadership", href: "/programme-leads", detail: "Assign Programme Leads and Head Coaches to explicit programme responsibilities.", show: c.access.canManageProgrammesAndMethodology },
     { label: "Methodology", href: "/methodology", detail: "Sourced club coaching approaches, boundaries, uncertainty and review.", show: c.access.canUseCoachingWorkspace || c.access.canManageProgrammesAndMethodology },
+    { label: "Coach handoff & cover", href: "/handoffs", detail: "Pass groups or selected gymnasts between coaches with frozen factual context and return notes.", show: c.access.canUseCoachingWorkspace },
     { label: "Rulesets", href: "/rulesets", detail: "Enable and assign Viaform-managed governing-body rulesets.", show: c.access.canManageProgrammesAndMethodology || c.access.canUseCoachingWorkspace },
     { label: "Facilities & equipment", href: "/facilities", detail: "Training spaces, equipment, capacities and availability.", show: c.access.canConfigureFacilities || c.access.canUseCoachingWorkspace },
   ].filter((card) => card.show);
