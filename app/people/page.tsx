@@ -23,11 +23,7 @@ export default async function PeoplePage() {
     include:{user:true,groupAssignments:{include:{trainingGroup:true}}},
     orderBy:[{isActive:"desc"},{joinedAt:"asc"}],
   });
-  return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section>
-    <a href="/more" className="text-sm font-semibold text-[var(--muted)]">← More</a>
-    <p className="mt-5 text-sm font-semibold text-[var(--muted)]">People & roles</p>
-    <div className="mt-2 flex flex-wrap items-end justify-between gap-3"><h1 className="text-3xl font-semibold">Club team</h1><a href="/people/portal" className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold">Athlete & family access →</a></div>
-    <p className="mt-3 max-w-3xl leading-7 text-[var(--muted)]">Administrator status, coaching roles and delegated operational responsibilities are separate. A club administrator can also hold a coaching role; an administrator without one can still reach the operational areas they manage.</p>
+  return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section className="workspace-page"><a href="/more" className="workspace-back">← More</a><div className="workspace-hero"><div><p className="workspace-kicker">People & roles</p><h1>Club team</h1><p className="workspace-meta">{memberships.length} staff member{memberships.length===1?"":"s"}</p></div><div className="workspace-actions"><a href="/people/portal" className="workspace-button">Athlete & family access</a></div></div>
 
     <details className="mt-7 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
       <summary className="cursor-pointer font-semibold">+ Add staff account</summary>

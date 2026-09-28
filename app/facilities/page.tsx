@@ -32,13 +32,7 @@ export default async function FacilitiesPage() {
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href="/programmes" className="text-sm font-semibold text-[var(--muted)]">← More</a>
-        <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Facilities & equipment</p>
-        <h1 className="mt-2 text-3xl font-semibold">Training environment</h1>
-        <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">
-          Define the real spaces and equipment available to planning. These are club-owned operational resources, not governing-body rules.
-        </p>
+      <section className="workspace-page"><a href="/more" className="workspace-back">← More</a><div className="workspace-hero"><div><p className="workspace-kicker">Facilities & equipment</p><h1>Training environment</h1><p className="workspace-meta">{locations.length} location{locations.length===1?"":"s"}</p></div></div>
 
         {canConfigure && (
           <form action={createFacilityLocation} className="mt-8 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-[1fr_2fr_auto]">

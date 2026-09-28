@@ -23,14 +23,7 @@ export default async function Rulesets() {
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section>
-        <a href="/programmes" className="text-sm font-semibold text-[var(--muted)]">← Programmes</a>
-        <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Rulesets</p>
-        <h1 className="mt-2 text-3xl font-semibold">Competition rules context</h1>
-        <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">
-          Viaform maintains governing-body rulesets and levels. Your club chooses which canonical rulesets it
-          uses; their definitions are not club-editable.
-        </p>
+      <section className="workspace-page"><a href="/more" className="workspace-back">← More</a><div className="workspace-hero"><div><p className="workspace-kicker">Rulesets</p><h1>Competition rules context</h1><p className="workspace-meta">Viaform-managed · club enable / disable</p></div></div>
         <div className="mt-8 grid gap-4">
           {programmes.length ? programmes.map((p) => {
             const enabled = p.organisationAssignments.length > 0;
