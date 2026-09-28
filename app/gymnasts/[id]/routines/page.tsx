@@ -13,7 +13,7 @@ const apparatus = [
   { key: "BARS", label: "Uneven Bars", note: "Element sequence, composition and connection context." },
   { key: "BEAM", label: "Balance Beam", note: "Element sequence, composition, series and dismount context." },
   { key: "FLOOR", label: "Floor Exercise", note: "Passes, dance content, composition and routine structure." },
-];
+] as const;
 
 export default async function GymnastRoutinesPage({ params }: { params: Promise<{ id: string }> }) {
   const c = await requireAuthContext();
