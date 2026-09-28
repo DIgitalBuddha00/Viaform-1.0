@@ -12,13 +12,13 @@ async function handoff(id:string,org:string){return prisma.coachHandoff.findFirs
 
 async function snapshot(gymnastId:string,organisationId:string,membershipId:string,access:Awaited<ReturnType<typeof coach>>["access"]){
  const g=await prisma.gymnast.findFirst({where:{id:gymnastId,...gymnastScopeWhere(organisationId,membershipId,access)},include:{
-  groups:{include:{trainingGroup:true}},programmeAssignments:{include:{programme:true,stage:true}},rulesetAssignments:{include:{rulesetProgram:true,rulesetLevel:true}},
+  groups:{include:{trainingGroup:true}},programmeAssignments:{include:{programme:true,stage:true}},rulesetAssignments:{include:{program:true,level:true}},
   routines:{where:{status:"ACTIVE"},select:{id:true,name:true,apparatus:true,purpose:true,rulesetProgramName:true,rulesetLevelName:true}},
   trainingEvidence:{orderBy:{recordedAt:"desc"},take:12,select:{outcome:true,note:true,recordedAt:true}},
   testingResults:{orderBy:{recordedAt:"desc"},take:8,include:{metric:{select:{name:true,unit:true}}}},
  }});
  if(!g)return null;
- return JSON.stringify({capturedAt:new Date().toISOString(),groups:g.groups.map(x=>x.trainingGroup.name),programme:g.programmeAssignments[0]?{name:g.programmeAssignments[0].programme.name,stage:g.programmeAssignments[0].stage?.name??null}:null,ruleset:g.rulesetAssignments[0]?{programme:g.rulesetAssignments[0].rulesetProgram.name,level:g.rulesetAssignments[0].rulesetLevel.name}:null,routines:g.routines,recentTraining:g.trainingEvidence,recentTesting:g.testingResults.map(x=>({metric:x.metric.name,value:x.numberValue,unit:x.metric.unit,recordedAt:x.recordedAt}))});
+ return JSON.stringify({capturedAt:new Date().toISOString(),groups:g.groups.map(x=>x.trainingGroup.name),programme:g.programmeAssignments[0]?{name:g.programmeAssignments[0].programme.name,stage:g.programmeAssignments[0].stage?.name??null}:null,ruleset:g.rulesetAssignments[0]?{programme:g.rulesetAssignments[0].program.name,level:g.rulesetAssignments[0].level?.name??null}:null,routines:g.routines,recentTraining:g.trainingEvidence,recentTesting:g.testingResults.map(x=>({metric:x.metric.name,value:x.numberValue,unit:x.metric.unit,recordedAt:x.recordedAt}))});
 }
 
 export async function createCoachHandoff(d:FormData){
