@@ -51,6 +51,7 @@ model Organisation {
   athletePortalAccesses AthletePortalAccess[]
   calendarEvents CalendarEvent[]
   macrocycles Macrocycle[]
+  trainingPlans TrainingPlan[]
 }
 
 model OrganisationMembership {
@@ -82,6 +83,7 @@ model OrganisationMembership {
   presentationPreference MembershipPresentationPreference?
   createdCalendarEvents CalendarEvent[]
   createdMacrocycles Macrocycle[]
+  createdTrainingPlans TrainingPlan[]
 
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
@@ -133,6 +135,7 @@ model TrainingGroup {
   testingSessions TestingSession[]
   coachHandoffs CoachHandoff[]
   macrocycles MacrocycleGroup[]
+  trainingPlans TrainingPlan[]
 
   @@unique([organisationId, name])
   @@index([organisationId, name])
@@ -455,6 +458,7 @@ model TrainingSession {
   organisationId        String
   trainingGroupId       String
   scheduleSlotId        String?
+  trainingPlanId        String?
   createdByMembershipId String
   sessionDate           DateTime
   startTime             String
@@ -475,6 +479,7 @@ model TrainingSession {
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
   scheduleSlot TrainingGroupSchedule? @relation(fields: [scheduleSlotId], references: [id], onDelete: SetNull)
+  trainingPlan TrainingPlan? @relation(fields: [trainingPlanId], references: [id], onDelete: SetNull)
   createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
   programme CoachingProgramme? @relation(fields: [programmeId], references: [id], onDelete: SetNull)
   programmeStage ProgrammeStage? @relation(fields: [programmeStageId], references: [id], onDelete: SetNull)
@@ -489,6 +494,7 @@ model TrainingSession {
 
   @@index([organisationId, sessionDate])
   @@index([trainingGroupId, sessionDate])
+  @@index([trainingPlanId, sessionDate])
   @@index([createdByMembershipId, sessionDate])
 }
 
@@ -1151,8 +1157,35 @@ model Macrocycle {
   groups MacrocycleGroup[]
   gymnasts MacrocycleGymnast[]
   phases MacrocyclePhase[]
+  trainingPlans TrainingPlan[]
 
   @@index([organisationId, status, startDate, endDate])
+}
+
+model TrainingPlan {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  trainingGroupId       String
+  macrocycleId          String?
+  createdByMembershipId String
+  name                  String
+  startDate             DateTime
+  endDate               DateTime
+  focus                 String?
+  notes                 String?
+  status                String   @default("ACTIVE")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  macrocycle Macrocycle? @relation(fields: [macrocycleId], references: [id], onDelete: SetNull)
+  createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
+  sessions TrainingSession[]
+
+  @@index([organisationId, status, startDate])
+  @@index([trainingGroupId, startDate, endDate])
+  @@index([macrocycleId])
 }
 
 model MacrocycleGroup {
@@ -1194,4 +1227,3 @@ model MacrocyclePhase {
 
   @@index([macrocycleId, orderIndex, startDate])
 }
-
