@@ -276,6 +276,7 @@ model GymnastRoutineElement {
 
   routine GymnastRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
   elementDefinition FigElementDefinition @relation(fields: [elementDefinitionId], references: [id], onDelete: Restrict)
+  trainingEvidence TrainingEvidence[]
 
   @@unique([routineId, orderIndex])
   @@index([routineId, elementDefinitionId])
@@ -293,6 +294,7 @@ model GymnastRoutineVault {
 
   routine GymnastRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
   vaultDefinition FigVaultDefinition @relation(fields: [vaultDefinitionId], references: [id], onDelete: Restrict)
+  trainingEvidence TrainingEvidence[]
 
   @@unique([routineId, orderIndex])
   @@index([routineId, vaultDefinitionId])
@@ -661,6 +663,8 @@ model TrainingEvidence {
   blockId                String
   stationId              String?
   gymnastId              String
+  routineElementId       String?
+  routineVaultId         String?
   recordedByMembershipId String
   outcome                String
   note                   String?
@@ -670,9 +674,13 @@ model TrainingEvidence {
   block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
   station SessionStation? @relation(fields: [stationId], references: [id], onDelete: SetNull)
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  routineElement GymnastRoutineElement? @relation(fields: [routineElementId], references: [id], onDelete: SetNull)
+  routineVault GymnastRoutineVault? @relation(fields: [routineVaultId], references: [id], onDelete: SetNull)
   recordedBy OrganisationMembership @relation(fields: [recordedByMembershipId], references: [id], onDelete: Restrict)
 
   @@index([sessionId, blockId, recordedAt])
+  @@index([routineElementId, recordedAt])
+  @@index([routineVaultId, recordedAt])
   @@index([stationId, recordedAt])
   @@index([gymnastId, recordedAt])
   @@index([recordedByMembershipId, recordedAt])

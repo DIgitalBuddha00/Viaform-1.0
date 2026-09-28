@@ -89,6 +89,17 @@ export default async function RoutineWorkspace({
     return counts;
   }, { made: 0, missed: 0, spotted: 0 });
   const programmeContext = gymnast.programmeAssignments[0] ?? null;
+  const linkedEvidence = new Map<string, { total: number; made: number; missed: number; spotted: number }>();
+  for (const entry of recentEvidence) {
+    const key = entry.routineElementId ?? entry.routineVaultId;
+    if (!key) continue;
+    const counts = linkedEvidence.get(key) ?? { total: 0, made: 0, missed: 0, spotted: 0 };
+    counts.total += 1;
+    if (entry.outcome === "MADE") counts.made += 1;
+    if (entry.outcome === "MISSED") counts.missed += 1;
+    if (entry.outcome === "SPOTTED") counts.spotted += 1;
+    linkedEvidence.set(key, counts);
+  }
 
   const [catalogueElements, catalogueVaults] = routine.rulesetPackageCode
     ? await Promise.all([
@@ -234,6 +245,7 @@ export default async function RoutineWorkspace({
                         <p className="font-semibold">{item.elementDefinition.officialNumber}{item.elementDefinition.variantKey !== "a" ? item.elementDefinition.variantKey : ""} · {item.elementDefinition.difficulty ?? "—"}</p>
                         <p className="mt-1 text-sm text-[var(--muted)]">{item.elementDefinition.name}</p>
                         <p className="mt-1 text-xs text-[var(--muted)]">{item.elementDefinition.groupName}</p>
+                        {linkedEvidence.has(item.id) && <p className="mt-2 text-xs font-semibold">{linkedEvidence.get(item.id)!.total} recent linked observations · {linkedEvidence.get(item.id)!.made} made · {linkedEvidence.get(item.id)!.spotted} spotted · {linkedEvidence.get(item.id)!.missed} missed</p>}
                       </div>
                       <div className="flex gap-1">
                         <form action={moveRoutineElement}><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/><input type="hidden" name="direction" value="UP"/><button disabled={index === 0} className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs disabled:opacity-30">↑</button></form>
@@ -284,6 +296,7 @@ export default async function RoutineWorkspace({
                     <p className="font-semibold">{item.vaultDefinition.officialNumber}{item.vaultDefinition.variantKey !== "a" ? item.vaultDefinition.variantKey : ""} · D {item.vaultDefinition.dValue.toFixed(1)}</p>
                     <p className="mt-1 text-sm text-[var(--muted)]">{item.vaultDefinition.name}</p>
                     <p className="mt-1 text-xs text-[var(--muted)]">Group {item.vaultDefinition.groupNumber} · {item.vaultDefinition.secondFlightDirection.toLowerCase()}</p>
+                    {linkedEvidence.has(item.id) && <p className="mt-2 text-xs font-semibold">{linkedEvidence.get(item.id)!.total} recent linked observations · {linkedEvidence.get(item.id)!.made} made · {linkedEvidence.get(item.id)!.spotted} spotted · {linkedEvidence.get(item.id)!.missed} missed</p>}
                     <form action={updateRoutineVault} className="mt-3 grid gap-2 sm:grid-cols-[150px_1fr_auto]">
                       <input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/>
                       <select name="role" defaultValue={item.role} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"><option value="PRIMARY">Primary</option><option value="SECONDARY">Secondary</option></select>

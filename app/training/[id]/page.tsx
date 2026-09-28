@@ -78,6 +78,32 @@ export default async function LiveTrainingSessionPage({
   const isLive = session.status === "IN_PROGRESS";
   const attendanceByGymnast = new Map(session.attendance.map((entry) => [entry.gymnastId, entry.status]));
   const presentCount = session.attendance.filter((entry) => entry.status === "PRESENT" || entry.status === "LATE").length;
+  const routineApparatusByTraining: Record<string, string> = {
+    VAULT: "VAULT",
+    UNEVEN_BARS: "BARS",
+    BALANCE_BEAM: "BEAM",
+    FLOOR_EXERCISE: "FLOOR",
+  };
+  const selectedRoutineApparatus = selectedBlock?.apparatus ? routineApparatusByTraining[selectedBlock.apparatus] : undefined;
+  const currentRoutines = selectedRoutineApparatus && session.gymnasts.length
+    ? await prisma.gymnastRoutine.findMany({
+        where: {
+          gymnastId: { in: session.gymnasts.map((entry) => entry.gymnastId) },
+          apparatus: selectedRoutineApparatus,
+          purpose: "CURRENT",
+          status: "ACTIVE",
+        },
+        include: {
+          elements: { include: { elementDefinition: true }, orderBy: { orderIndex: "asc" } },
+          vaults: { include: { vaultDefinition: true }, orderBy: { orderIndex: "asc" } },
+        },
+        orderBy: { updatedAt: "desc" },
+      })
+    : [];
+  const currentRoutineByGymnast = new Map<string, (typeof currentRoutines)[number]>();
+  for (const routine of currentRoutines) {
+    if (!currentRoutineByGymnast.has(routine.gymnastId)) currentRoutineByGymnast.set(routine.gymnastId, routine);
+  }
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
@@ -245,6 +271,7 @@ export default async function LiveTrainingSessionPage({
               {session.gymnasts.map((entry) => {
                 const evidence = blockEvidence.filter((item) => item.gymnastId === entry.gymnastId);
                 const latest = evidence[evidence.length - 1];
+                const routinePlan = currentRoutineByGymnast.get(entry.gymnastId) ?? null;
                 return (
                   <article key={entry.gymnastId} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                     <div className="grid gap-3 lg:grid-cols-[minmax(180px,1fr)_auto] lg:items-center">
@@ -286,6 +313,60 @@ export default async function LiveTrainingSessionPage({
                         </span>
                       )}
                     </div>
+                    {routinePlan && (
+                      <details className="mt-3 border-t border-[var(--border)] pt-3">
+                        <summary className="cursor-pointer text-xs font-semibold">
+                          Current {apparatusLabel[selectedBlock.apparatus ?? ""] ?? "apparatus"} plan · {routinePlan.name}
+                        </summary>
+                        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Record against a specific saved routine item when that is what is being trained. Whole-block capture above remains available for broader work.</p>
+                        <div className="mt-3 grid gap-2">
+                          {routinePlan.apparatus === "VAULT"
+                            ? routinePlan.vaults.map((item) => {
+                                const itemEvidence = evidence.filter((entry) => entry.routineVaultId === item.id);
+                                return (
+                                  <div key={item.id} className="rounded-xl border border-[var(--border)] p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div><p className="text-sm font-semibold">{item.role === "PRIMARY" ? "Primary" : "Secondary"} · {item.vaultDefinition.officialNumber} · D {item.vaultDefinition.dValue.toFixed(1)}</p><p className="mt-1 text-xs text-[var(--muted)]">{item.vaultDefinition.name}</p></div>
+                                      <span className="text-xs text-[var(--muted)]">{itemEvidence.length} observations</span>
+                                    </div>
+                                    {isLive && (
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
+                                          <form key={outcome} action={recordTrainingEvidence}>
+                                            <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="routineVaultId" value={item.id}/>
+                                            <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
+                                          </form>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            : routinePlan.elements.map((item, index) => {
+                                const itemEvidence = evidence.filter((entry) => entry.routineElementId === item.id);
+                                return (
+                                  <div key={item.id} className="rounded-xl border border-[var(--border)] p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div><p className="text-sm font-semibold">{index + 1} · {item.elementDefinition.officialNumber} · {item.elementDefinition.difficulty ?? "—"}</p><p className="mt-1 text-xs text-[var(--muted)]">{item.elementDefinition.name}</p></div>
+                                      <span className="text-xs text-[var(--muted)]">{itemEvidence.length} observations</span>
+                                    </div>
+                                    {isLive && (
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
+                                          <form key={outcome} action={recordTrainingEvidence}>
+                                            <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="routineElementId" value={item.id}/>
+                                            <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
+                                          </form>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                        </div>
+                        <a href={"/gymnasts/" + entry.gymnastId + "/routines/" + routinePlan.id + "?tab=build"} className="mt-3 inline-block text-xs font-semibold">Open routine Build →</a>
+                      </details>
+                    )}
                   </article>
                 );
               })}
