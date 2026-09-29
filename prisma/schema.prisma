@@ -500,6 +500,7 @@ model TrainingSession {
   updatedAt             DateTime @updatedAt
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  battery TestBattery? @relation(fields:[batteryId],references:[id],onDelete:SetNull)
   trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
   scheduleSlot TrainingGroupSchedule? @relation(fields: [scheduleSlotId], references: [id], onDelete: SetNull)
   trainingPlan TrainingPlan? @relation(fields: [trainingPlanId], references: [id], onDelete: SetNull)

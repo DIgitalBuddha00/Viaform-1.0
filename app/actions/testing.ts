@@ -52,7 +52,6 @@ export async function createTestMetric(data: FormData) {
       name,
       category: value(data, "category") || "CUSTOM",
       evidenceClassification: CLASSIFICATIONS.includes(value(data,"evidenceClassification") as any)?value(data,"evidenceClassification"):"CUSTOM",
-      evidenceClassification: CLASSIFICATIONS.includes(value(data,"evidenceClassification") as any)?value(data,"evidenceClassification"):"CUSTOM",
       apparatus: value(data, "apparatus") || null,
       description: value(data, "description") || null,
       protocol: value(data, "protocol") || null,
@@ -89,6 +88,7 @@ export async function updateTestMetric(data: FormData) {
     data: {
       name,
       category: value(data, "category") || "CUSTOM",
+      evidenceClassification: CLASSIFICATIONS.includes(value(data,"evidenceClassification") as any)?value(data,"evidenceClassification"):"CUSTOM",
       apparatus: value(data, "apparatus") || null,
       description: value(data, "description") || null,
       protocol: value(data, "protocol") || null,
@@ -120,13 +120,17 @@ export async function createTestingSession(data: FormData) {
   const testedAt = value(data, "testedAt");
   const group = await visibleGroup(trainingGroupId, context);
   if (!group || !/^\d{4}-\d{2}-\d{2}$/.test(testedAt)) return;
+  const batteryId=value(data,"batteryId"),singleMetricId=value(data,"singleMetricId");
+  if(batteryId&&singleMetricId)return;
+  if(batteryId&&!await prisma.testBattery.findFirst({where:{id:batteryId,organisationId:context.organisation.id,status:"ACTIVE"}}))return;
+  if(singleMetricId&&!await prisma.testMetric.findFirst({where:{id:singleMetricId,organisationId:context.organisation.id,status:"ACTIVE"}}))return;
 
   const session = await prisma.testingSession.create({
     data: {
       organisationId: context.organisation.id,
       trainingGroupId,
-      batteryId:value(data,"batteryId")||null,
-      singleMetricId:value(data,"singleMetricId")||null,
+      batteryId:batteryId||null,
+      singleMetricId:singleMetricId||null,
       createdByMembershipId: context.membership.id,
       name: value(data, "name") || group.name + " testing",
       testedAt: new Date(testedAt + "T00:00:00.000Z"),
@@ -194,4 +198,4 @@ export async function finishTestingSession(data: FormData) {
 }
 
 export async function createTestBattery(data:FormData){const c=await coachingContext(),name=value(data,"name"),classification=value(data,"classification");if(!name)return;const metricIds=data.getAll("metricIds").map(String);await prisma.testBattery.create({data:{organisationId:c.organisation.id,name,description:value(data,"description")||null,classification:CLASSIFICATIONS.includes(classification as any)?classification:"CUSTOM",scoringEnabled:value(data,"scoringEnabled")==="on",items:{create:metricIds.map((metricId,orderIndex)=>({metricId,orderIndex}))}}}).catch(()=>null);revalidatePath("/testing");}
-export async function addTestScoreBand(data:FormData){const c=await coachingContext(),metricId=value(data,"metricId"),metric=await prisma.testMetric.findFirst({where:{id:metricId,organisationId:c.organisation.id}});if(!metric)return;const points=Number(value(data,"points")),min=value(data,"minValue"),max=value(data,"maxValue");if(!Number.isFinite(points))return;await prisma.testScoreBand.create({data:{metricId,label:value(data,"label")||null,minValue:min?Number(min):null,maxValue:max?Number(max):null,points}});revalidatePath("/testing");}
+export async function addTestScoreBand(data:FormData){const c=await coachingContext(),metricId=value(data,"metricId"),metric=await prisma.testMetric.findFirst({where:{id:metricId,organisationId:c.organisation.id}});if(!metric)return;const points=Number(value(data,"points")),min=value(data,"minValue"),max=value(data,"maxValue"),minNumber=min?Number(min):null,maxNumber=max?Number(max):null;if(!Number.isFinite(points)||(minNumber!==null&&!Number.isFinite(minNumber))||(maxNumber!==null&&!Number.isFinite(maxNumber))||(minNumber!==null&&maxNumber!==null&&minNumber>maxNumber))return;await prisma.testScoreBand.create({data:{metricId,label:value(data,"label")||null,minValue:minNumber,maxValue:maxNumber,points}});revalidatePath("/testing");}
