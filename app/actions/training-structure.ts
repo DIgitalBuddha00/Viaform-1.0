@@ -35,7 +35,12 @@ export async function updateMacrocycle(data:FormData){
 export async function setMacrocycleStatus(data:FormData){
  const c=await context(),m=await cycle(field(data,"macrocycleId"),c),status=field(data,"status");
  if(!m||!["ACTIVE","ARCHIVED"].includes(status))return;
- await prisma.macrocycle.update({where:{id:m.id},data:{status}});refresh();
+ await prisma.macrocycle.update({where:{id:m.id},data:{status}});refresh();revalidatePath("/archive");
+}
+export async function deleteMacrocycle(data:FormData){
+ const c=await context(),m=await cycle(field(data,"macrocycleId"),c);if(!m)return;
+ if(await prisma.trainingPlan.count({where:{macrocycleId:m.id}}))return;
+ await prisma.macrocycle.delete({where:{id:m.id}});refresh();revalidatePath("/archive");
 }
 export async function createMacrocyclePhase(data:FormData){
  const c=await context(),m=await cycle(field(data,"macrocycleId"),c),name=field(data,"name"),startDate=date(field(data,"startDate")),endDate=date(field(data,"endDate"));
@@ -74,7 +79,12 @@ export async function updateTrainingPlan(data:FormData){
 export async function setTrainingPlanStatus(data:FormData){
  const c=await context(),p=await plan(field(data,"planId"),c),status=field(data,"status");
  if(!p||!["ACTIVE","ARCHIVED"].includes(status))return;
- await prisma.trainingPlan.update({where:{id:p.id},data:{status}});refresh();
+ await prisma.trainingPlan.update({where:{id:p.id},data:{status}});refresh();revalidatePath("/archive");
+}
+export async function deleteTrainingPlan(data:FormData){
+ const c=await context(),p=await plan(field(data,"planId"),c);if(!p)return;
+ if(await prisma.trainingSession.count({where:{trainingPlanId:p.id}}))return;
+ await prisma.trainingPlan.delete({where:{id:p.id}});refresh();revalidatePath("/archive");
 }
 export async function assignSessionToTrainingPlan(data:FormData){
  const c=await context(),sessionId=field(data,"sessionId"),planId=field(data,"planId"),p=await plan(planId,c);

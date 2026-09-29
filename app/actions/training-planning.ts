@@ -164,6 +164,16 @@ export async function updateTrainingSession(data: FormData) {
   revalidatePath("/groups/" + session.trainingGroupId);
 }
 
+export async function setTrainingSessionArchived(data: FormData) {
+  const context = await coachingContext();
+  const session = await visibleSession(value(data, "sessionId"), context);
+  if (!session || session.status === "IN_PROGRESS") return;
+  const archive = value(data, "archive") === "true";
+  const status = archive ? "ARCHIVED" : (session.endedAt ? "COMPLETED" : "PLANNED");
+  await prisma.trainingSession.update({ where: { id: session.id }, data: { status } });
+  revalidatePath("/planning"); revalidatePath("/archive"); revalidatePath("/training"); revalidatePath("/calendar");
+}
+
 export async function deleteTrainingSession(data: FormData) {
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");
