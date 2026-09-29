@@ -283,7 +283,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                 <select name="category" defaultValue={block.category} className="rounded-lg border border-[var(--border)] px-3 py-2">
                   {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
-                <select name="behaviour" defaultValue={block.behaviour} className="rounded-lg border border-[var(--border)] px-3 py-2">{BEHAVIOURS.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><select name="apparatus" defaultValue={block.apparatus ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                <select name="behaviour" defaultValue={block.behaviour} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Choose block behaviour…</option>{BEHAVIOURS.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><select name="apparatus" defaultValue={block.apparatus ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
                   {APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}
                 </select>
                 <input name="durationMin" type="number" min="1" max="480" defaultValue={block.durationMin ?? ""} placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
@@ -431,7 +431,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
             <input name="title" required placeholder="Block title" className="rounded-lg border border-[var(--border)] px-3 py-2" />
             <select name="category" className="rounded-lg border border-[var(--border)] px-3 py-2">
               {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select><select name="behaviour" defaultValue="EVIDENCE" className="rounded-lg border border-[var(--border)] px-3 py-2">{BEHAVIOURS.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>
+            </select><select name="behaviour" required defaultValue="" className="rounded-lg border border-[var(--border)] px-3 py-2">{BEHAVIOURS.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>
             {activeFacility?.spaces.length ? <select name="spaceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Area / apparatus…</option>{activeFacility.spaces.map(space => <option key={space.id} value={space.id}>{space.name}{space.apparatus ? " · " + space.apparatus.replaceAll("_", " ") : ""}</option>)}</select> : <select name="apparatus" className="rounded-lg border border-[var(--border)] px-3 py-2">{APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}</select>}
             <input name="durationMin" type="number" min="1" max="480" placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
             <select name="targetGymnastId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select>

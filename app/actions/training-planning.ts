@@ -7,7 +7,8 @@ import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
 
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
-const CATEGORIES = ["WARM_UP", "APPARATUS", "PHYSICAL_PREPARATION", "CONDITIONING", "ROUTINES", "TESTING", "OTHER"] as const;
+const CATEGORIES = ["WARM_UP", "COOLDOWN", "APPARATUS", "PHYSICAL_PREPARATION", "CONDITIONING", "ROUTINES", "TESTING", "OTHER"] as const;
+const BEHAVIOURS=["GUIDED","EVIDENCE"] as const;
 const APPARATUS = ["VAULT", "UNEVEN_BARS", "BALANCE_BEAM", "FLOOR_EXERCISE", "PHYSICAL_PREPARATION"] as const;
 
 function validTime(time: string) {
@@ -195,7 +196,7 @@ export async function createSessionBlock(data: FormData) {
   if (!session) return;
   const title = value(data, "title");
   const category = value(data, "category");
-  const behaviour=value(data,"behaviour")||(["WARM_UP","COOLDOWN"].includes(category)?"GUIDED":"EVIDENCE");
+  const behaviour=value(data,"behaviour");
   let apparatusValue = value(data, "apparatus");
   const spaceId = value(data, "spaceId");
   const durationRaw = value(data, "durationMin");
@@ -204,7 +205,7 @@ export async function createSessionBlock(data: FormData) {
   const space = spaceId ? await prisma.trainingSpace.findFirst({ where: { id: spaceId, status: "ACTIVE", location: { organisationId: context.organisation.id } } }) : null;
   if (spaceId && !space) return;
   if (space?.apparatus) { const mapped: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE", CONDITIONING: "PHYSICAL_PREPARATION" }; apparatusValue = mapped[space.apparatus] ?? ""; }
-  if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number])) return;
+  if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number]) || !BEHAVIOURS.includes(behaviour as (typeof BEHAVIOURS)[number])) return;
   if (apparatusValue && !APPARATUS.includes(apparatusValue as (typeof APPARATUS)[number])) return;
   if (durationMin !== null && (!Number.isInteger(durationMin) || durationMin <= 0 || durationMin > 480)) return;
   if (targetGymnastId && !await prisma.trainingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId: targetGymnastId } } })) return;
@@ -247,7 +248,7 @@ export async function updateSessionBlock(data: FormData) {
   const durationRaw = value(data, "durationMin");
   const durationMin = durationRaw ? Number(durationRaw) : null;
   const targetGymnastId = value(data, "targetGymnastId") || null;
-  if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number])) return;
+  if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number]) || !BEHAVIOURS.includes(behaviour as (typeof BEHAVIOURS)[number])) return;
   if (apparatusValue && !APPARATUS.includes(apparatusValue as (typeof APPARATUS)[number])) return;
   if (durationMin !== null && (!Number.isInteger(durationMin) || durationMin <= 0 || durationMin > 480)) return;
   if (targetGymnastId && !await prisma.trainingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId: targetGymnastId } } })) return;
