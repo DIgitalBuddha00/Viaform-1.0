@@ -121,10 +121,11 @@ async function validateRotationAssignment(params: {
     end > timeMinutes(session.endTime)
   ) return null;
 
-  const rotationGroup = await rotationGroupInSession(params.rotationGroupId, params.sessionId);
+  const [rotationGroup, block] = await Promise.all([
+    rotationGroupInSession(params.rotationGroupId, params.sessionId),
+    params.blockId ? sessionBlock(params.blockId, params.sessionId) : Promise.resolve(null),
+  ]);
   if (!rotationGroup) return null;
-
-  const block = params.blockId ? await sessionBlock(params.blockId, params.sessionId) : null;
   if (params.blockId && !block) return null;
 
   let trainingSpaceId = params.trainingSpaceId;
@@ -134,19 +135,19 @@ async function validateRotationAssignment(params: {
     : null;
   if (trainingSpaceId && !space) return null;
 
-  const gymnastCount = await prisma.sessionRotationGymnast.count({
-    where: { sessionId: params.sessionId, rotationGroupId: params.rotationGroupId },
-  });
-  if (space?.capacity && gymnastCount > space.capacity) return null;
-
-  if (await assignmentClashes({
+  const [gymnastCount, clashes] = await Promise.all([
+    prisma.sessionRotationGymnast.count({ where: { sessionId: params.sessionId, rotationGroupId: params.rotationGroupId } }),
+    assignmentClashes({
     sessionId: params.sessionId,
     rotationGroupId: params.rotationGroupId,
     trainingSpaceId: space?.id ?? null,
     startTime: params.startTime,
     endTime: params.endTime,
     excludeId: params.excludeId,
-  })) return null;
+    }),
+  ]);
+  if (space?.capacity && gymnastCount > space.capacity) return null;
+  if (clashes) return null;
 
   return { blockId: block?.id ?? null, trainingSpaceId: space?.id ?? null };
 }
