@@ -164,7 +164,6 @@ model TrainingGroupSchedule {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  battery TestBattery? @relation(fields:[batteryId],references:[id],onDelete:SetNull)
   trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
   trainingSessions TrainingSession[]
 
@@ -937,6 +936,7 @@ model TestingSession {
   updatedAt             DateTime @updatedAt
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  battery TestBattery? @relation(fields:[batteryId],references:[id],onDelete:SetNull)
   trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
   createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
   gymnasts TestingSessionGymnast[]
