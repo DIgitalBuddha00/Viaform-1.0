@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { LiveGymnastCard } from "@/app/components/live-gymnast-card";
 import { AppShell } from "@/app/components/app-shell";
 import {
   finishTrainingSession,
@@ -73,9 +74,9 @@ export default async function LiveTrainingSessionPage({
     session.blocks[0] ??
     null;
 
-  const selectedStation = selectedBlock?.stations.find((station) => station.id === query.station) ?? null;
+  const selectedStation = null;
   const selectedWorkItems = selectedBlock?.workItems ?? [];
-  const selectedWorkItem = selectedWorkItems.find(item=>item.id===query.work) ?? (selectedStation?.workItemId ? selectedWorkItems.find(item=>item.id===selectedStation.workItemId) : null) ?? (!selectedStation ? selectedWorkItems[0] : null) ?? null;
+  const selectedWorkItem = null;
   const blockEvidence = selectedBlock
     ? session.evidence.filter((entry) =>
         entry.blockId === selectedBlock.id && (!selectedStation || entry.stationId === selectedStation.id)
@@ -94,7 +95,7 @@ export default async function LiveTrainingSessionPage({
     BALANCE_BEAM: "BEAM",
     FLOOR_EXERCISE: "FLOOR",
   };
-  const guidedBlock = !!selectedBlock && ["WARM_UP","COOLDOWN"].includes(selectedBlock.category);
+  const guidedBlock = !!selectedBlock && selectedBlock.behaviour==="GUIDED";
   const selectedRoutineApparatus = selectedBlock?.apparatus ? routineApparatusByTraining[selectedBlock.apparatus] : undefined;
   const currentRoutines = selectedRoutineApparatus && session.gymnasts.length
     ? await prisma.gymnastRoutine.findMany({
@@ -166,11 +167,11 @@ export default async function LiveTrainingSessionPage({
                 <button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Mark all present</button>
               </form>
             )}
-            <div className="grid gap-2">
+            <div className="live-arrival-grid">
               {session.gymnasts.map((entry) => {
                 const attendance = attendanceByGymnast.get(entry.gymnastId); const status = attendance?.status ?? "NOT_RECORDED";
                 return (
-                  <div key={entry.gymnastId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-3 py-3">
+                  <div key={entry.gymnastId} className="live-arrival-card">
                     <div>
                       <p className="font-medium">{entry.gymnast.name}</p>
                       <p className="mt-1 text-xs text-[var(--muted)]">{status.replaceAll("_", " ")}</p>
@@ -209,7 +210,7 @@ export default async function LiveTrainingSessionPage({
                 className={"rounded-xl border px-4 py-3 text-sm " + (selectedBlock?.id === block.id ? "border-[var(--foreground)] font-semibold" : "border-[var(--border)]")}
               >
                 <span className="block">{block.title}</span>
-                <span className="mt-1 block text-xs text-[var(--muted)]">{block.targetGymnast?.name??"Whole group"} · {block.apparatus ? apparatusLabel[block.apparatus] ?? block.apparatus : block.category}</span>
+                <span className="mt-1 block text-xs text-[var(--muted)]">{block.targetGymnast?.name??"Whole group"} · {block.apparatus ? apparatusLabel[block.apparatus] ?? block.apparatus : block.category==="WARM_UP"?"Warm-up":block.category==="COOLDOWN"?"Cooldown":block.category.replaceAll("_"," ")}</span>
               </a>
             ))}
           </div>
@@ -223,7 +224,7 @@ export default async function LiveTrainingSessionPage({
           </div>
         ) : (
           <>
-            {selectedBlock.stations.length > 0 && (
+            {false && selectedBlock.stations.length > 0 && (
               <div className="mt-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Circuit / station</p>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -277,117 +278,16 @@ export default async function LiveTrainingSessionPage({
                     </div>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2 text-sm">
+                {!guidedBlock&&<div className="flex flex-wrap gap-2 text-sm">
                   <span className="rounded-full border border-[var(--border)] px-3 py-1">Made {made}</span>
                   <span className="rounded-full border border-[var(--border)] px-3 py-1">Missed {missed}</span>
                   <span className="rounded-full border border-[var(--border)] px-3 py-1">Spotted {spotted}</span>
                   <span className="rounded-full border border-[var(--border)] px-3 py-1">Balk {balked}</span>
-                </div>
+                </div>}
               </div>
             </article>
 
-            {guidedBlock ? <section className="live-guided-block mt-5"><h3>{selectedBlock.title}</h3><p>{selectedBlock.groupObjective||selectedBlock.notes||"Follow the planned sequence."}</p><div>{selectedWorkItems.map((item,i)=><div key={item.id} className="live-guided-item"><strong>{i+1}</strong><span>{item.title}{item.notes?" · "+item.notes:""}</span></div>)}</div></section> : <><div className="live-block-checkins mt-5"><h3>How are you feeling for {selectedBlock.title}?</h3><div className="live-gymnast-board">{session.gymnasts.map(entry=><div key={entry.gymnastId} className="live-block-checkin-card"><strong>{entry.gymnast.name}</strong><div>{[["CONFIDENT","Confident"],["OKAY","Okay"],["UNSURE","Unsure"],["NERVOUS","Nervous"]].map(([v,l])=><form key={v} action={recordTrainingCheckIn}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="confidence" value={v}/><button>{l}</button></form>)}</div></div>)}</div></div><div className="live-gymnast-board mt-5">
-              {session.gymnasts.filter(entry=>!selectedBlock.targetGymnastId||entry.gymnastId===selectedBlock.targetGymnastId).map((entry) => {
-                const evidence = blockEvidence.filter((item) => item.gymnastId === entry.gymnastId);
-                const latest = evidence[evidence.length - 1];
-                const routinePlan = currentRoutineByGymnast.get(entry.gymnastId) ?? null;
-                return (
-                  <article key={entry.gymnastId} className="live-gymnast-card"><div className="grid gap-3">
-                      <div>
-                        <a href={"/gymnasts/" + entry.gymnastId} className="font-semibold hover:underline">{entry.gymnast.name}</a>
-                        <p className="mt-1 text-xs text-[var(--muted)]">Attendance: {(attendanceByGymnast.get(entry.gymnastId)?.status ?? "NOT_RECORDED").replaceAll("_", " ")}</p>
-                        <p className="mt-1 text-xs text-[var(--muted)]">
-                          {evidence.length
-                            ? evidence.length + " observations · latest " + outcomeLabel[latest.outcome]
-                            : "No evidence recorded for this block"}
-                        </p>
-                      {selectedWorkItems.length>0&&<div className="mt-3"><p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Work</p><div className="mt-2 flex flex-wrap gap-2">{selectedWorkItems.filter(item=>!item.targetGymnastId||item.targetGymnastId===entry.gymnastId).map(item=><a key={item.id} href={"/training/"+session.id+"?block="+selectedBlock.id+"&work="+item.id+(selectedStation?"&station="+selectedStation.id:"")} className={"rounded-lg border px-3 py-2 text-xs "+(selectedWorkItem?.id===item.id?"border-[var(--foreground)] font-semibold":"border-[var(--border)]")}>{item.title}</a>)}</div>{selectedWorkItem&&(!selectedWorkItem.targetGymnastId||selectedWorkItem.targetGymnastId===entry.gymnastId)&&<p className="mt-2 text-xs text-[var(--muted)]">Recording: {selectedWorkItem.title}{selectedWorkItem.targetCount?" · target "+selectedWorkItem.targetCount:""}</p>}</div>}</div>
-                      {isLive ? (<div className="live-counter-grid">{(["MADE","MISSED","SPOTTED","BALK"] as const).map(outcome=>{const count=evidence.filter(e=>(!selectedWorkItem||e.workItemId===selectedWorkItem.id)&&e.outcome===outcome).length;return <div key={outcome} className="live-counter"><span className="live-counter-label">{outcomeLabel[outcome]}</span><div className="live-counter-controls"><form action={decrementTrainingEvidence}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id??""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id??""}/><input type="hidden" name="outcome" value={outcome}/><button disabled={count===0}>−</button></form><strong>{count}</strong><form action={recordTrainingEvidence}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id??""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id??""}/><button name="outcome" value={outcome}>+</button></form></div></div>})}</div>
-                      ) : (
-                        <span className="text-sm text-[var(--muted)]">
-                          {latest ? "Latest: " + outcomeLabel[latest.outcome] : "—"}
-                        </span>
-                      )}
-                    </div>
-                    {routinePlan && (
-                      <details className="mt-3 border-t border-[var(--border)] pt-3">
-                        <summary className="cursor-pointer text-xs font-semibold">
-                          Current {apparatusLabel[selectedBlock.apparatus ?? ""] ?? "apparatus"} plan · {routinePlan.name}
-                        </summary>
-                        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Record against a specific saved routine item when that is what is being trained. Whole-block capture above remains available for broader work.</p>
-                        <div className="mt-3 grid gap-2">
-                          {routinePlan.apparatus === "VAULT"
-                            ? routinePlan.vaults.map((item) => {
-                                const itemEvidence = evidence.filter((entry) => entry.routineVaultId === item.id);
-                                return (
-                                  <div key={item.id} className="rounded-xl border border-[var(--border)] p-3">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <div><p className="text-sm font-semibold">{item.role === "PRIMARY" ? "Primary" : "Secondary"} · {item.vaultDefinition.officialNumber} · D {item.vaultDefinition.dValue.toFixed(1)}</p><p className="mt-1 text-xs text-[var(--muted)]">{item.vaultDefinition.name}</p></div>
-                                      <span className="text-xs text-[var(--muted)]">{itemEvidence.length} observations</span>
-                                    </div>
-                                    {isLive && (
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        {(["MADE", "MISSED", "SPOTTED", "BALK"] as const).map((outcome) => (
-                                          <form key={outcome} action={recordTrainingEvidence}>
-                                            <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""}/><input type="hidden" name="routineVaultId" value={item.id}/>
-                                            <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
-                                          </form>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })
-                            : routinePlan.elements.map((item, index) => {
-                                const itemEvidence = evidence.filter((entry) => entry.routineElementId === item.id);
-                                return (
-                                  <div key={item.id} className="rounded-xl border border-[var(--border)] p-3">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <div><p className="text-sm font-semibold">{index + 1} · {item.elementDefinition.officialNumber} · {item.elementDefinition.difficulty ?? "—"}</p><p className="mt-1 text-xs text-[var(--muted)]">{item.elementDefinition.name}</p></div>
-                                      <span className="text-xs text-[var(--muted)]">{itemEvidence.length} observations</span>
-                                    </div>
-                                    {isLive && (
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        {(["MADE", "MISSED", "SPOTTED", "BALK"] as const).map((outcome) => (
-                                          <form key={outcome} action={recordTrainingEvidence}>
-                                            <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""}/><input type="hidden" name="routineElementId" value={item.id}/>
-                                            <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
-                                          </form>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                          {routinePlan.customItems.map((item, index) => {
-                            const itemEvidence = evidence.filter((entry) => entry.routineCustomItemId === item.id);
-                            return (
-                              <div key={item.id} className="rounded-xl border border-[var(--border)] p-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div><p className="text-sm font-semibold">{routinePlan.apparatus === "VAULT" ? (item.role === "PRIMARY" ? "Primary" : "Secondary") : index + 1} · {item.label}</p><p className="mt-1 text-xs text-[var(--muted)]">Coach-authored routine content</p></div>
-                                  <span className="text-xs text-[var(--muted)]">{itemEvidence.length} observations</span>
-                                </div>
-                                {isLive && (
-                                  <div className="mt-2 flex flex-wrap gap-2">
-                                    {(["MADE", "MISSED", "SPOTTED", "BALK"] as const).map((outcome) => (
-                                      <form key={outcome} action={recordTrainingEvidence}>
-                                        <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""}/><input type="hidden" name="routineCustomItemId" value={item.id}/>
-                                        <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
-                                      </form>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <a href={"/gymnasts/" + entry.gymnastId + "/routines/" + routinePlan.id + "?tab=build"} className="mt-3 inline-block text-xs font-semibold">Open routine Build →</a>
-                      </details>
-                    )}
-                  </article>
-                );
-              })}
-            </div></>}
+            {guidedBlock ? <section className="live-guided-block mt-5"><h3>{selectedBlock.title}</h3><p>{selectedBlock.groupObjective||selectedBlock.notes||"Follow the planned sequence."}</p><div>{selectedWorkItems.map((item,i)=><div key={item.id} className="live-guided-item"><strong>{i+1}</strong><span>{item.title}{item.notes?" · "+item.notes:""}</span></div>)}</div></section> : <div className="live-gymnast-board mt-5">{session.gymnasts.filter(entry=>!selectedBlock.targetGymnastId||entry.gymnastId===selectedBlock.targetGymnastId).map(entry=>{const works=selectedWorkItems.filter(item=>!item.targetGymnastId||item.targetGymnastId===entry.gymnastId).map(item=>({id:item.id,title:item.title,targetCount:item.targetCount,targetGymnastId:item.targetGymnastId}));const evidence=blockEvidence.filter(e=>e.gymnastId===entry.gymnastId).map(e=>({workItemId:e.workItemId,stationId:e.stationId,outcome:e.outcome}));const latestCheck=session.checkIns.filter(c=>c.gymnastId===entry.gymnastId&&c.blockId===selectedBlock.id).sort((a,b)=>b.recordedAt.getTime()-a.recordedAt.getTime())[0]??null;return <LiveGymnastCard key={entry.gymnastId} sessionId={session.id} blockId={selectedBlock.id} gymnast={{id:entry.gymnastId,name:entry.gymnast.name,profileImageUrl:entry.gymnast.profileImageUrl}} isLive={isLive} works={works} stations={selectedBlock.stations.map(s=>({id:s.id,name:s.name,workItemId:s.workItemId}))} evidence={evidence} latestCheck={latestCheck?{feeling:latestCheck.feeling,confidence:latestCheck.confidence,recordedAt:latestCheck.recordedAt.toISOString()}:null}/>} )}</div>}
 
             {!session.gymnasts.length && (
               <p className="mt-5 rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--muted)]">

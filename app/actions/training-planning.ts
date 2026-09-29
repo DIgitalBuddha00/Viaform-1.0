@@ -195,6 +195,7 @@ export async function createSessionBlock(data: FormData) {
   if (!session) return;
   const title = value(data, "title");
   const category = value(data, "category");
+  const behaviour=value(data,"behaviour")||(["WARM_UP","COOLDOWN"].includes(category)?"GUIDED":"EVIDENCE");
   let apparatusValue = value(data, "apparatus");
   const spaceId = value(data, "spaceId");
   const durationRaw = value(data, "durationMin");
@@ -213,6 +214,7 @@ export async function createSessionBlock(data: FormData) {
       sessionId,
       title,
       category,
+      behaviour,
       apparatus: apparatusValue || null,
       durationMin,
       targetGymnastId,
@@ -235,6 +237,7 @@ export async function updateSessionBlock(data: FormData) {
   if (!session || !block) return;
   const title = value(data, "title");
   const category = value(data, "category");
+  const behaviour=value(data,"behaviour")||block.behaviour;
   let apparatusValue = value(data, "apparatus");
   const assignment = await prisma.sessionBlockSpace.findUnique({ where: { blockId }, include: { trainingSpace: true } });
   if (!apparatusValue && assignment?.trainingSpace.apparatus) {
@@ -253,6 +256,7 @@ export async function updateSessionBlock(data: FormData) {
     data: {
       title,
       category,
+      behaviour,
       apparatus: apparatusValue || null,
       durationMin,
       targetGymnastId,

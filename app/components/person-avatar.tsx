@@ -1,0 +1,1 @@
+export function PersonAvatar({name,imageUrl,size="md"}:{name:string;imageUrl?:string|null;size?:"sm"|"md"|"lg"}){const initials=name.split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase();return imageUrl?<img src={imageUrl} alt="" className={"person-avatar person-avatar-"+size}/>:<span className={"person-avatar person-avatar-"+size}>{initials}</span>}
