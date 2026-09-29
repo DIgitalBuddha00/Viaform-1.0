@@ -123,8 +123,11 @@ export async function createTestingSession(data: FormData) {
   const testedAt = value(data, "testedAt");
   const group = await visibleGroup(trainingGroupId, context);
   if (!group || !/^\d{4}-\d{2}-\d{2}$/.test(testedAt)) return;
-  const batteryId=value(data,"batteryId"),singleMetricId=value(data,"singleMetricId");
-  if(batteryId&&singleMetricId)return;
+  const testingType=value(data,"testingType")||"OPEN";
+  let batteryId=value(data,"batteryId"),singleMetricId=value(data,"singleMetricId");
+  if(testingType==="BATTERY")singleMetricId="";else if(testingType==="SINGLE")batteryId="";else {batteryId="";singleMetricId="";}
+  if(testingType==="BATTERY"&&!batteryId)return;
+  if(testingType==="SINGLE"&&!singleMetricId)return;
   if(batteryId&&!await prisma.testBattery.findFirst({where:{id:batteryId,organisationId:context.organisation.id,status:"ACTIVE"}}))return;
   if(singleMetricId&&!await prisma.testMetric.findFirst({where:{id:singleMetricId,organisationId:context.organisation.id,status:"ACTIVE"}}))return;
 
