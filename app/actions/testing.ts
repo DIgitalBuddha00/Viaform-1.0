@@ -7,6 +7,7 @@ import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
 
 const MODES = ["COUNTDOWN_TALLY", "STOPWATCH", "REPETITION_TALLY", "MEASUREMENT"] as const;
+const CLASSIFICATIONS=["SKILL","STRENGTH","FLEXIBILITY","ROUTINE","CUSTOM"] as const;
 const DIRECTIONS = ["HIGHER", "LOWER", "COACH_INTERPRETATION"] as const;
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
 
@@ -50,6 +51,8 @@ export async function createTestMetric(data: FormData) {
       organisationId: context.organisation.id,
       name,
       category: value(data, "category") || "CUSTOM",
+      evidenceClassification: CLASSIFICATIONS.includes(value(data,"evidenceClassification") as any)?value(data,"evidenceClassification"):"CUSTOM",
+      evidenceClassification: CLASSIFICATIONS.includes(value(data,"evidenceClassification") as any)?value(data,"evidenceClassification"):"CUSTOM",
       apparatus: value(data, "apparatus") || null,
       description: value(data, "description") || null,
       protocol: value(data, "protocol") || null,
@@ -122,6 +125,8 @@ export async function createTestingSession(data: FormData) {
     data: {
       organisationId: context.organisation.id,
       trainingGroupId,
+      batteryId:value(data,"batteryId")||null,
+      singleMetricId:value(data,"singleMetricId")||null,
       createdByMembershipId: context.membership.id,
       name: value(data, "name") || group.name + " testing",
       testedAt: new Date(testedAt + "T00:00:00.000Z"),
@@ -148,10 +153,12 @@ export async function recordTestingResult(data: FormData) {
   if (!session || session.status !== "IN_PROGRESS") return;
   const [assigned, metric] = await Promise.all([
     prisma.testingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId } } }),
-    prisma.testMetric.findFirst({ where: { id: metricId, organisationId: context.organisation.id, status: "ACTIVE" } }),
+    prisma.testMetric.findFirst({ where: { id: metricId, organisationId: context.organisation.id, status: "ACTIVE" },include:{scoreBands:true} }),
   ]);
   if (!assigned || !metric) return;
 
+  const band=metric.scoreBands.find(b=>(b.minValue===null||numberValue>=b.minValue)&&(b.maxValue===null||numberValue<=b.maxValue));
+  const pointsValue=band?.points??null;
   await prisma.testingResult.upsert({
     where: { sessionId_gymnastId_metricId: { sessionId, gymnastId, metricId } },
     create: {
@@ -160,10 +167,14 @@ export async function recordTestingResult(data: FormData) {
       metricId,
       recordedByMembershipId: context.membership.id,
       numberValue,
+      pointsValue,
+      classificationSnapshot:metric.evidenceClassification,
       note: value(data, "note") || null,
     },
     update: {
       numberValue,
+      pointsValue,
+      classificationSnapshot:metric.evidenceClassification,
       note: value(data, "note") || null,
       recordedByMembershipId: context.membership.id,
       recordedAt: new Date(),
@@ -181,3 +192,6 @@ export async function finishTestingSession(data: FormData) {
   revalidatePath("/testing");
   revalidatePath("/testing/" + sessionId);
 }
+
+export async function createTestBattery(data:FormData){const c=await coachingContext(),name=value(data,"name"),classification=value(data,"classification");if(!name)return;const metricIds=data.getAll("metricIds").map(String);await prisma.testBattery.create({data:{organisationId:c.organisation.id,name,description:value(data,"description")||null,classification:CLASSIFICATIONS.includes(classification as any)?classification:"CUSTOM",scoringEnabled:value(data,"scoringEnabled")==="on",items:{create:metricIds.map((metricId,orderIndex)=>({metricId,orderIndex}))}}}).catch(()=>null);revalidatePath("/testing");}
+export async function addTestScoreBand(data:FormData){const c=await coachingContext(),metricId=value(data,"metricId"),metric=await prisma.testMetric.findFirst({where:{id:metricId,organisationId:c.organisation.id}});if(!metric)return;const points=Number(value(data,"points")),min=value(data,"minValue"),max=value(data,"maxValue");if(!Number.isFinite(points))return;await prisma.testScoreBand.create({data:{metricId,label:value(data,"label")||null,minValue:min?Number(min):null,maxValue:max?Number(max):null,points}});revalidatePath("/testing");}

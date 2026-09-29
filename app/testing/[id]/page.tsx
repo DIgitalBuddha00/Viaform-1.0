@@ -53,8 +53,9 @@ export default async function TestingSessionPage({
     }),
   ]);
   if (!session) notFound();
+  const availableMetrics=session.singleMetricId?metrics.filter(m=>m.id===session.singleMetricId):session.batteryId?(await prisma.testBatteryItem.findMany({where:{batteryId:session.batteryId},orderBy:{orderIndex:"asc"}})).map(i=>metrics.find(m=>m.id===i.metricId)).filter((m):m is (typeof metrics)[number]=>!!m):metrics;
 
-  const selectedMetric = metrics.find((metric) => metric.id === query.metric) ?? metrics[0] ?? null;
+  const selectedMetric = availableMetrics.find((metric) => metric.id === query.metric) ?? availableMetrics[0] ?? null;
   const metricResults = selectedMetric ? session.results.filter((result) => result.metricId === selectedMetric.id) : [];
   const completedCount = metricResults.length;
   const isLive = session.status === "IN_PROGRESS";
@@ -70,7 +71,7 @@ export default async function TestingSessionPage({
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status}</span>
+            <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status==="IN_PROGRESS"?"In progress":session.status.charAt(0)+session.status.slice(1).toLowerCase()}</span>
             {isLive && (
               <form action={finishTestingSession}>
                 <input type="hidden" name="sessionId" value={session.id} />
@@ -80,11 +81,11 @@ export default async function TestingSessionPage({
           </div>
         </div>
 
-        {metrics.length ? (
+        {availableMetrics.length ? (
           <>
             <div className="mt-6 overflow-x-auto pb-2">
               <div className="flex min-w-max gap-2">
-                {metrics.map((metric) => (
+                {availableMetrics.map((metric) => (
                   <a key={metric.id} href={"/testing/" + session.id + "?metric=" + metric.id} className={"rounded-xl border px-4 py-3 text-sm " + (selectedMetric?.id === metric.id ? "border-[var(--foreground)] font-semibold" : "border-[var(--border)]")}>
                     <span className="block">{metric.name}</span>
                     <span className="mt-1 block text-xs text-[var(--muted)]">{modeLabel[metric.captureMode] ?? metric.captureMode}{metric.unit ? " · " + metric.unit : ""}{metric.status !== "ACTIVE" ? " · archived" : ""}</span>

@@ -43,6 +43,7 @@ model Organisation {
   trainingSessions TrainingSession[]
   facilityLocations FacilityLocation[]
   testMetrics TestMetric[]
+  testBatteries TestBattery[]
   testingSessions TestingSession[]
   competitionEvents CompetitionEvent[]
   programmeLeadAssignments ProgrammeLeadAssignment[]
@@ -163,6 +164,7 @@ model TrainingGroupSchedule {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  battery TestBattery? @relation(fields:[batteryId],references:[id],onDelete:SetNull)
   trainingGroup TrainingGroup @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
   trainingSessions TrainingSession[]
 
@@ -857,6 +859,7 @@ model TestMetric {
   organisationId  String
   name            String
   category        String   @default("CUSTOM")
+  evidenceClassification String @default("CUSTOM")
   apparatus       String?
   description     String?
   protocol        String?
@@ -870,15 +873,58 @@ model TestMetric {
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   results TestingResult[]
+  batteryItems TestBatteryItem[]
+  scoreBands TestScoreBand[]
 
   @@unique([organisationId, name])
   @@index([organisationId, category, status])
+}
+
+model TestBattery {
+  id String @id @default(cuid())
+  organisationId String
+  name String
+  description String?
+  classification String @default("CUSTOM")
+  scoringEnabled Boolean @default(false)
+  status String @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organisation Organisation @relation(fields:[organisationId],references:[id],onDelete:Cascade)
+  items TestBatteryItem[]
+  sessions TestingSession[]
+  @@unique([organisationId,name])
+  @@index([organisationId,classification,status])
+}
+
+model TestBatteryItem {
+  batteryId String
+  metricId String
+  orderIndex Int @default(0)
+  battery TestBattery @relation(fields:[batteryId],references:[id],onDelete:Cascade)
+  metric TestMetric @relation(fields:[metricId],references:[id],onDelete:Restrict)
+  @@id([batteryId,metricId])
+  @@index([metricId])
+}
+
+model TestScoreBand {
+  id String @id @default(cuid())
+  metricId String
+  label String?
+  minValue Float?
+  maxValue Float?
+  points Float
+  orderIndex Int @default(0)
+  metric TestMetric @relation(fields:[metricId],references:[id],onDelete:Cascade)
+  @@index([metricId,orderIndex])
 }
 
 model TestingSession {
   id                    String   @id @default(cuid())
   organisationId        String
   trainingGroupId       String
+  batteryId             String?
+  singleMetricId        String?
   createdByMembershipId String
   name                  String
   testedAt              DateTime
@@ -918,6 +964,8 @@ model TestingResult {
   metricId               String
   recordedByMembershipId String
   numberValue            Float
+  pointsValue            Float?
+  classificationSnapshot String?
   note                   String?
   recordedAt             DateTime @default(now())
   updatedAt              DateTime @updatedAt

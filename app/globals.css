@@ -91,3 +91,6 @@ html[data-theme] input,html[data-theme] select,html[data-theme] textarea{backgro
 
 /* Live Training review close-out */
 .live-gymnast-board{align-items:start}.live-gymnast-card{align-self:start}.live-arrival-grid{align-items:start}
+
+/* Testing review */
+.testing-tabs{gap:10px;padding:6px 0}.testing-tabs a{flex:none;white-space:nowrap;border:1px solid var(--border);border-radius:12px;padding:10px 15px;color:var(--muted);font-size:12px;font-weight:750}.testing-tabs a.active{border-color:var(--accent);background:var(--accent-soft);color:var(--foreground)}

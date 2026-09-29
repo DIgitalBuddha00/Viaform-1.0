@@ -1,0 +1,12 @@
+ALTER TABLE "TestMetric" ADD COLUMN "evidenceClassification" TEXT NOT NULL DEFAULT 'CUSTOM';
+ALTER TABLE "TestingSession" ADD COLUMN "batteryId" TEXT;
+ALTER TABLE "TestingSession" ADD COLUMN "singleMetricId" TEXT;
+ALTER TABLE "TestingResult" ADD COLUMN "pointsValue" REAL;
+ALTER TABLE "TestingResult" ADD COLUMN "classificationSnapshot" TEXT;
+CREATE TABLE "TestBattery" ("id" TEXT NOT NULL PRIMARY KEY,"organisationId" TEXT NOT NULL,"name" TEXT NOT NULL,"description" TEXT,"classification" TEXT NOT NULL DEFAULT 'CUSTOM',"scoringEnabled" BOOLEAN NOT NULL DEFAULT false,"status" TEXT NOT NULL DEFAULT 'ACTIVE',"createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" DATETIME NOT NULL,CONSTRAINT "TestBattery_organisationId_fkey" FOREIGN KEY ("organisationId") REFERENCES "Organisation" ("id") ON DELETE CASCADE ON UPDATE CASCADE);
+CREATE UNIQUE INDEX "TestBattery_organisationId_name_key" ON "TestBattery"("organisationId","name");
+CREATE INDEX "TestBattery_organisationId_classification_status_idx" ON "TestBattery"("organisationId","classification","status");
+CREATE TABLE "TestBatteryItem" ("batteryId" TEXT NOT NULL,"metricId" TEXT NOT NULL,"orderIndex" INTEGER NOT NULL DEFAULT 0,PRIMARY KEY ("batteryId","metricId"),CONSTRAINT "TestBatteryItem_batteryId_fkey" FOREIGN KEY ("batteryId") REFERENCES "TestBattery" ("id") ON DELETE CASCADE ON UPDATE CASCADE,CONSTRAINT "TestBatteryItem_metricId_fkey" FOREIGN KEY ("metricId") REFERENCES "TestMetric" ("id") ON DELETE RESTRICT ON UPDATE CASCADE);
+CREATE INDEX "TestBatteryItem_metricId_idx" ON "TestBatteryItem"("metricId");
+CREATE TABLE "TestScoreBand" ("id" TEXT NOT NULL PRIMARY KEY,"metricId" TEXT NOT NULL,"label" TEXT,"minValue" REAL,"maxValue" REAL,"points" REAL NOT NULL,"orderIndex" INTEGER NOT NULL DEFAULT 0,CONSTRAINT "TestScoreBand_metricId_fkey" FOREIGN KEY ("metricId") REFERENCES "TestMetric" ("id") ON DELETE CASCADE ON UPDATE CASCADE);
+CREATE INDEX "TestScoreBand_metricId_orderIndex_idx" ON "TestScoreBand"("metricId","orderIndex");
