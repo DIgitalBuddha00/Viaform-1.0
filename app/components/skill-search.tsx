@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 
 type SkillOption={id:string;name:string;aliases:string;officialNumber:string|null;provenance:string};
 
-export function SkillSearch({name,skills}:{name:string;skills:SkillOption[]}){
- const [query,setQuery]=useState(""),[selectedId,setSelectedId]=useState("");
+export function SkillSearch({name,skills,initialSelectedId=""}:{name:string;skills:SkillOption[];initialSelectedId?:string}){
+ const initial=skills.find(skill=>skill.id===initialSelectedId);
+ const [query,setQuery]=useState(initial?.name??""),[selectedId,setSelectedId]=useState(initialSelectedId);
  const normalized=query.trim().toLocaleLowerCase();
  const matches=useMemo(()=>{if(!normalized)return[];const score=(skill:SkillOption)=>{let aliases:string[]=[];try{const parsed=JSON.parse(skill.aliases||"[]");if(Array.isArray(parsed))aliases=parsed.map(String);}catch{}const name=skill.name.toLocaleLowerCase(),number=(skill.officialNumber??"").toLocaleLowerCase(),values=[name,number,skill.provenance.toLocaleLowerCase(),...aliases.map(value=>value.toLocaleLowerCase())];if(!values.some(value=>value.includes(normalized)))return -1;if(name===normalized)return 100;if(name.startsWith(normalized))return 80;if(aliases.some(value=>value.toLocaleLowerCase()===normalized))return 70;if(aliases.some(value=>value.toLocaleLowerCase().startsWith(normalized)))return 60;if(name.includes(normalized))return 50;if(number===normalized)return 45;return 30;};return skills.map((skill,index)=>({skill,index,score:score(skill)})).filter(item=>item.score>=0).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,20).map(item=>item.skill);},[normalized,skills]);
  const selected=skills.find(skill=>skill.id===selectedId);

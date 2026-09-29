@@ -52,7 +52,7 @@ export default async function LiveTrainingSessionPage({
       trainingGroup: true,
       blocks: {
         orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
-        include: { targetGymnast: { select: { name: true } }, workItems: { include: { targetGymnast: { select: { name: true } }, elementDefinition:true, vaultDefinition:true, trainingResource:true, landingResource:true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] }, stations: { include: { workItem: true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
+        include: { targetGymnast: { select: { name: true } }, workItems: { include: { targetGymnast: { select: { name: true } }, elementDefinition:true, vaultDefinition:true, trainingResource:true, landingResource:true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] }, stations: { include: { workItem: true, skill: true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
       },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
       evidence: { orderBy: { recordedAt: "asc" } },
@@ -70,7 +70,7 @@ export default async function LiveTrainingSessionPage({
 
   const selectedStation = selectedBlock?.stations.find((station) => station.id === query.station) ?? null;
   const selectedWorkItems = selectedBlock?.workItems ?? [];
-  const selectedWorkItem = selectedWorkItems.find(item=>item.id===query.work) ?? (selectedStation?.workItemId ? selectedWorkItems.find(item=>item.id===selectedStation.workItemId) : null) ?? selectedWorkItems[0] ?? null;
+  const selectedWorkItem = selectedWorkItems.find(item=>item.id===query.work) ?? (selectedStation?.workItemId ? selectedWorkItems.find(item=>item.id===selectedStation.workItemId) : null) ?? (!selectedStation ? selectedWorkItems[0] : null) ?? null;
   const blockEvidence = selectedBlock
     ? session.evidence.filter((entry) =>
         entry.blockId === selectedBlock.id && (!selectedStation || entry.stationId === selectedStation.id)
@@ -259,7 +259,7 @@ export default async function LiveTrainingSessionPage({
                   {selectedStation && (
                     <div className="mt-4 rounded-xl border border-[var(--border)] p-3 text-sm">
                       <p className="font-semibold">{selectedStation.name}</p>
-                      {selectedStation.objective && <p className="mt-1">{selectedStation.objective}</p>}
+                      {selectedStation.objective && <p className="mt-1">{selectedStation.objective}</p>}{selectedStation.skill && <p className="mt-1 text-xs font-semibold">Future / library skill · {selectedStation.skill.name}</p>}
                       {selectedStation.drills && <p className="mt-2 text-[var(--muted)]">Skills / drills: {selectedStation.drills}</p>}
                       {selectedStation.equipment && <p className="mt-1 text-[var(--muted)]">Equipment: {selectedStation.equipment}</p>}
                       {selectedStation.setup && <p className="mt-1 text-[var(--muted)]">Setup: {selectedStation.setup}</p>}

@@ -1,0 +1,1 @@
+ALTER TABLE "SessionStation" ADD COLUMN "skillId" TEXT REFERENCES "ViaformSkill"("id") ON DELETE SET NULL ON UPDATE CASCADE;\nCREATE INDEX "SessionStation_skillId_idx" ON "SessionStation"("skillId");\n

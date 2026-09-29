@@ -915,16 +915,19 @@ model SessionStation {
   easierOption String?
   harderOption String?
   workItemId   String?
+  skillId      String?
   orderIndex   Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
   workItem SessionBlockWorkItem? @relation(fields: [workItemId], references: [id], onDelete: SetNull)
+  skill ViaformSkill? @relation(fields: [skillId], references: [id], onDelete: SetNull)
   evidence TrainingEvidence[]
 
   @@unique([blockId, name])
   @@index([blockId, orderIndex])
+  @@index([skillId])
 }
 
 model TrainingEvidence {
@@ -1131,6 +1134,7 @@ model ViaformSkill {
   routineRequirements RulesetRoutineRequirement[]
   programmeRequirements ProgrammeStageSkill[]
   sessionWorkItems SessionBlockWorkItem[]
+  sessionStations SessionStation[]
   trainingEvidence TrainingEvidence[]
   developsFrom VaultDevelopmentLink[] @relation("VaultTargetSkill")
   developsToward VaultDevelopmentLink[] @relation("VaultDevelopmentSkill")

@@ -34,7 +34,10 @@ export async function createSessionStation(data: FormData) {
   const name = value(data, "name");
   const block = await visibleBlock(sessionId, blockId, context);
   if (!block || !name) return;
-  const workItemId=value(data,"workItemId")||null; if(workItemId&&!await prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId}}))return;
+  const linkMode=value(data,"stationLinkMode")||"NONE"; const requestedWorkItemId=value(data,"workItemId")||null; const requestedSkillId=value(data,"stationSkillId")||null;
+  const workItemId=linkMode==="SESSION"?requestedWorkItemId:null; const skillId=linkMode==="LIBRARY"?requestedSkillId:null;
+  if(workItemId&&!await prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId}}))return;
+  if(skillId){const apparatusMap:Record<string,string>={VAULT:"VAULT",UNEVEN_BARS:"BARS",BALANCE_BEAM:"BEAM",FLOOR_EXERCISE:"FLOOR"};const expected=block.apparatus?apparatusMap[block.apparatus]:undefined;const skill=await prisma.viaformSkill.findFirst({where:{id:skillId,discipline:"WAG",status:"ACTIVE"}});if(!skill||!expected||skill.apparatus!==expected)return;}
   const last = await prisma.sessionStation.findFirst({ where: { blockId }, orderBy: { orderIndex: "desc" } });
   await prisma.sessionStation.create({
     data: {
@@ -48,6 +51,7 @@ export async function createSessionStation(data: FormData) {
       easierOption: value(data, "easierOption") || null,
       harderOption: value(data, "harderOption") || null,
       workItemId,
+      skillId,
       orderIndex: (last?.orderIndex ?? -1) + 1,
     },
   }).catch(() => null);
@@ -64,7 +68,10 @@ export async function updateSessionStation(data: FormData) {
   const block = await visibleBlock(sessionId, blockId, context);
   const station = block ? await prisma.sessionStation.findFirst({ where: { id: stationId, blockId } }) : null;
   if (!block || !station || !name) return;
-  const workItemId=value(data,"workItemId")||null; if(workItemId&&!await prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId}}))return;
+  const linkMode=value(data,"stationLinkMode")||"NONE"; const requestedWorkItemId=value(data,"workItemId")||null; const requestedSkillId=value(data,"stationSkillId")||null;
+  const workItemId=linkMode==="SESSION"?requestedWorkItemId:null; const skillId=linkMode==="LIBRARY"?requestedSkillId:null;
+  if(workItemId&&!await prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId}}))return;
+  if(skillId){const apparatusMap:Record<string,string>={VAULT:"VAULT",UNEVEN_BARS:"BARS",BALANCE_BEAM:"BEAM",FLOOR_EXERCISE:"FLOOR"};const expected=block.apparatus?apparatusMap[block.apparatus]:undefined;const skill=await prisma.viaformSkill.findFirst({where:{id:skillId,discipline:"WAG",status:"ACTIVE"}});if(!skill||!expected||skill.apparatus!==expected)return;}
   await prisma.sessionStation.update({
     where: { id: station.id },
     data: {
@@ -77,6 +84,7 @@ export async function updateSessionStation(data: FormData) {
       easierOption: value(data, "easierOption") || null,
       harderOption: value(data, "harderOption") || null,
       workItemId,
+      skillId,
     },
   }).catch(() => null);
   revalidatePath("/planning/" + sessionId);
