@@ -60,7 +60,8 @@ export default async function TestingSessionPage({
   const completedCount = metricResults.length;
   const gymnastPointTotals=new Map<string,number>();session.results.forEach(r=>{if(r.pointsValue!==null)gymnastPointTotals.set(r.gymnastId,(gymnastPointTotals.get(r.gymnastId)??0)+r.pointsValue)});
   const editingCompleted=session.status==="COMPLETED"&&query.edit==="1";
-  const isLive = session.status === "IN_PROGRESS" || editingCompleted;
+  const isLive = session.status === "IN_PROGRESS";
+  const canEditResults=isLive||editingCompleted;
   const canFinish = session.status === "IN_PROGRESS" || session.status === "PAUSED";
 
   return (
@@ -75,7 +76,7 @@ export default async function TestingSessionPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status==="IN_PROGRESS"?"In progress":session.status.charAt(0)+session.status.slice(1).toLowerCase()}</span>
-            {isLive && <form action={pauseTestingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Pause testing</button></form>}
+            {session.status==="IN_PROGRESS" && <form action={pauseTestingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Pause testing</button></form>}
             {session.status==="PAUSED"&&<form action={resumeTestingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Resume testing</button></form>}
             {session.status==="COMPLETED"&&!editingCompleted&&<a href={"/testing/"+session.id+"?metric="+(selectedMetric?.id??"")+"&edit=1"} className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Edit results</a>}
             {editingCompleted&&<form action={reopenTestingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Reopen session</button></form>}
@@ -140,7 +141,7 @@ export default async function TestingSessionPage({
                           scoringMode={selectedMetric.scoringMode}
                           initialPoints={result?.pointsValue ?? null}
                           batteryPoints={session.batteryId?gymnastPointTotals.get(entry.gymnastId)??0:null}
-                          disabled={!isLive || selectedMetric.status !== "ACTIVE"}
+                          disabled={!canEditResults || selectedMetric.status !== "ACTIVE"}
                         />
                       </article>
                     );

@@ -162,14 +162,14 @@ export async function recordTestingResult(data: FormData) {
   if (!raw || !Number.isFinite(numberValue)) return;
 
   const session = await visibleTestingSession(sessionId, context);
-  if (!session || session.status !== "IN_PROGRESS") return;
+  if (!session || !["IN_PROGRESS","COMPLETED"].includes(session.status)) return;
   const [assigned, metric] = await Promise.all([
     prisma.testingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId } } }),
     prisma.testMetric.findFirst({ where: { id: metricId, organisationId: context.organisation.id, status: "ACTIVE" },include:{scoreBands:true} }),
   ]);
   if (!assigned || !metric) return;
 
-  const band=metric.scoreBands.find(b=>(b.minValue===null||numberValue>=b.minValue)&&(b.maxValue===null||numberValue<=b.maxValue));
+  const band=metric.scoreBands.find(b=>b.ruleType!=="QUALITATIVE"&&(b.minValue===null||numberValue>=b.minValue)&&(b.maxValue===null||numberValue<=b.maxValue));
   const manualPoints=value(data,"pointsValue");
   const manualPointsValue=manualPoints===""?null:Number(manualPoints);
   if(metric.scoringMode==="MANUAL"&&manualPointsValue!==null&&!Number.isFinite(manualPointsValue))return;
