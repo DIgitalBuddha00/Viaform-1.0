@@ -62,10 +62,11 @@ export async function currentAuthContext() {
   const ownerMembership = session.user.memberships.find((m) => m.organisationId === session.organisationId) ?? session.user.memberships[0];
   if (!ownerMembership) return null;
   const requested=(await cookies()).get(ACTIVE_MEMBERSHIP_COOKIE)?.value;
-  const membership=requested?await prisma.organisationMembership.findFirst({where:{id:requested,organisationId:ownerMembership.organisationId,isActive:true},include:{user:true,organisation:true}}):ownerMembership;
-  if(!membership)return null;
-  const activeUser="user" in membership?membership.user:session.user;
-  return { user: activeUser, loginUser:session.user, ownerMembership, membership, organisation: membership.organisation, access: resolveAccessProfile(membership) };
+  if(requested){
+    const activeMembership=await prisma.organisationMembership.findFirst({where:{id:requested,organisationId:ownerMembership.organisationId,isActive:true},include:{user:true,organisation:true}});
+    if(activeMembership)return {user:activeMembership.user,loginUser:session.user,ownerMembership,membership:activeMembership,organisation:activeMembership.organisation,access:resolveAccessProfile(activeMembership)};
+  }
+  return {user:session.user,loginUser:session.user,ownerMembership,membership:ownerMembership,organisation:ownerMembership.organisation,access:resolveAccessProfile(ownerMembership)};
 }
 
 export async function requireAuthContext() {
