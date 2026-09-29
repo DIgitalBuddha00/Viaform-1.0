@@ -59,7 +59,7 @@ export async function currentAuthContext() {
     where:{tokenHash:tokenHash(token)},
     select:{
       expiresAt:true,organisationId:true,
-      user:{select:{id:true,email:true,displayName:true,isActive:true}},
+      user:{select:{id:true,email:true,displayName:true,isActive:true,passwordSalt:true,passwordHash:true}},
       organisation:{select:{id:true,name:true,slug:true}},
     },
   }).catch(()=>null);
