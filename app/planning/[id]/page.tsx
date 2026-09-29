@@ -1,378 +1,482 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { SkillSearch } from "@/app/components/skill-search";
+import { AppShell } from "@/app/components/app-shell";
+import {
+  addGymnastToTrainingSession,
+  createSessionBlock,
+  addSessionBlockWorkItem,
+  updateSessionBlockWorkItem,
+  deleteSessionBlockWorkItem,
+  deleteSessionBlock,
+  deleteTrainingSession,
+  updateSessionBlock,
+  updateTrainingSession,
+  removeGymnastFromTrainingSession,
+} from "@/app/actions/training-planning";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
+import { reopenTrainingSession } from "@/app/actions/live-training";
+import {
+  assignSessionBlockResource,
+  assignSessionBlockSpace,
+  assignSessionFacility,
+  clearSessionBlockSpace,
+  clearSessionFacility,
+  removeSessionBlockResource,
+} from "@/app/actions/facilities";
+import { applyClubRotationToSession, clearClubRotationFromSession } from "@/app/actions/club-rotations";
+import { rotationDay, rotationVariant } from "@/app/lib/club-rotation-time";
+import {
+  createSessionStation,
+  deleteSessionStation,
+  updateSessionStation,
+} from "@/app/actions/session-stations";
 
-const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
-const CATEGORIES = ["WARM_UP", "APPARATUS", "PHYSICAL_PREPARATION", "CONDITIONING", "ROUTINES", "TESTING", "OTHER"] as const;
+export const dynamic = "force-dynamic";
+
+const CATEGORIES = [
+  ["WARM_UP", "Warm-up"], ["COOLDOWN", "Cooldown"], ["APPARATUS", "Apparatus"], ["PHYSICAL_PREPARATION", "Physical preparation"],
+  ["CONDITIONING", "Conditioning"], ["ROUTINES", "Routines"], ["TESTING", "Testing"], ["OTHER", "Other"],
+] as const;
 const BEHAVIOURS=[["GUIDED","Guided sequence — no evidence counters"],["EVIDENCE","Skill evidence — Made / Missed / Spotted / Balk"]] as const;
-const APPARATUS = ["VAULT", "UNEVEN_BARS", "BALANCE_BEAM", "FLOOR_EXERCISE", "PHYSICAL_PREPARATION"] as const;
+const APPARATUS = [
+  ["", "No apparatus"], ["VAULT", "Vault"], ["UNEVEN_BARS", "Uneven Bars"],
+  ["BALANCE_BEAM", "Balance Beam"], ["FLOOR_EXERCISE", "Floor Exercise"], ["PHYSICAL_PREPARATION", "Physical Preparation"],
+] as const;
+const dateValue = (date: Date) => date.toISOString().slice(0, 10);
 
-function validTime(time: string) {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(time);
-}
-
-function validDate(date: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(date + "T00:00:00.000Z"));
-}
-
-function minutes(time: string) {
-  const [hour, minute] = time.split(":").map(Number);
-  return hour * 60 + minute;
-}
-
-async function coachingContext() {
-  const context = await requireAuthContext();
-  if (!context.access.canUseCoachingWorkspace) redirect("/dashboard");
-  return context;
-}
-
-async function visibleGroup(groupId: string, context: Awaited<ReturnType<typeof coachingContext>>) {
-  return prisma.trainingGroup.findFirst({
+export default async function PlannedSessionPage({ params }: { params: Promise<{ id: string }> }) {
+  const c = await requireAuthContext();
+  if (!c.access.canUseCoachingWorkspace) notFound();
+  const { id } = await params;
+  const session = await prisma.trainingSession.findFirst({
     where: {
-      id: groupId,
-      ...groupScopeWhere(context.organisation.id, context.membership.id, context.access),
+      id,
+      organisationId: c.organisation.id,
+      trainingGroup: groupScopeWhere(c.organisation.id, c.membership.id, c.access),
     },
     include: {
-      programmeAssignments: { include: { programme: true, stage: true } },
-      scheduleSlots: true,
-      memberships: { select: { gymnastId: true } },
-      facilityPreference: true,
-    },
-  });
-}
-
-async function visibleSession(sessionId: string, context: Awaited<ReturnType<typeof coachingContext>>) {
-  return prisma.trainingSession.findFirst({
-    where: {
-      id: sessionId,
-      organisationId: context.organisation.id,
-      trainingGroup: groupScopeWhere(context.organisation.id, context.membership.id, context.access),
-    },
-  });
-}
-
-function weekdayOffset(dayOfWeek: string) {
-  const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
-  return days.indexOf(dayOfWeek);
-}
-
-function addUtcDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
-}
-
-async function createSessionFromGroup(params: {
-  context: Awaited<ReturnType<typeof coachingContext>>;
-  group: Awaited<ReturnType<typeof visibleGroup>>;
-  sessionDate: Date;
-  startTime: string;
-  endTime: string;
-  scheduleSlotId?: string | null;
-  title?: string | null;
-  sessionIntent?: string | null;
-  notes?: string | null;
-}) {
-  if (!params.group) return null;
-  const programmeContext = params.group.programmeAssignments[0];
-  return prisma.trainingSession.create({
-    data: {
-      organisationId: params.context.organisation.id,
-      trainingGroupId: params.group.id,
-      scheduleSlotId: params.scheduleSlotId ?? null,
-      createdByMembershipId: params.context.membership.id,
-      sessionDate: params.sessionDate,
-      startTime: params.startTime,
-      endTime: params.endTime,
-      title: params.title || params.group.name + " training",
-      sessionIntent: params.sessionIntent || null,
-      notes: params.notes || null,
-      programmeId: programmeContext?.programmeId ?? null,
-      programmeStageId: programmeContext?.stageId ?? null,
-      programmeNameSnapshot: programmeContext?.programme.name ?? null,
-      stageNameSnapshot: programmeContext?.stage?.name ?? null,
-      gymnasts: {
-        create: params.group.memberships.map((membership) => ({
-          gymnastId: membership.gymnastId,
-          source: "GROUP",
-        })),
+      trainingGroup: { include: { memberships: { include: { gymnast: true }, orderBy: { joinedAt: "asc" } } } },
+      blocks: {
+        orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+        include: {
+          targetGymnast: { select: { name: true } },
+          spaceAssignment: { include: { trainingSpace: true } },
+          resourceAssignments: { include: { resource: { include: { trainingSpace: true } } } },
+          stations: { include: { workItem: true, skill: true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
+          workItems: { include: { targetGymnast: { select: { name: true } }, elementDefinition: { include: { package: { include: { program: true } } } }, vaultDefinition: { include: { package: { include: { program: true } } } }, trainingResource: true, landingResource: true, trainingPlanItem: { select: { id: true, planId: true } } }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
+        },
       },
-      facilityAssignment: params.group.facilityPreference
-        ? { create: { locationId: params.group.facilityPreference.locationId } }
-        : undefined,
-    },
-  });
-}
-
-export async function createTrainingSession(data: FormData) {
-  const context = await coachingContext();
-  const trainingGroupId = value(data, "groupId");
-  const sessionDate = value(data, "sessionDate");
-  const startTime = value(data, "startTime");
-  const endTime = value(data, "endTime");
-  const scheduleSlotId = value(data, "scheduleSlotId") || null;
-  const group = await visibleGroup(trainingGroupId, context);
-  if (!group || !validDate(sessionDate) || !validTime(startTime) || !validTime(endTime) || minutes(endTime) <= minutes(startTime)) {
-    return;
-  }
-  const scheduleSlot = scheduleSlotId ? group.scheduleSlots.find((slot) => slot.id === scheduleSlotId) : null;
-  const session = await createSessionFromGroup({
-    context,
-    group,
-    sessionDate: new Date(sessionDate + "T00:00:00.000Z"),
-    startTime,
-    endTime,
-    scheduleSlotId: scheduleSlot?.id ?? null,
-    title: value(data, "title") || null,
-    sessionIntent: value(data, "sessionIntent") || null,
-    notes: value(data, "notes") || null,
-  });
-  if (!session) return;
-  revalidatePath("/planning");
-  revalidatePath("/groups/" + trainingGroupId);
-  redirect("/planning/" + session.id);
-}
-
-export async function updateTrainingSession(data: FormData) {
-  const context = await coachingContext();
-  const sessionId = value(data, "sessionId");
-  const session = await visibleSession(sessionId, context);
-  if (!session) return;
-  const sessionDate = value(data, "sessionDate");
-  const startTime = value(data, "startTime");
-  const endTime = value(data, "endTime");
-  if (!validDate(sessionDate) || !validTime(startTime) || !validTime(endTime) || minutes(endTime) <= minutes(startTime)) return;
-  await prisma.trainingSession.update({
-    where: { id: session.id },
-    data: {
-      sessionDate: new Date(sessionDate + "T00:00:00.000Z"),
-      startTime,
-      endTime,
-      title: value(data, "title") || session.title,
-      sessionIntent: value(data, "sessionIntent") || null,
-      notes: value(data, "notes") || null,
-    },
-  });
-  revalidatePath("/planning");
-  revalidatePath("/planning/" + session.id);
-  revalidatePath("/training");
-  revalidatePath("/training/" + session.id);
-  revalidatePath("/calendar");
-  revalidatePath("/groups/" + session.trainingGroupId);
-}
-
-export async function setTrainingSessionArchived(data: FormData) {
-  const context = await coachingContext();
-  const session = await visibleSession(value(data, "sessionId"), context);
-  if (!session || session.status === "IN_PROGRESS") return;
-  const archive = value(data, "archive") === "true";
-  const status = archive ? "ARCHIVED" : (session.endedAt ? "COMPLETED" : "PLANNED");
-  await prisma.trainingSession.update({ where: { id: session.id }, data: { status } });
-  revalidatePath("/planning"); revalidatePath("/archive"); revalidatePath("/training"); revalidatePath("/calendar");
-}
-
-export async function deleteTrainingSession(data: FormData) {
-  const context = await coachingContext();
-  const sessionId = value(data, "sessionId");
-  const session = await visibleSession(sessionId, context);
-  if (!session) return;
-  await prisma.trainingSession.delete({ where: { id: session.id } });
-  revalidatePath("/planning");
-  revalidatePath("/training");
-  revalidatePath("/calendar");
-  revalidatePath("/progress");
-  revalidatePath("/groups/" + session.trainingGroupId);
-  redirect("/planning?view=sessions");
-}
-
-export async function createSessionBlock(data: FormData) {
-  const context = await coachingContext();
-  const sessionId = value(data, "sessionId");
-  const session = await visibleSession(sessionId, context);
-  if (!session) return;
-  const title = value(data, "title");
-  const category = value(data, "category");
-  let apparatusValue = value(data, "apparatus");
-  const spaceId = value(data, "spaceId");
-  const durationRaw = value(data, "durationMin");
-  const durationMin = durationRaw ? Number(durationRaw) : null;
-  const targetGymnastId = value(data, "targetGymnastId") || null;
-  const space = spaceId ? await prisma.trainingSpace.findFirst({ where: { id: spaceId, status: "ACTIVE", location: { organisationId: context.organisation.id } } }) : null;
-  if (spaceId && !space) return;
-  if (space?.apparatus) { const mapped: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE", CONDITIONING: "PHYSICAL_PREPARATION" }; apparatusValue = mapped[space.apparatus] ?? ""; }
-  if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number])) return;
-  if (apparatusValue && !APPARATUS.includes(apparatusValue as (typeof APPARATUS)[number])) return;
-  if (durationMin !== null && (!Number.isInteger(durationMin) || durationMin <= 0 || durationMin > 480)) return;
-  if (targetGymnastId && !await prisma.trainingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId: targetGymnastId } } })) return;
-  const last = await prisma.sessionBlock.findFirst({ where: { sessionId }, orderBy: { orderIndex: "desc" } });
-  await prisma.sessionBlock.create({
-    data: {
-      sessionId,
-      title,
-      category,
-      apparatus: apparatusValue || null,
-      durationMin,
-      targetGymnastId,
-      targetCount: null,
-      groupObjective: value(data, "groupObjective") || null,
-      notes: value(data, "notes") || null,
-      orderIndex: (last?.orderIndex ?? -1) + 1,
-      ...(space ? { spaceAssignment: { create: { trainingSpaceId: space.id } } } : {}),
-    },
-  });
-  revalidatePath("/planning/" + sessionId);
-}
-
-export async function updateSessionBlock(data: FormData) {
-  const context = await coachingContext();
-  const sessionId = value(data, "sessionId");
-  const blockId = value(data, "blockId");
-  const session = await visibleSession(sessionId, context);
-  const block = session ? await prisma.sessionBlock.findFirst({ where: { id: blockId, sessionId } }) : null;
-  if (!session || !block) return;
-  const title = value(data, "title");
-  const category = value(data, "category");
-  let apparatusValue = value(data, "apparatus");
-  const assignment = await prisma.sessionBlockSpace.findUnique({ where: { blockId }, include: { trainingSpace: true } });
-  if (!apparatusValue && assignment?.trainingSpace.apparatus) {
-    const mapped: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE", CONDITIONING: "PHYSICAL_PREPARATION" };
-    apparatusValue = mapped[assignment.trainingSpace.apparatus] ?? "";
-  }
-  const durationRaw = value(data, "durationMin");
-  const durationMin = durationRaw ? Number(durationRaw) : null;
-  const targetGymnastId = value(data, "targetGymnastId") || null;
-  if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number])) return;
-  if (apparatusValue && !APPARATUS.includes(apparatusValue as (typeof APPARATUS)[number])) return;
-  if (durationMin !== null && (!Number.isInteger(durationMin) || durationMin <= 0 || durationMin > 480)) return;
-  if (targetGymnastId && !await prisma.trainingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId: targetGymnastId } } })) return;
-  await prisma.sessionBlock.update({
-    where: { id: blockId },
-    data: {
-      title,
-      category,
-      apparatus: apparatusValue || null,
-      durationMin,
-      targetGymnastId,
-      targetCount: null,
-      groupObjective: value(data, "groupObjective") || null,
-      notes: value(data, "notes") || null,
-    },
-  });
-  revalidatePath("/planning/" + sessionId);
-}
-
-export async function addSessionBlockWorkItem(data: FormData) {
-  const context = await coachingContext(); const sessionId=value(data,"sessionId"), blockId=value(data,"blockId"); const session=await visibleSession(sessionId,context); const block=session?await prisma.sessionBlock.findFirst({where:{id:blockId,sessionId}}):null; if(!session||!block)return;
-  const planItemId=value(data,"trainingPlanItemId")||null; const planItem=planItemId?await prisma.trainingPlanItem.findFirst({where:{id:planItemId,plan:{organisationId:context.organisation.id,trainingGroupId:session.trainingGroupId,status:"ACTIVE",startDate:{lte:session.sessionDate},endDate:{gte:session.sessionDate}}}}):null; if(planItemId&&!planItem)return;
-  const canonicalSkillId=value(data,"canonicalSkillId")||null;
-  const canonicalSkill=canonicalSkillId&&!canonicalSkillId.startsWith("element:")&&!canonicalSkillId.startsWith("vault:")?await prisma.viaformSkill.findFirst({where:{id:canonicalSkillId,discipline:"WAG",status:"ACTIVE"},include:{figElementDefinition:true,figVaultDefinition:true}}):null;
-  const fallbackElementId=canonicalSkillId?.startsWith("element:")?canonicalSkillId.slice(8):null,fallbackVaultId=canonicalSkillId?.startsWith("vault:")?canonicalSkillId.slice(6):null;
-  const fallbackElement=fallbackElementId?await prisma.figElementDefinition.findFirst({where:{id:fallbackElementId,status:"ACTIVE",verificationStatus:"VERIFIED",package:{program:{code:"FIG_WAG"}}}}):null;
-  const fallbackVault=fallbackVaultId?await prisma.figVaultDefinition.findFirst({where:{id:fallbackVaultId,status:"ACTIVE",package:{program:{code:"FIG_WAG"}}}}):null;
-  const element=canonicalSkill?.figElementDefinition??fallbackElement??null,vault=canonicalSkill?.figVaultDefinition??fallbackVault??null;if(canonicalSkillId&&!canonicalSkill&&!element&&!vault)return;
-  const normalizeApparatus=(apparatus:string|null)=>{const key=(apparatus??"").trim().toUpperCase().replaceAll(" ","_");if(key==="UNEVEN_BARS"||key==="BARS")return "BARS";if(key==="BALANCE_BEAM"||key==="BEAM")return "BEAM";if(key==="FLOOR_EXERCISE"||key==="FLOOR")return "FLOOR";return key;};const blockEvent=normalizeApparatus(block.apparatus);if(canonicalSkill&&normalizeApparatus(canonicalSkill.apparatus)!==blockEvent)return;if(element&&normalizeApparatus(element.apparatus)!==blockEvent)return;if(vault&&blockEvent!=="VAULT")return;
-  const title=canonicalSkill?.name??element?.name??vault?.name??planItem?.title??value(data,"title"), targetGymnastId=planItem?.gymnastId??(value(data,"targetGymnastId")||null), raw=planItem?.targetCount?String(planItem.targetCount):value(data,"targetCount"), targetCount=raw?Number(raw):null;
-  if(!title||title.length>160||(targetCount!==null&&(!Number.isInteger(targetCount)||targetCount<1||targetCount>1000)))return; if(targetGymnastId&&!await prisma.trainingSessionGymnast.findUnique({where:{sessionId_gymnastId:{sessionId,gymnastId:targetGymnastId}}}))return;
-  const last=await prisma.sessionBlockWorkItem.findFirst({where:{blockId},orderBy:{orderIndex:"desc"}}); await prisma.sessionBlockWorkItem.create({data:{blockId,trainingPlanItemId:planItem?.id??null,targetGymnastId,title,targetCount,skillId:canonicalSkill?.id??null,elementDefinitionId:element?.id??null,vaultDefinitionId:vault?.id??null,trainingResourceId:value(data,"trainingResourceId")||null,landingResourceId:value(data,"landingResourceId")||null,trainingSurface:value(data,"trainingSurface")||null,landingSurface:value(data,"landingSurface")||null,takeoffEquipment:value(data,"takeoffEquipment")||null,notes:planItem?.notes??(value(data,"notes")||null),orderIndex:(last?.orderIndex??-1)+1}}); revalidatePath("/planning/"+sessionId);revalidatePath("/training/"+sessionId);
-}
-export async function updateSessionBlockWorkItem(data: FormData) {
-  const context=await coachingContext(); const sessionId=value(data,"sessionId"),blockId=value(data,"blockId"),workItemId=value(data,"workItemId"); const session=await visibleSession(sessionId,context); const item=session?await prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId,block:{sessionId}}}):null;if(!session||!item)return;
-  const title=value(data,"title"),targetGymnastId=value(data,"targetGymnastId")||null,raw=value(data,"targetCount"),targetCount=raw?Number(raw):null;if(!title||title.length>160||(targetCount!==null&&(!Number.isInteger(targetCount)||targetCount<1||targetCount>1000)))return;if(targetGymnastId&&!await prisma.trainingSessionGymnast.findUnique({where:{sessionId_gymnastId:{sessionId,gymnastId:targetGymnastId}}}))return;
-  await prisma.sessionBlockWorkItem.update({where:{id:item.id},data:{title,targetGymnastId,targetCount,notes:value(data,"notes")||null}});revalidatePath("/planning/"+sessionId);revalidatePath("/training/"+sessionId);
-}
-export async function deleteSessionBlockWorkItem(data: FormData) { const context=await coachingContext();const sessionId=value(data,"sessionId"),blockId=value(data,"blockId");const session=await visibleSession(sessionId,context);if(!session)return;await prisma.sessionBlockWorkItem.deleteMany({where:{id:value(data,"workItemId"),blockId,block:{sessionId}}});revalidatePath("/planning/"+sessionId);revalidatePath("/training/"+sessionId); }
-
-export async function deleteSessionBlock(data: FormData) {
-  const context = await coachingContext();
-  const sessionId = value(data, "sessionId");
-  const blockId = value(data, "blockId");
-  const session = await visibleSession(sessionId, context);
-  if (!session) return;
-  await prisma.sessionBlock.deleteMany({ where: { id: blockId, sessionId } });
-  revalidatePath("/planning/" + sessionId);
-}
-
-
-export async function addGymnastToTrainingSession(data: FormData) {
-  const context = await coachingContext();
-  const sessionId = value(data, "sessionId");
-  const gymnastId = value(data, "gymnastId");
-  const session = await visibleSession(sessionId, context);
-  if (!session) return;
-  const gymnast = await prisma.gymnast.findFirst({
-    where: {
-      id: gymnastId,
-      organisationId: context.organisation.id,
-      groups: { some: { trainingGroupId: session.trainingGroupId } },
-    },
-  });
-  if (!gymnast) return;
-  await prisma.trainingSessionGymnast.upsert({
-    where: { sessionId_gymnastId: { sessionId, gymnastId } },
-    create: { sessionId, gymnastId, source: "GROUP" },
-    update: {},
-  });
-  revalidatePath("/planning/" + sessionId);
-}
-
-export async function removeGymnastFromTrainingSession(data: FormData) {
-  const context = await coachingContext();
-  const sessionId = value(data, "sessionId");
-  const gymnastId = value(data, "gymnastId");
-  const session = await visibleSession(sessionId, context);
-  if (!session) return;
-  await prisma.$transaction([
-    prisma.sessionRotationGymnast.deleteMany({ where: { sessionId, gymnastId } }),
-    prisma.trainingAttendance.deleteMany({ where: { sessionId, gymnastId } }),
-    prisma.trainingSessionGymnast.deleteMany({ where: { sessionId, gymnastId } }),
-  ]);
-  revalidatePath("/planning/" + sessionId);
-}
-
-
-export async function createTrainingWeekFromSchedule(data: FormData) {
-  const context = await coachingContext();
-  const trainingGroupId = value(data, "groupId");
-  const weekStart = value(data, "weekStart");
-  const group = await visibleGroup(trainingGroupId, context);
-  if (!group || !validDate(weekStart)) return;
-
-  const start = new Date(weekStart + "T00:00:00.000Z");
-  const utcDay = start.getUTCDay();
-  const mondayShift = utcDay === 0 ? -6 : 1 - utcDay;
-  const monday = addUtcDays(start, mondayShift);
-
-  for (const slot of group.scheduleSlots) {
-    const offset = weekdayOffset(slot.dayOfWeek);
-    if (offset < 0) continue;
-    const sessionDate = addUtcDays(monday, offset);
-    const existing = await prisma.trainingSession.findFirst({
-      where: {
-        organisationId: context.organisation.id,
-        trainingGroupId,
-        sessionDate,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
+      gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
+      _count: { select: { evidence: true, attendance: true } },
+      facilityAssignment: { include: { location: true } },
+      clubRotationPlan: true,
+      rotationGroups: {
+        orderBy: [{ orderIndex: "asc" }, { name: "asc" }],
+        include: {
+          gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
+          assignments: {
+            include: { block: true, trainingSpace: true },
+            orderBy: [{ startTime: "asc" }, { orderIndex: "asc" }],
+          },
+        },
       },
-      select: { id: true },
-    });
-    if (existing) continue;
-    await createSessionFromGroup({
-      context,
-      group,
-      sessionDate,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      scheduleSlotId: slot.id,
-      notes: slot.notes,
-    });
-  }
+    },
+  });
+  if (!session) notFound();
 
-  revalidatePath("/planning");
-  revalidatePath("/calendar");
-  revalidatePath("/groups/" + trainingGroupId);
+  const sessionMinutes = (() => {
+    const [sh, sm] = session.startTime.split(":").map(Number);
+    const [eh, em] = session.endTime.split(":").map(Number);
+    return Math.max(0, eh * 60 + em - (sh * 60 + sm));
+  })();
+  const plannedMinutes = session.blocks.reduce((sum, block) => sum + (block.durationMin ?? 0), 0);
+  const assignedIds = new Set(session.gymnasts.map((entry) => entry.gymnastId));
+  const availableGymnasts = session.trainingGroup.memberships.filter((membership) => !assignedIds.has(membership.gymnastId));
+  const facilities = await prisma.facilityLocation.findMany({
+    where: { organisationId: c.organisation.id, status: "ACTIVE" },
+    include: {
+      spaces: {
+        where: { status: "ACTIVE" },
+        include: { resources: { where: { status: "ACTIVE" }, orderBy: [{ orderIndex: "asc" }, { name: "asc" }] } },
+        orderBy: [{ orderIndex: "asc" }, { name: "asc" }],
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+  const activeFacility = session.facilityAssignment?.locationId
+    ? facilities.find((facility) => facility.id === session.facilityAssignment?.locationId)
+    : null;
+  const rotationPlans = session.status === "PLANNED" ? await prisma.clubRotationPlan.findMany({
+    where: {
+      organisationId: c.organisation.id, status: "ACTIVE",
+      effectiveFrom: { lte: session.sessionDate },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: session.sessionDate } }],
+      ...(session.facilityAssignment ? { locationId: session.facilityAssignment.locationId } : {}),
+    },
+    include: { location: true, slots: { where: { dayOfWeek: rotationDay(session.sessionDate), trainingGroupId: session.trainingGroupId, startTime: { gte: session.startTime }, endTime: { lte: session.endTime } } } },
+  }) : [];
+  const matchingRotations = rotationPlans.map(p => ({ ...p, variant: rotationVariant(p, session.sessionDate) }))
+    .filter(p => p.slots.some(s => s.variantIndex === p.variant));
+  const trainingPlans = await prisma.trainingPlan.findMany({ where: { organisationId: c.organisation.id, trainingGroupId: session.trainingGroupId, status: "ACTIVE", startDate: { lte: session.sessionDate }, endDate: { gte: session.sessionDate } }, include: { items: { orderBy: { orderIndex: "asc" } } }, orderBy: { startDate: "desc" } });
+  const availablePlanItems = trainingPlans.flatMap(plan => plan.items.map(item => ({ ...item, planName: plan.name })));
+  const canonicalSkills=await prisma.viaformSkill.findMany({where:{discipline:"WAG",status:"ACTIVE"},include:{figElementDefinition:{include:{package:{include:{program:true}}}},figVaultDefinition:{include:{package:{include:{program:true}}}}},orderBy:[{apparatus:"asc"},{name:"asc"}]});
+  const [figElementFallback,figVaultFallback]=await Promise.all([prisma.figElementDefinition.findMany({where:{status:"ACTIVE",verificationStatus:"VERIFIED",package:{program:{code:"FIG_WAG"}}},orderBy:[{apparatus:"asc"},{name:"asc"}]}),prisma.figVaultDefinition.findMany({where:{status:"ACTIVE",package:{program:{code:"FIG_WAG"}}},orderBy:[{officialNumber:"asc"},{variantKey:"asc"}]})]);
+  const canonicalElementIds=new Set(canonicalSkills.map(skill=>skill.figElementDefinitionId).filter(Boolean)),canonicalVaultIds=new Set(canonicalSkills.map(skill=>skill.figVaultDefinitionId).filter(Boolean));
+  const searchableSkills=[...canonicalSkills.map(skill=>({id:skill.id,name:skill.name,aliases:skill.aliases,apparatus:skill.apparatus,officialNumber:skill.figElementDefinition?.officialNumber??skill.figVaultDefinition?.officialNumber??null,provenance:skill.provenance})),...figElementFallback.filter(element=>!canonicalElementIds.has(element.id)).map(element=>({id:"element:"+element.id,name:element.name,aliases:element.aliases,apparatus:element.apparatus,officialNumber:element.officialNumber,provenance:"FIG"})),...figVaultFallback.filter(vault=>!canonicalVaultIds.has(vault.id)).map(vault=>({id:"vault:"+vault.id,name:vault.name,aliases:vault.aliases,apparatus:"VAULT",officialNumber:vault.officialNumber,provenance:"FIG"}))];
+
+  const normalizeApparatus=(apparatus:string|null)=>{const key=(apparatus??"").trim().toUpperCase().replaceAll(" ","_");if(key==="VAULT")return "VAULT";if(key==="UNEVEN_BARS"||key==="BARS")return "BARS";if(key==="BALANCE_BEAM"||key==="BEAM")return "BEAM";if(key==="FLOOR_EXERCISE"||key==="FLOOR")return "FLOOR";return key;};
+  const contextOptionsForApparatus=(apparatus:string|null)=>{const key=normalizeApparatus(apparatus);const landing=["Competition landing","Soft mat","Resi / soft landing","Pit"];if(key==="VAULT")return {training:["Vault table"],landing,takeoff:["Springboard","Soft board","Hard board","Trampette"]};if(key==="BARS")return {training:["Full bars set","Single rail","Single loop","Loop set"],landing,takeoff:[] as string[]};if(key==="BEAM")return {training:["High beam","Low beam","Floor beam"],landing,takeoff:[] as string[]};if(key==="FLOOR")return {training:["Competition floor","Tumble track","Air floor","Rod floor"],landing,takeoff:[] as string[]};return {training:[] as string[],landing:[] as string[],takeoff:[] as string[]};};
+
+  return (
+    <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
+      <section className="workspace-page"><a href="/planning?view=sessions" className="workspace-back">← Sessions</a><div className="workspace-hero"><div><p className="workspace-kicker">{session.status === "COMPLETED" ? "Completed" : session.status === "IN_PROGRESS" ? "In progress" : "Planned"} · {session.trainingGroup.name}</p><h1>{session.title}</h1><p className="workspace-meta">{dateValue(session.sessionDate)} · {session.startTime}–{session.endTime}</p></div><div className="workspace-actions">
+            <span className="workspace-button">{session.status}</span>
+            <a href={"/training/" + session.id} className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">
+              {session.status === "PLANNED" ? "Open live training" : session.status === "IN_PROGRESS" ? "Return to live training" : "View training record"}
+            </a>
+            {session.status === "COMPLETED" && <form action={reopenTrainingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">Reopen session</button></form>}
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Session time</p>
+            <p className="mt-2 text-2xl font-semibold">{sessionMinutes} min</p>
+          </article>
+          <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Planned blocks</p>
+            <p className="mt-2 text-2xl font-semibold">{plannedMinutes} min</p>
+          </article>
+          <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Group</p>
+            <p className="mt-2 text-2xl font-semibold">{session.gymnasts.length}</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">gymnasts assigned to session</p>
+          </article>
+        </div>
+
+        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Facility</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                {session.facilityAssignment?.location.name || "No facility assigned to this session"}
+              </p>
+            </div>
+            <a href="/facilities" className="text-sm font-semibold">Facilities & equipment →</a>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <form action={assignSessionFacility} className="flex flex-wrap gap-2">
+              <input type="hidden" name="sessionId" value={session.id} />
+              <select name="locationId" required defaultValue={session.facilityAssignment?.locationId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                <option value="">Choose facility…</option>
+                {facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
+              </select>
+              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Assign facility</button>
+            </form>
+            {session.facilityAssignment && (
+              <form action={clearSessionFacility}>
+                <input type="hidden" name="sessionId" value={session.id} />
+                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button>
+              </form>
+            )}
+          </div>
+        </article>
+
+        {(session.programmeNameSnapshot || session.stageNameSnapshot) && (
+          <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Programme context at planning</p>
+            <p className="mt-2 font-semibold">
+              {session.programmeNameSnapshot}{session.stageNameSnapshot ? " · " + session.stageNameSnapshot : ""}
+            </p>
+          </div>
+        )}
+
+        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Session gymnasts</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                This roster is specific to the planned session. Removing someone here does not change their group membership.
+              </p>
+            </div>
+            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-sm">{session.gymnasts.length} assigned</span>
+          </div>
+          <div className="mt-4 grid gap-2">
+            {session.gymnasts.length ? session.gymnasts.map((entry) => (
+              <div key={entry.gymnastId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-4 py-3">
+                <a href={"/gymnasts/" + entry.gymnastId} className="font-medium hover:underline">{entry.gymnast.name}</a>
+                <form action={removeGymnastFromTrainingSession}>
+                  <input type="hidden" name="sessionId" value={session.id} />
+                  <input type="hidden" name="gymnastId" value={entry.gymnastId} />
+                  <button className="text-sm text-[var(--muted)]">Remove from session</button>
+                </form>
+              </div>
+            )) : (
+              <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">
+                No gymnasts are currently assigned to this session.
+              </p>
+            )}
+          </div>
+          {availableGymnasts.length > 0 && (
+            <form action={addGymnastToTrainingSession} className="mt-4 flex flex-wrap gap-2">
+              <input type="hidden" name="sessionId" value={session.id} />
+              <select name="gymnastId" required className="min-w-56 rounded-lg border border-[var(--border)] px-3 py-2">
+                <option value="">Add from group roster…</option>
+                {availableGymnasts.map((membership) => (
+                  <option key={membership.gymnastId} value={membership.gymnastId}>{membership.gymnast.name}</option>
+                ))}
+              </select>
+              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add to session</button>
+            </form>
+          )}
+        </article>
+
+        <article className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-semibold">Session intent</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{session.sessionIntent || "No intent recorded yet."}</p>
+          {session.notes && <p className="mt-3 text-sm leading-6">{session.notes}</p>}
+          <details className="mt-4 border-t border-[var(--border)] pt-4">
+            <summary className="cursor-pointer text-sm font-semibold">Edit session details</summary>
+            <form action={updateTrainingSession} className="mt-4 grid gap-3 md:grid-cols-2">
+              <input type="hidden" name="sessionId" value={session.id} />
+              <input name="title" defaultValue={session.title} required className="rounded-xl border border-[var(--border)] px-3 py-3" />
+              <input name="sessionIntent" defaultValue={session.sessionIntent ?? ""} placeholder="Session intent" className="rounded-xl border border-[var(--border)] px-3 py-3" />
+              <input name="sessionDate" type="date" required defaultValue={dateValue(session.sessionDate)} className="rounded-xl border border-[var(--border)] px-3 py-3" />
+              <div className="grid grid-cols-2 gap-2">
+                <input name="startTime" type="time" required defaultValue={session.startTime} className="rounded-xl border border-[var(--border)] px-3 py-3" />
+                <input name="endTime" type="time" required defaultValue={session.endTime} className="rounded-xl border border-[var(--border)] px-3 py-3" />
+              </div>
+              <textarea name="notes" defaultValue={session.notes ?? ""} placeholder="Planning notes" className="min-h-24 rounded-xl border border-[var(--border)] px-3 py-3 md:col-span-2" />
+              <button className="rounded-xl border border-[var(--border)] px-4 py-3 font-semibold md:w-fit">Save session</button>
+            </form>
+          </details>
+        </article>
+
+        <div className="mt-8 flex flex-wrap items-end justify-between gap-3">
+          <div><p className="text-sm font-semibold text-[var(--muted)]">Structure</p><h2 className="mt-1 text-2xl font-semibold">Training blocks</h2></div>
+          <p className="text-sm text-[var(--muted)]">
+            {plannedMinutes <= sessionMinutes ? sessionMinutes - plannedMinutes + " min unallocated" : plannedMinutes - sessionMinutes + " min over session time"}
+          </p>
+        </div>
+
+        <div className="mt-4 grid gap-3">
+          {session.blocks.map((block, index) => (
+            <details key={block.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <summary className="cursor-pointer list-none">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Block {index + 1} · {block.category.replaceAll("_", " ")}</p>
+                    <h3 className="mt-1 font-semibold">{block.title}</h3><p className="mt-1 text-xs text-[var(--muted)]">{block.targetGymnast?.name??"Whole group"}</p>
+                    {block.groupObjective && <p className="mt-2 text-sm">{block.groupObjective}</p>}
+                  </div>
+                  <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs">
+                    {block.apparatus ? block.apparatus.replaceAll("_", " ") + " · " : ""}{block.durationMin ? block.durationMin + " min" : "Open time"}
+                  </span>
+                </div>
+              </summary>
+              <form action={updateSessionBlock} className="mt-4 grid gap-2 border-t border-[var(--border)] pt-4 md:grid-cols-2">
+                <input type="hidden" name="sessionId" value={session.id} />
+                <input type="hidden" name="blockId" value={block.id} />
+                <input name="title" required defaultValue={block.title} className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                <select name="category" defaultValue={block.category} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                  {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+                <select name="behaviour" defaultValue={block.behaviour} className="rounded-lg border border-[var(--border)] px-3 py-2">{BEHAVIOURS.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><select name="apparatus" defaultValue={block.apparatus ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                  {APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}
+                </select>
+                <input name="durationMin" type="number" min="1" max="480" defaultValue={block.durationMin ?? ""} placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                <select name="targetGymnastId" defaultValue={block.targetGymnastId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select>
+                <input name="groupObjective" defaultValue={block.groupObjective ?? ""} placeholder="Group objective" className="rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
+                <textarea name="notes" defaultValue={block.notes ?? ""} placeholder="Block notes" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
+                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save block</button>
+              </form>
+              <div className="mt-4 border-t border-[var(--border)] pt-4">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Skill work</p><p className="mt-1 text-sm text-[var(--muted)]">What will be trained in this area. Repetition targets belong to the work, not the block.</p></div><span className="text-sm text-[var(--muted)]">{block.workItems.length} items</span></div>
+                <div className="mt-3 grid gap-2">{block.workItems.map(item => <details key={item.id} className="rounded-xl border border-[var(--border)] p-3"><summary className="cursor-pointer text-sm font-semibold">{item.title}{item.elementDefinition?" · "+item.elementDefinition.package.program.name:item.vaultDefinition?" · "+item.vaultDefinition.package.program.name:" · coach-authored"}{item.targetGymnast ? " · " + item.targetGymnast.name : " · whole group"}{item.targetCount ? " · target " + item.targetCount : ""}</summary><form action={updateSessionBlockWorkItem} className="mt-3 grid gap-2 md:grid-cols-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><input type="hidden" name="workItemId" value={item.id}/><input name="title" required defaultValue={item.title} className="rounded-lg border border-[var(--border)] px-3 py-2"/><select name="targetGymnastId" defaultValue={item.targetGymnastId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select><input name="targetCount" type="number" min="1" max="1000" defaultValue={item.targetCount ?? ""} placeholder="Target repetitions (optional)" className="rounded-lg border border-[var(--border)] px-3 py-2"/><input name="notes" defaultValue={item.notes ?? ""} placeholder="Drill, sequence, or coaching notes" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save work</button></form><form action={deleteSessionBlockWorkItem} className="mt-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><input type="hidden" name="workItemId" value={item.id}/><button className="text-xs text-[var(--muted)]">Remove work</button></form></details>)}</div>
+                {availablePlanItems.length > 0 && <form action={addSessionBlockWorkItem} className="mt-3 flex flex-wrap gap-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><select name="trainingPlanItemId" required className="min-w-64 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"><option value="">Add from training plan…</option>{availablePlanItems.map(item => <option key={item.id} value={item.id}>{item.planName} · {item.title}{item.gymnastId ? " · individual" : ""}</option>)}</select><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add planned work</button></form>}
+                <details className="mt-3 rounded-xl border border-dashed border-[var(--border)] p-3"><summary className="cursor-pointer text-sm font-semibold">Add skill / work</summary>{(()=>{const skillApparatus=normalizeApparatus(block.apparatus);const contextOptions=contextOptionsForApparatus(block.apparatus);const matchingSkills=searchableSkills.filter(skill=>normalizeApparatus(skill.apparatus)===skillApparatus);return <form action={addSessionBlockWorkItem} className="mt-3 grid gap-2 md:grid-cols-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><SkillSearch name="canonicalSkillId" skills={matchingSkills}/><input name="title" maxLength={160} placeholder="Or coach-authored skill / task" className="rounded-lg border border-[var(--border)] px-3 py-2"/><select name="targetGymnastId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry=><option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select><input name="targetCount" type="number" min="1" max="1000" placeholder="Target repetitions (optional)" className="rounded-lg border border-[var(--border)] px-3 py-2"/>{block.spaceAssignment&&<select name="trainingResourceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Configured training equipment (optional)…</option>{(activeFacility?.spaces.find(space=>space.id===block.spaceAssignment?.trainingSpaceId)?.resources??[]).map(resource=><option key={resource.id} value={resource.id}>{resource.name}</option>)}</select>}{block.spaceAssignment&&<select name="landingResourceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Configured landing surface (optional)…</option>{(activeFacility?.spaces.find(space=>space.id===block.spaceAssignment?.trainingSpaceId)?.resources??[]).map(resource=><option key={resource.id} value={resource.id}>{resource.name}</option>)}</select>}<select name="trainingSurface" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Training setup / surface…</option>{(contextOptions.training).map(option=><option key={option} value={option}>{option}</option>)}</select><select name="landingSurface" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Landing surface…</option>{(contextOptions.landing).map(option=><option key={option} value={option}>{option}</option>)}</select>{(contextOptions.takeoff.length)>0&&<select name="takeoffEquipment" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Take-off equipment…</option>{contextOptions.takeoff.map(option=><option key={option} value={option}>{option}</option>)}</select>}<input name="notes" placeholder="Drill, sequence, or coaching notes" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Add work</button></form>})()}</details>
+              </div>
+              <div className="mt-4 border-t border-[var(--border)] pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Space & resources</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <form action={assignSessionBlockSpace} className="flex flex-wrap gap-2">
+                    <input type="hidden" name="sessionId" value={session.id} />
+                    <input type="hidden" name="blockId" value={block.id} />
+                    <select name="spaceId" required defaultValue={block.spaceAssignment?.trainingSpaceId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+                      <option value="">Choose training space…</option>
+                      {(activeFacility?.spaces ?? []).map((space) => (
+                        <option key={space.id} value={space.id}>
+                          {space.name}{space.shareable ? " · shareable" : " · exclusive"}{space.capacity ? " · cap " + space.capacity : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Set space</button>
+                  </form>
+                  {block.spaceAssignment && (
+                    <form action={clearSessionBlockSpace}>
+                      <input type="hidden" name="sessionId" value={session.id} />
+                      <input type="hidden" name="blockId" value={block.id} />
+                      <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear space</button>
+                    </form>
+                  )}
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {block.resourceAssignments.map((assignment) => (
+                    <div key={assignment.resourceId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border)] px-3 py-2">
+                      <span className="text-sm">{assignment.resource.name} · qty {assignment.quantity}</span>
+                      <form action={removeSessionBlockResource}>
+                        <input type="hidden" name="sessionId" value={session.id} />
+                        <input type="hidden" name="blockId" value={block.id} />
+                        <input type="hidden" name="resourceId" value={assignment.resourceId} />
+                        <button className="text-xs text-[var(--muted)]">Remove</button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+                {block.spaceAssignment && (() => {
+                  const space = activeFacility?.spaces.find((candidate) => candidate.id === block.spaceAssignment?.trainingSpaceId);
+                  const assigned = new Set(block.resourceAssignments.map((assignment) => assignment.resourceId));
+                  const resources = (space?.resources ?? []).filter((resource) => resource.availability !== "UNAVAILABLE" && !assigned.has(resource.id));
+                  return resources.length ? (
+                    <form action={assignSessionBlockResource} className="mt-3 flex flex-wrap gap-2">
+                      <input type="hidden" name="sessionId" value={session.id} />
+                      <input type="hidden" name="blockId" value={block.id} />
+                      <select name="resourceId" required className="min-w-56 rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+                        <option value="">Add equipment/resource…</option>
+                        {resources.map((resource) => (
+                          <option key={resource.id} value={resource.id}>{resource.name} · available {resource.quantity}</option>
+                        ))}
+                      </select>
+                      <input name="quantity" type="number" min="1" defaultValue="1" className="w-24 rounded-lg border border-[var(--border)] px-3 py-2 text-sm" />
+                      <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add</button>
+                    </form>
+                  ) : null;
+                })()}
+              </div>
+              <div className="mt-4 border-t border-[var(--border)] pt-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Circuit / stations</p>
+                    <p className="mt-1 text-sm text-[var(--muted)]">Optional tasks within this block. Live evidence can be captured against a specific station.</p>
+                  </div>
+                  <span className="text-sm text-[var(--muted)]">{block.stations.length} stations</span>
+                </div>
+                <div className="mt-3 grid gap-3">
+                  {block.stations.map((station, stationIndex) => (
+                    <details key={station.id} className="rounded-xl border border-[var(--border)] p-3">
+                      <summary className="cursor-pointer list-none">
+                        <span className="font-semibold">{stationIndex + 1}. {station.name}</span>
+                        {station.objective && <span className="ml-2 text-sm text-[var(--muted)]">· {station.objective}</span>}
+                      </summary>
+                      <form action={updateSessionStation} className="mt-3 grid gap-2 md:grid-cols-2">
+                        <input type="hidden" name="sessionId" value={session.id} />
+                        <input type="hidden" name="blockId" value={block.id} />
+                        <input type="hidden" name="stationId" value={station.id} />
+                        <input name="name" required defaultValue={station.name} placeholder="Station name" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <input name="objective" defaultValue={station.objective ?? ""} placeholder="Objective" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <textarea name="drills" defaultValue={station.drills ?? ""} placeholder="Skills / drills" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <textarea name="setup" defaultValue={station.setup ?? ""} placeholder="Setup" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <input name="equipment" defaultValue={station.equipment ?? ""} placeholder="Equipment" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <input name="cues" defaultValue={station.cues ?? ""} placeholder="Key coaching cues" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <input name="easierOption" defaultValue={station.easierOption ?? ""} placeholder="Easier option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <div className="grid gap-2"><select name="stationLinkMode" defaultValue={station.skillId?"LIBRARY":station.workItemId?"SESSION":"NONE"} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="NONE">No linked skill</option><option value="SESSION">Session skill</option><option value="LIBRARY">Find another skill</option></select><select name="workItemId" defaultValue={station.workItemId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Choose session skill…</option>{block.workItems.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select><SkillSearch name="stationSkillId" initialSelectedId={station.skillId ?? ""} skills={searchableSkills.filter(skill=>normalizeApparatus(skill.apparatus)===normalizeApparatus(block.apparatus))}/><p className="text-xs text-[var(--muted)]">Use Session skill for today’s planned work, or Find another skill for future/developmental work.</p></div><input name="harderOption" defaultValue={station.harderOption ?? ""} placeholder="Harder option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save station</button>
+                      </form>
+                      <form action={deleteSessionStation} className="mt-2">
+                        <input type="hidden" name="sessionId" value={session.id} />
+                        <input type="hidden" name="blockId" value={block.id} />
+                        <input type="hidden" name="stationId" value={station.id} />
+                        <button className="text-sm text-[var(--muted)]">Delete station</button>
+                      </form>
+                    </details>
+                  ))}
+                </div>
+                <details className="mt-3 rounded-xl border border-dashed border-[var(--border)] p-3">
+                  <summary className="cursor-pointer text-sm font-semibold">Add station</summary>
+                  <form action={createSessionStation} className="mt-3 grid gap-2 md:grid-cols-2">
+                    <input type="hidden" name="sessionId" value={session.id} />
+                    <input type="hidden" name="blockId" value={block.id} />
+                    <input name="name" required placeholder="Station name" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="objective" placeholder="Objective" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <textarea name="drills" placeholder="Skills / drills" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <textarea name="setup" placeholder="Setup" className="min-h-20 rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="equipment" placeholder="Equipment" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="cues" placeholder="Key coaching cues" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <input name="easierOption" placeholder="Easier option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <div className="grid gap-2"><select name="stationLinkMode" defaultValue="NONE" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="NONE">No linked skill</option><option value="SESSION">Session skill</option><option value="LIBRARY">Find another skill</option></select><select name="workItemId" defaultValue="" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Choose session skill…</option>{block.workItems.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select><SkillSearch name="stationSkillId" skills={searchableSkills.filter(skill=>normalizeApparatus(skill.apparatus)===normalizeApparatus(block.apparatus))}/><p className="text-xs text-[var(--muted)]">Session skills stay quick to select. Search the full apparatus library for future/developmental work.</p></div><input name="harderOption" placeholder="Harder option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Add station</button>
+                  </form>
+                </details>
+              </div>
+              <form action={deleteSessionBlock} className="mt-3">
+                <input type="hidden" name="sessionId" value={session.id} />
+                <input type="hidden" name="blockId" value={block.id} />
+                <button className="text-sm text-[var(--muted)]">Delete block</button>
+              </form>
+            </details>
+          ))}
+          {!session.blocks.length && (
+            <p className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--muted)]">
+              No blocks yet. Add the first part of the session below.
+            </p>
+          )}
+        </div>
+
+        <form action={createSessionBlock} className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <input type="hidden" name="sessionId" value={session.id} />
+          <h3 className="font-semibold">Add training block</h3>
+          <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+            <input name="title" required placeholder="Block title" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+            <select name="category" className="rounded-lg border border-[var(--border)] px-3 py-2">
+              {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select><select name="behaviour" defaultValue="EVIDENCE" className="rounded-lg border border-[var(--border)] px-3 py-2">{BEHAVIOURS.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>
+            {activeFacility?.spaces.length ? <select name="spaceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Area / apparatus…</option>{activeFacility.spaces.map(space => <option key={space.id} value={space.id}>{space.name}{space.apparatus ? " · " + space.apparatus.replaceAll("_", " ") : ""}</option>)}</select> : <select name="apparatus" className="rounded-lg border border-[var(--border)] px-3 py-2">{APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}</select>}
+            <input name="durationMin" type="number" min="1" max="480" placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+            <select name="targetGymnastId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select>
+          </div>
+          <input name="groupObjective" placeholder="Group objective" className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2" />
+          <textarea name="notes" placeholder="Block notes" className="mt-2 min-h-20 w-full rounded-lg border border-[var(--border)] px-3 py-2" />
+          <button className="mt-3 rounded-xl bg-[var(--foreground)] px-4 py-3 font-semibold text-white">Add block</button>
+        </form>
+
+        {(matchingRotations.length > 0 || session.clubRotationPlanId || session.rotationGroups.length > 0) && (
+          <section className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold">Rotation</h2>
+              <a href="/rotations" className="text-sm font-semibold underline">Club rotas</a>
+            </div>
+            {session.clubRotationPlan && <p className="mt-3 text-sm font-semibold">{session.clubRotationPlan.name} · Rota {(session.clubRotationVariant ?? 0) + 1}</p>}
+            {session.rotationGroups.flatMap(group => group.assignments.map(assignment => (
+              <div key={assignment.id} className="mt-2 flex flex-wrap gap-2 text-sm">
+                <strong>{assignment.startTime}–{assignment.endTime}</strong>
+                <span>{assignment.trainingSpace?.name ?? "Open rotation"}</span>
+                {assignment.notes && <span className="text-[var(--muted)]">{assignment.notes}</span>}
+              </div>
+            )))}
+            {session.status === "PLANNED" && matchingRotations.length > 0 && (
+              <form action={applyClubRotationToSession} className="mt-4 flex flex-wrap items-center gap-2">
+                <input type="hidden" name="sessionId" value={session.id} />
+                <select name="planId" aria-label="Club rota" className="min-w-52 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm">
+                  {matchingRotations.map(p => <option key={p.id} value={p.id}>{p.name} · Rota {p.variant + 1} · {p.location.name}</option>)}
+                </select>
+                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.clubRotationPlanId ? "Replace rota" : "Use rota"}</button>
+              </form>
+            )}
+            {session.status === "PLANNED" && session.clubRotationPlanId && <form action={clearClubRotationFromSession} className="mt-3"><input type="hidden" name="sessionId" value={session.id}/><button className="text-sm text-[var(--muted)] underline">Remove rota from session</button></form>}
+          </section>
+        )}
+
+        <details className="mt-8 rounded-2xl border border-[var(--border)] p-4">
+          <summary className="cursor-pointer text-sm font-semibold">Remove session</summary>
+          <p className="mt-2 text-sm text-[var(--muted)]">{session._count.evidence || session._count.attendance ? `Also removes ${session._count.evidence} observations and ${session._count.attendance} attendance records.` : "This session will be deleted."}</p>
+          <form action={deleteTrainingSession} className="mt-3">
+            <input type="hidden" name="sessionId" value={session.id} />
+            <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Confirm delete</button>
+          </form>
+        </details>
+      </section>
+    </AppShell>
+  );
 }

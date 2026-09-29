@@ -74,9 +74,9 @@ export default async function LiveTrainingSessionPage({
     session.blocks[0] ??
     null;
 
-  const selectedStation = null;
+  const selectedStation = selectedBlock?.stations.find((station) => station.id === query.station) ?? null;
   const selectedWorkItems = selectedBlock?.workItems ?? [];
-  const selectedWorkItem = null;
+  const selectedWorkItem = selectedWorkItems.find(item=>item.id===query.work) ?? (selectedStation?.workItemId ? selectedWorkItems.find(item=>item.id===selectedStation.workItemId) : null) ?? (!selectedStation ? selectedWorkItems[0] : null) ?? null;
   const blockEvidence = selectedBlock
     ? session.evidence.filter((entry) =>
         entry.blockId === selectedBlock.id && (!selectedStation || entry.stationId === selectedStation.id)
