@@ -1003,6 +1003,7 @@ model RulesetLevel {
  skillRequirements RulesetLevelSkill[]
  @@unique([programId,code])
  @@index([programId,orderIndex,status])
+  routineRequirements RulesetRoutineRequirement[]
 }
 model OrganisationRulesetAssignment {
  organisationId String
@@ -1127,6 +1128,7 @@ model ViaformSkill {
   figElementDefinition FigElementDefinition? @relation("SkillFigElement", fields: [figElementDefinitionId], references: [id], onDelete: Restrict)
   figVaultDefinition FigVaultDefinition? @relation("SkillFigVault", fields: [figVaultDefinitionId], references: [id], onDelete: Restrict)
   rulesetRequirements RulesetLevelSkill[]
+  routineRequirements RulesetRoutineRequirement[]
   programmeRequirements ProgrammeStageSkill[]
   sessionWorkItems SessionBlockWorkItem[]
   trainingEvidence TrainingEvidence[]
@@ -1150,6 +1152,28 @@ model RulesetLevelSkill {
   @@unique([levelId, skillId, role])
   @@index([skillId])
   @@index([levelId, orderIndex])
+}
+
+model RulesetRoutineRequirement {
+  id          String   @id @default(cuid())
+  levelId     String
+  apparatus   String
+  skillId     String
+  sequenceIndex Int
+  repetitions Int      @default(1)
+  occurrenceContext String?
+  sourcePackageId String?
+  sourcePage   Int?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  level RulesetLevel @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  skill ViaformSkill @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@unique([levelId, apparatus, sequenceIndex])
+  @@index([skillId])
+  @@index([levelId, apparatus])
 }
 
 model ProgrammeStageSkill {
