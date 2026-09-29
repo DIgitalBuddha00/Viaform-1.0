@@ -224,29 +224,6 @@ export default async function LiveTrainingSessionPage({
           </div>
         ) : (
           <>
-            {false && selectedBlock.stations.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Circuit / station</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <a
-                    href={"/training/" + session.id + "?block=" + selectedBlock.id}
-                    className={"rounded-xl border px-3 py-2 text-sm " + (!selectedStation ? "border-[var(--foreground)] font-semibold" : "border-[var(--border)]")}
-                  >
-                    Whole block
-                  </a>
-                  {selectedBlock.stations.map((station) => (
-                    <a
-                      key={station.id}
-                      href={"/training/" + session.id + "?block=" + selectedBlock.id + "&station=" + station.id}
-                      className={"rounded-xl border px-3 py-2 text-sm " + (selectedStation?.id === station.id ? "border-[var(--foreground)] font-semibold" : "border-[var(--border)]")}
-                    >
-                      {station.name}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <article className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
