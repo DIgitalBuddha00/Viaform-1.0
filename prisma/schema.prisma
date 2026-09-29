@@ -1134,9 +1134,51 @@ model ViaformSkill {
   trainingEvidence TrainingEvidence[]
   developsFrom VaultDevelopmentLink[] @relation("VaultTargetSkill")
   developsToward VaultDevelopmentLink[] @relation("VaultDevelopmentSkill")
+  vaultFamilyDevelopmentLinks VaultDevelopmentFamilyLink[]
+  vaultFamilyMemberships VaultFamilySkill[]
 
   @@index([discipline, apparatus, status])
   @@index([sourceOrganisationId, status])
+}
+
+model VaultFamily {
+  id          String   @id
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  skills       VaultFamilySkill[]
+  developmentalLinks VaultDevelopmentFamilyLink[]
+}
+
+model VaultFamilySkill {
+  id       String @id @default(cuid())
+  familyId String
+  skillId  String
+
+  family VaultFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  skill  ViaformSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, skillId])
+  @@index([skillId])
+}
+
+model VaultDevelopmentFamilyLink {
+  id                   String   @id @default(cuid())
+  developmentalSkillId String
+  familyId             String
+  relationship         String   @default("DEVELOPS_TOWARD_FAMILY")
+  notes                String?
+  createdAt            DateTime @default(now())
+
+  developmentalSkill ViaformSkill @relation(fields: [developmentalSkillId], references: [id], onDelete: Cascade)
+  family VaultFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([developmentalSkillId, familyId, relationship])
+  @@index([familyId])
+  @@index([developmentalSkillId])
 }
 
 model VaultDevelopmentLink {

@@ -6,7 +6,7 @@ import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
 
-const OUTCOMES = ["MADE", "MISSED", "SPOTTED"] as const;
+const OUTCOMES = ["MADE", "MISSED", "SPOTTED", "BALK"] as const;
 const ATTENDANCE = ["PRESENT", "ABSENT", "LATE"] as const;
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
 

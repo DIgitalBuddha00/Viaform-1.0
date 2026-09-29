@@ -27,6 +27,7 @@ const outcomeLabel: Record<string, string> = {
   MADE: "Made",
   MISSED: "Missed",
   SPOTTED: "Spotted",
+  BALK: "Balk",
 };
 
 export default async function LiveTrainingSessionPage({
@@ -78,6 +79,7 @@ export default async function LiveTrainingSessionPage({
   const made = blockEvidence.filter((entry) => entry.outcome === "MADE").length;
   const missed = blockEvidence.filter((entry) => entry.outcome === "MISSED").length;
   const spotted = blockEvidence.filter((entry) => entry.outcome === "SPOTTED").length;
+  const balked = blockEvidence.filter((entry) => entry.outcome === "BALK").length;
   const isLive = session.status === "IN_PROGRESS";
   const attendanceByGymnast = new Map(session.attendance.map((entry) => [entry.gymnastId, entry.status]));
   const presentCount = session.attendance.filter((entry) => entry.status === "PRESENT" || entry.status === "LATE").length;
@@ -276,6 +278,7 @@ export default async function LiveTrainingSessionPage({
                   <span className="rounded-full border border-[var(--border)] px-3 py-1">Made {made}</span>
                   <span className="rounded-full border border-[var(--border)] px-3 py-1">Missed {missed}</span>
                   <span className="rounded-full border border-[var(--border)] px-3 py-1">Spotted {spotted}</span>
+                  <span className="rounded-full border border-[var(--border)] px-3 py-1">Balk {balked}</span>
                 </div>
               </div>
             </article>
@@ -299,7 +302,7 @@ export default async function LiveTrainingSessionPage({
                       </div>
                       {isLive ? (
                         <div className="flex flex-wrap gap-2">
-                          {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
+                          {(["MADE", "MISSED", "SPOTTED", "BALK"] as const).map((outcome) => (
                             <form key={outcome} action={recordTrainingEvidence}>
                               <input type="hidden" name="sessionId" value={session.id} />
                               <input type="hidden" name="blockId" value={selectedBlock.id} />
@@ -344,7 +347,7 @@ export default async function LiveTrainingSessionPage({
                                     </div>
                                     {isLive && (
                                       <div className="mt-2 flex flex-wrap gap-2">
-                                        {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
+                                        {(["MADE", "MISSED", "SPOTTED", "BALK"] as const).map((outcome) => (
                                           <form key={outcome} action={recordTrainingEvidence}>
                                             <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""}/><input type="hidden" name="routineVaultId" value={item.id}/>
                                             <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
@@ -365,7 +368,7 @@ export default async function LiveTrainingSessionPage({
                                     </div>
                                     {isLive && (
                                       <div className="mt-2 flex flex-wrap gap-2">
-                                        {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
+                                        {(["MADE", "MISSED", "SPOTTED", "BALK"] as const).map((outcome) => (
                                           <form key={outcome} action={recordTrainingEvidence}>
                                             <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""}/><input type="hidden" name="routineElementId" value={item.id}/>
                                             <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
@@ -386,7 +389,7 @@ export default async function LiveTrainingSessionPage({
                                 </div>
                                 {isLive && (
                                   <div className="mt-2 flex flex-wrap gap-2">
-                                    {(["MADE", "MISSED", "SPOTTED"] as const).map((outcome) => (
+                                    {(["MADE", "MISSED", "SPOTTED", "BALK"] as const).map((outcome) => (
                                       <form key={outcome} action={recordTrainingEvidence}>
                                         <input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id ?? ""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""}/><input type="hidden" name="routineCustomItemId" value={item.id}/>
                                         <button name="outcome" value={outcome} className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold">{outcomeLabel[outcome]}</button>
