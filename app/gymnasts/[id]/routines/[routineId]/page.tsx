@@ -18,6 +18,7 @@ import {
   updateRoutineCustomItem,
   updateRoutineElement,
   updateRoutineSection,
+  updateRoutineStructureContext,
   updateRoutineVault,
 } from "@/app/actions/routines";
 import { requireAuthContext } from "@/app/lib/auth";
@@ -181,6 +182,13 @@ export default async function RoutineWorkspace({
               <input type="hidden" name="strategyNote" value={routine.strategyNote ?? ""} />
               <input type="hidden" name="pathwayNote" value={routine.pathwayNote ?? ""} />
               <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save settings</button>
+            </form>
+            <form action={updateRoutineStructureContext} className="mt-4 grid gap-2 border-t border-[var(--border)] pt-3">
+              <input type="hidden" name="routineId" value={routine.id}/>
+              {routine.apparatus === "VAULT" && <label className="grid gap-1 text-xs font-semibold">Vault programme<select name="vaultMode" defaultValue={routine.vaultMode} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"><option value="ONE_VAULT">One vault</option><option value="TWO_VAULT">Two vaults</option></select></label>}
+              {(routine.apparatus === "FLOOR" || routine.apparatus === "BEAM") && <label className="grid gap-1 text-xs font-semibold">Routine duration (seconds)<input type="number" min="0" name="routineDurationSeconds" defaultValue={routine.routineDurationSeconds ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"/></label>}
+              {routine.apparatus === "FLOOR" && <><label className="grid gap-1 text-xs font-semibold">Music name<input name="musicFileName" defaultValue={routine.musicFileName ?? ""} placeholder="Track / file name" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"/></label><label className="grid gap-1 text-xs font-semibold">Music reference<input name="musicStorageRef" defaultValue={routine.musicStorageRef ?? ""} placeholder="Storage reference" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"/></label><label className="grid gap-1 text-xs font-semibold">Music duration (seconds)<input type="number" step="0.1" min="0" name="musicDurationSeconds" defaultValue={routine.musicDurationSeconds ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"/></label></>}
+              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save routine structure</button>
             </form>
             <form action={archiveGymnastRoutine} className="mt-2">
               <input type="hidden" name="routineId" value={routine.id} />

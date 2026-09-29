@@ -84,6 +84,29 @@ export async function updateRoutineContext(data: FormData) {
   revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
 }
 
+export async function updateRoutineStructureContext(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  if (!routine) return;
+  const durationRaw = value(data, "routineDurationSeconds");
+  const musicDurationRaw = value(data, "musicDurationSeconds");
+  const duration = durationRaw ? Number(durationRaw) : null;
+  const musicDuration = musicDurationRaw ? Number(musicDurationRaw) : null;
+  const vaultMode = value(data, "vaultMode") || routine.vaultMode;
+  if (routine.apparatus === "VAULT" && !["ONE_VAULT", "TWO_VAULT"].includes(vaultMode)) return;
+  await prisma.gymnastRoutine.update({
+    where: { id: routine.id },
+    data: {
+      vaultMode: routine.apparatus === "VAULT" ? vaultMode : routine.vaultMode,
+      routineDurationSeconds: duration !== null && Number.isFinite(duration) && duration >= 0 ? Math.round(duration) : null,
+      musicFileName: routine.apparatus === "FLOOR" ? (value(data, "musicFileName") || null) : routine.musicFileName,
+      musicStorageRef: routine.apparatus === "FLOOR" ? (value(data, "musicStorageRef") || null) : routine.musicStorageRef,
+      musicDurationSeconds: routine.apparatus === "FLOOR" && musicDuration !== null && Number.isFinite(musicDuration) && musicDuration >= 0 ? musicDuration : null,
+    },
+  });
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
+
 export async function archiveGymnastRoutine(data: FormData) {
   const c = await context();
   const routineId = value(data, "routineId");
