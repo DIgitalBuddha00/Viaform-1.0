@@ -560,6 +560,7 @@ model SessionBlockWorkItem {
   targetGymnastId    String?
   title              String
   targetCount        Int?
+  skillId             String?
   elementDefinitionId String?
   vaultDefinitionId   String?
   trainingResourceId  String?
@@ -575,6 +576,7 @@ model SessionBlockWorkItem {
   block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
   trainingPlanItem TrainingPlanItem? @relation(fields: [trainingPlanItemId], references: [id], onDelete: SetNull)
   targetGymnast Gymnast? @relation(fields: [targetGymnastId], references: [id], onDelete: SetNull)
+  skill ViaformSkill? @relation(fields: [skillId], references: [id], onDelete: SetNull)
   elementDefinition FigElementDefinition? @relation("WorkItemElementDefinition", fields: [elementDefinitionId], references: [id], onDelete: SetNull)
   vaultDefinition FigVaultDefinition? @relation("WorkItemVaultDefinition", fields: [vaultDefinitionId], references: [id], onDelete: SetNull)
   trainingResource FacilityResource? @relation("WorkItemTrainingResource", fields: [trainingResourceId], references: [id], onDelete: SetNull)
@@ -583,6 +585,7 @@ model SessionBlockWorkItem {
   evidence TrainingEvidence[]
 
   @@index([blockId, orderIndex])
+  @@index([skillId])
   @@index([elementDefinitionId])
   @@index([vaultDefinitionId])
   @@index([trainingPlanItemId])
@@ -930,6 +933,7 @@ model TrainingEvidence {
   blockId                String
   stationId              String?
   workItemId             String?
+  skillId                String?
   elementDefinitionId    String?
   vaultDefinitionId      String?
   contextSnapshot        String?
@@ -946,6 +950,7 @@ model TrainingEvidence {
   block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
   station SessionStation? @relation(fields: [stationId], references: [id], onDelete: SetNull)
   workItem SessionBlockWorkItem? @relation(fields: [workItemId], references: [id], onDelete: SetNull)
+  skill ViaformSkill? @relation(fields: [skillId], references: [id], onDelete: SetNull)
   elementDefinition FigElementDefinition? @relation("EvidenceElementDefinition", fields: [elementDefinitionId], references: [id], onDelete: SetNull)
   vaultDefinition FigVaultDefinition? @relation("EvidenceVaultDefinition", fields: [vaultDefinitionId], references: [id], onDelete: SetNull)
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
@@ -960,6 +965,7 @@ model TrainingEvidence {
   @@index([routineCustomItemId, recordedAt])
   @@index([stationId, recordedAt])
   @@index([workItemId, recordedAt])
+  @@index([skillId, recordedAt])
   @@index([elementDefinitionId, recordedAt])
   @@index([vaultDefinitionId, recordedAt])
   @@index([gymnastId, recordedAt])
@@ -1122,6 +1128,8 @@ model ViaformSkill {
   figVaultDefinition FigVaultDefinition? @relation("SkillFigVault", fields: [figVaultDefinitionId], references: [id], onDelete: Restrict)
   rulesetRequirements RulesetLevelSkill[]
   programmeRequirements ProgrammeStageSkill[]
+  sessionWorkItems SessionBlockWorkItem[]
+  trainingEvidence TrainingEvidence[]
 
   @@index([discipline, apparatus, status])
   @@index([sourceOrganisationId, status])

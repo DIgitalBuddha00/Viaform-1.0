@@ -160,6 +160,7 @@ export async function recordTrainingEvidence(data: FormData) {
       blockId,
       stationId: station?.id ?? null,
       workItemId: workItem?.id ?? null,
+      skillId: workItem?.skillId ?? null,
       elementDefinitionId: workItem?.elementDefinitionId ?? null,
       vaultDefinitionId: workItem?.vaultDefinitionId ?? null,
       contextSnapshot: workItem ? JSON.stringify({trainingSurface:workItem.trainingSurface,landingSurface:workItem.landingSurface,takeoffEquipment:workItem.takeoffEquipment,trainingResource:workItem.trainingResource?.name??null,landingResource:workItem.landingResource?.name??null}) : null,
