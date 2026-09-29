@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
-import { createStaffMember, resetStaffPassword, resetStaffPin, setStaffActive, updateStaffAccess, updateStaffIdentity } from "@/app/actions/people";
+import { createStaffMember, resetStaffPin, setStaffActive, updateStaffAccess, updateStaffIdentity } from "@/app/actions/people";
 import { COACHING_ROLES, DELEGATED_CAPABILITIES } from "@/app/lib/access-control";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
