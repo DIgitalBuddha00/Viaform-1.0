@@ -281,6 +281,27 @@ export default async function RoutineWorkspace({
                   <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Coordinates run 0–1 from the top-left to bottom-right of the floor. Numbered markers are section starts; small markers are section ends. This records choreography and travel context only and is not a judging inference.</p>
                 </div>
               )}
+              {routine.apparatus === "BEAM" && routine.sections.length > 0 && (
+                <div className="mt-4 rounded-xl border border-[var(--border)] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">Beam sequence</p><span className="text-xs text-[var(--muted)]">Coach-authored routine context</span></div>
+                  <div className="mt-4 overflow-x-auto pb-2">
+                    <div className="relative min-w-[560px] px-6 py-8">
+                      <div className="absolute left-6 right-6 top-1/2 h-2 -translate-y-1/2 rounded-full border border-[var(--border)] bg-[var(--surface)]"/>
+                      <div className="relative grid grid-flow-col auto-cols-fr gap-3">
+                        {routine.sections.map((section, index) => (
+                          <div key={section.id} className="relative flex min-w-24 flex-col items-center text-center">
+                            <span className="z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--foreground)] bg-[var(--background)] text-xs font-semibold">{index + 1}</span>
+                            <p className="mt-3 text-xs font-semibold">{section.title}</p>
+                            <p className="mt-1 text-[11px] text-[var(--muted)]">{section.sectionType.replaceAll("_", " ").toLowerCase()}</p>
+                            {(section.startTimeSec !== null || section.endTimeSec !== null) && <p className="mt-1 text-[11px] text-[var(--muted)]">{section.startTimeSec ?? "—"}–{section.endTimeSec ?? "—"}s</p>}
+                            {(section.startPosition || section.endPosition) && <p className="mt-1 text-[11px] text-[var(--muted)]">{section.startPosition || "—"} → {section.endPosition || "—"}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="mt-4 rounded-xl border border-[var(--border)] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">Routine structure</p><span className="text-xs text-[var(--muted)]">{routine.sections.length} section{routine.sections.length === 1 ? "" : "s"}</span></div>
                 <div className="mt-3 grid gap-2">
@@ -300,7 +321,7 @@ export default async function RoutineWorkspace({
                             <input type="number" step="0.1" min="0" max="1" name="endY" defaultValue={section.endY ?? ""} placeholder="End Y 0–1" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/>
                           </div>
                         </>}
-                        {routine.apparatus === "BEAM" && <div className="grid grid-cols-2 gap-2"><input name="startPosition" defaultValue={section.startPosition ?? ""} placeholder="Start position" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><input name="endPosition" defaultValue={section.endPosition ?? ""} placeholder="End position" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/></div>}
+                        {routine.apparatus === "BEAM" && <><div className="grid grid-cols-2 gap-2"><input name="startPosition" defaultValue={section.startPosition ?? ""} placeholder="Start position" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><input name="endPosition" defaultValue={section.endPosition ?? ""} placeholder="End position" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/></div><input name="direction" defaultValue={section.direction ?? ""} placeholder="Travel / direction" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/></>}
                         {routine.apparatus === "BARS" && <div className="grid grid-cols-2 gap-2"><select name="startRail" defaultValue={section.startRail ?? ""} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"><option value="">Start rail</option><option value="LOW">Low rail</option><option value="HIGH">High rail</option></select><select name="endRail" defaultValue={section.endRail ?? ""} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"><option value="">End rail</option><option value="LOW">Low rail</option><option value="HIGH">High rail</option></select></div>}
                         <div className="grid grid-cols-2 gap-2"><input name="rhythm" defaultValue={section.rhythm ?? ""} placeholder="Rhythm / tempo" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><input name="facing" defaultValue={section.facing ?? ""} placeholder="Facing" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/></div>
                         <textarea name="notes" defaultValue={section.notes ?? ""} placeholder="Section notes" className="min-h-20 rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/>
