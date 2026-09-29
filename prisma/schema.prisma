@@ -406,6 +406,12 @@ model GymnastRoutine {
   rulesetVersionLabel  String?
   strategyNote         String?
   pathwayNote          String?
+  vaultMode            String   @default("ONE_VAULT")
+  routineDurationSeconds Int?
+  musicFileName        String?
+  musicMimeType        String?
+  musicStorageRef      String?
+  musicDurationSeconds Float?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -413,6 +419,7 @@ model GymnastRoutine {
   elements GymnastRoutineElement[]
   vaults GymnastRoutineVault[]
   customItems GymnastRoutineCustomItem[]
+  sections RoutineSection[]
   competitionPlans CompetitionApparatusPlan[]
 
   @@unique([gymnastId, apparatus, name])
@@ -428,15 +435,18 @@ model GymnastRoutineElement {
   recognition         String   @default("UNKNOWN")
   isDismount          Boolean  @default(false)
   coachNote           String?
+  sectionId           String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   routine GymnastRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
   elementDefinition FigElementDefinition @relation(fields: [elementDefinitionId], references: [id], onDelete: Restrict)
+  section RoutineSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   trainingEvidence TrainingEvidence[]
 
   @@unique([routineId, orderIndex])
   @@index([routineId, elementDefinitionId])
+  @@index([sectionId])
 }
 
 model GymnastRoutineVault {
@@ -464,14 +474,50 @@ model GymnastRoutineCustomItem {
   orderIndex   Int
   role         String?
   coachNote    String?
+  sectionId    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   routine GymnastRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  section RoutineSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   trainingEvidence TrainingEvidence[]
 
   @@unique([routineId, orderIndex])
   @@index([routineId])
+  @@index([sectionId])
+}
+
+model RoutineSection {
+  id              String   @id @default(cuid())
+  routineId       String
+  sectionType     String
+  title           String
+  orderIndex      Int      @default(0)
+  startTimeSec    Float?
+  endTimeSec      Float?
+  startX          Float?
+  startY          Float?
+  endX            Float?
+  endY            Float?
+  pathJson        String   @default("[]")
+  startRail       String?
+  endRail         String?
+  startPosition   String?
+  endPosition     String?
+  facing          String?
+  direction       String?
+  rhythm          String?
+  musicCue        String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  routine GymnastRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  elements GymnastRoutineElement[]
+  customItems GymnastRoutineCustomItem[]
+
+  @@index([routineId, orderIndex])
+  @@index([routineId, sectionType])
 }
 
 model TrainingSession {
@@ -845,6 +891,7 @@ model TrainingCheckIn {
   gymnastId String
   feeling String?
   confidence String?
+  fatigue String?
   recordedAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   session TrainingSession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
@@ -1043,6 +1090,10 @@ model TrainingEvidence {
   elementDefinitionId    String?
   vaultDefinitionId      String?
   contextSnapshot        String?
+  blockOrderSnapshot     Int?
+  blockCountSnapshot     Int?
+  sessionElapsedMinutesSnapshot Int?
+  fatigueSnapshot        String?
   gymnastId              String
   routineElementId       String?
   routineVaultId         String?
