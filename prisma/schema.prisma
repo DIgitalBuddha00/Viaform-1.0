@@ -1132,9 +1132,28 @@ model ViaformSkill {
   programmeRequirements ProgrammeStageSkill[]
   sessionWorkItems SessionBlockWorkItem[]
   trainingEvidence TrainingEvidence[]
+  developsFrom VaultDevelopmentLink[] @relation("VaultTargetSkill")
+  developsToward VaultDevelopmentLink[] @relation("VaultDevelopmentSkill")
 
   @@index([discipline, apparatus, status])
   @@index([sourceOrganisationId, status])
+}
+
+model VaultDevelopmentLink {
+  id                 String   @id @default(cuid())
+  developmentalSkillId String
+  targetSkillId      String
+  relationship       String   @default("DEVELOPS_TOWARD")
+  targetScope        String   @default("SKILL")
+  notes              String?
+  createdAt          DateTime @default(now())
+
+  developmentalSkill ViaformSkill @relation("VaultDevelopmentSkill", fields: [developmentalSkillId], references: [id], onDelete: Cascade)
+  targetSkill ViaformSkill @relation("VaultTargetSkill", fields: [targetSkillId], references: [id], onDelete: Cascade)
+
+  @@unique([developmentalSkillId, targetSkillId, relationship])
+  @@index([targetSkillId])
+  @@index([developmentalSkillId])
 }
 
 model RulesetLevelSkill {
