@@ -179,6 +179,7 @@ model Gymnast {
   trainingSessions TrainingSessionGymnast[]
   rotationAssignments SessionRotationGymnast[]
   trainingEvidence TrainingEvidence[]
+  trainingPlanTargets TrainingPlanSkillTarget[]
   trainingAttendance TrainingAttendance[]
   testingSessions TestingSessionGymnast[]
   testingResults TestingResult[]
@@ -189,6 +190,7 @@ model Gymnast {
   macrocycles MacrocycleGymnast[]
   trainingPlans TrainingPlan[]
   trainingPlanItems TrainingPlanItem[]
+  trainingPlanSkillTargets TrainingPlanSkillTarget[]
   sessionBlockWorkItems SessionBlockWorkItem[]
   targetedSessionBlocks SessionBlock[]
 
@@ -1470,6 +1472,8 @@ model TrainingPlan {
   createdBy OrganisationMembership @relation(fields: [createdByMembershipId], references: [id], onDelete: Restrict)
   sessions TrainingSession[]
   items TrainingPlanItem[]
+  weeklyStructure TrainingPlanWeek[]
+  skillTargets TrainingPlanSkillTarget[]
 
   @@index([organisationId, status, startDate])
   @@index([trainingGroupId, startDate, endDate])
@@ -1499,6 +1503,38 @@ model TrainingPlanItem {
   @@index([gymnastId])
 }
 
+model TrainingPlanWeek {
+  id String @id @default(cuid())
+  planId String
+  dayOfWeek String
+  focus String?
+  apparatusFocus String?
+  physicalFocus String?
+  notes String?
+  orderIndex Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  plan TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  @@unique([planId, dayOfWeek])
+  @@index([planId, orderIndex])
+}
+model TrainingPlanSkillTarget {
+  id String @id @default(cuid())
+  planId String
+  skillId String
+  gymnastId String?
+  priority String @default("PRIMARY")
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  plan TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  skill ViaformSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  gymnast Gymnast? @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  @@unique([planId, skillId, gymnastId, priority])
+  @@index([planId, priority])
+  @@index([skillId])
+  @@index([gymnastId])
+}
 model MacrocycleGroup {
   macrocycleId    String
   trainingGroupId String
