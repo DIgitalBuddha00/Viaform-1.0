@@ -45,11 +45,30 @@ export async function startTrainingSession(data: FormData) {
   redirect("/training/" + sessionId);
 }
 
-export async function finishTrainingSession(data: FormData) {
+export async function pauseTrainingSession(data: FormData) {
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");
   const session = await visibleSession(sessionId, context);
   if (!session || session.status !== "IN_PROGRESS") return;
+  await prisma.trainingSession.update({ where: { id: session.id }, data: { status: "PAUSED" } });
+  revalidatePath("/training"); revalidatePath("/training/" + sessionId); revalidatePath("/planning/" + sessionId);
+}
+
+export async function resumeTrainingSession(data: FormData) {
+  const context = await coachingContext();
+  const sessionId = value(data, "sessionId");
+  const session = await visibleSession(sessionId, context);
+  if (!session || session.status !== "PAUSED") return;
+  await prisma.trainingSession.update({ where: { id: session.id }, data: { status: "IN_PROGRESS", endedAt: null } });
+  revalidatePath("/training"); revalidatePath("/training/" + sessionId); revalidatePath("/planning/" + sessionId);
+  redirect("/training/" + sessionId);
+}
+
+export async function finishTrainingSession(data: FormData) {
+  const context = await coachingContext();
+  const sessionId = value(data, "sessionId");
+  const session = await visibleSession(sessionId, context);
+  if (!session || !["IN_PROGRESS","PAUSED"].includes(session.status)) return;
   await prisma.trainingSession.update({
     where: { id: session.id },
     data: { status: "COMPLETED", endedAt: new Date() },

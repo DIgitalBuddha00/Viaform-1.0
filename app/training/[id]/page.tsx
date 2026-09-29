@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
 import {
   finishTrainingSession,
+  pauseTrainingSession,
+  resumeTrainingSession,
   markAllTrainingPresent,
   recordTrainingAttendance,
   recordTrainingEvidence,
@@ -134,12 +136,10 @@ export default async function LiveTrainingSessionPage({
                 <button className="rounded-xl bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-white">Start session</button>
               </form>
             )}
-            {isLive && (
-              <form action={finishTrainingSession}>
+            {isLive && (<><form action={pauseTrainingSession}><input type="hidden" name="sessionId" value={session.id} /><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Pause session</button></form><form action={finishTrainingSession}>
                 <input type="hidden" name="sessionId" value={session.id} />
-                <button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Finish session</button>
-              </form>
-            )}
+                <button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Finish session</button></form></>)}
+            {session.status === "PAUSED" && (<><form action={resumeTrainingSession}><input type="hidden" name="sessionId" value={session.id} /><button className="rounded-xl bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-white">Resume session</button></form><form action={finishTrainingSession}><input type="hidden" name="sessionId" value={session.id} /><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Finish session</button></form></>)}
           </div>
         </div>
 
