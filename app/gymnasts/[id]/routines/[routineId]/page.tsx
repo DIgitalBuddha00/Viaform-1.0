@@ -4,15 +4,20 @@ import {
   addRoutineCustomItem,
   addRoutineElement,
   addRoutineVault,
+  addRoutineSection,
+  assignRoutineItemSection,
   archiveGymnastRoutine,
   moveRoutineCustomItem,
   moveRoutineElement,
+  moveRoutineSection,
   removeRoutineCustomItem,
   removeRoutineElement,
   removeRoutineVault,
+  removeRoutineSection,
   updateRoutineContext,
   updateRoutineCustomItem,
   updateRoutineElement,
+  updateRoutineSection,
   updateRoutineVault,
 } from "@/app/actions/routines";
 import { requireAuthContext } from "@/app/lib/auth";
@@ -50,6 +55,7 @@ export default async function RoutineWorkspace({
           elements: { include: { elementDefinition: true }, orderBy: { orderIndex: "asc" } },
           vaults: { include: { vaultDefinition: true }, orderBy: { orderIndex: "asc" } },
           customItems: { orderBy: { orderIndex: "asc" } },
+          sections: { orderBy: { orderIndex: "asc" } },
         },
       },
     },
@@ -252,6 +258,37 @@ export default async function RoutineWorkspace({
             <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <p className="text-sm font-semibold text-[var(--muted)]">Build</p>
               <h2 className="mt-1 text-xl font-semibold">Routine sequence</h2>
+              <div className="mt-4 rounded-xl border border-[var(--border)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">Routine structure</p><span className="text-xs text-[var(--muted)]">{routine.sections.length} section{routine.sections.length === 1 ? "" : "s"}</span></div>
+                <div className="mt-3 grid gap-2">
+                  {routine.sections.map((section, index) => (
+                    <details key={section.id} className="rounded-lg border border-[var(--border)] p-3">
+                      <summary className="cursor-pointer text-sm font-semibold">{index + 1}. {section.title} · {section.sectionType.replaceAll("_", " ").toLowerCase()}</summary>
+                      <form action={updateRoutineSection} className="mt-3 grid gap-2">
+                        <input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="sectionId" value={section.id}/>
+                        <div className="grid gap-2 sm:grid-cols-2"><input name="title" defaultValue={section.title} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><select name="sectionType" defaultValue={section.sectionType} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm">{(routine.apparatus === "FLOOR" ? ["DANCE_PASSAGE","ACRO_LINE","CHOREOGRAPHY","TRANSITION","OTHER"] : routine.apparatus === "BEAM" ? ["ACRO_SERIES","DANCE_SERIES","MIXED_SERIES","CHOREOGRAPHY","TRANSITION","DISMOUNT","OTHER"] : ["SEQUENCE","CONNECTION","TRANSITION","FLIGHT","DISMOUNT","OTHER"]).map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select></div>
+                        {(routine.apparatus === "FLOOR" || routine.apparatus === "BEAM") && <div className="grid grid-cols-2 gap-2"><input type="number" step="0.1" min="0" name="startTimeSec" defaultValue={section.startTimeSec ?? ""} placeholder="Start sec" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><input type="number" step="0.1" min="0" name="endTimeSec" defaultValue={section.endTimeSec ?? ""} placeholder="End sec" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/></div>}
+                        {routine.apparatus === "FLOOR" && <><div className="grid grid-cols-2 gap-2"><input name="musicCue" defaultValue={section.musicCue ?? ""} placeholder="Music cue" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><input name="direction" defaultValue={section.direction ?? ""} placeholder="Direction" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/></div></>}
+                        {routine.apparatus === "BEAM" && <div className="grid grid-cols-2 gap-2"><input name="startPosition" defaultValue={section.startPosition ?? ""} placeholder="Start position" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><input name="endPosition" defaultValue={section.endPosition ?? ""} placeholder="End position" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/></div>}
+                        {routine.apparatus === "BARS" && <div className="grid grid-cols-2 gap-2"><select name="startRail" defaultValue={section.startRail ?? ""} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"><option value="">Start rail</option><option value="LOW">Low rail</option><option value="HIGH">High rail</option></select><select name="endRail" defaultValue={section.endRail ?? ""} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"><option value="">End rail</option><option value="LOW">Low rail</option><option value="HIGH">High rail</option></select></div>}
+                        <div className="grid grid-cols-2 gap-2"><input name="rhythm" defaultValue={section.rhythm ?? ""} placeholder="Rhythm / tempo" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><input name="facing" defaultValue={section.facing ?? ""} placeholder="Facing" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/></div>
+                        <textarea name="notes" defaultValue={section.notes ?? ""} placeholder="Section notes" className="min-h-20 rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/>
+                        <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save section</button>
+                      </form>
+                      <div className="mt-2 flex gap-2">
+                        <form action={moveRoutineSection}><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="sectionId" value={section.id}/><input type="hidden" name="direction" value="UP"/><button disabled={index === 0} className="text-xs font-semibold disabled:opacity-30">Move up</button></form>
+                        <form action={moveRoutineSection}><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="sectionId" value={section.id}/><input type="hidden" name="direction" value="DOWN"/><button disabled={index === routine.sections.length - 1} className="text-xs font-semibold disabled:opacity-30">Move down</button></form>
+                        <form action={removeRoutineSection}><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="sectionId" value={section.id}/><button className="text-xs font-semibold text-[var(--muted)]">Remove</button></form>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+                <form action={addRoutineSection} className="mt-3 grid gap-2 sm:grid-cols-[1fr_180px_auto]">
+                  <input type="hidden" name="routineId" value={routine.id}/><input name="title" placeholder="Section title" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/>
+                  <select name="sectionType" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm">{(routine.apparatus === "FLOOR" ? ["DANCE_PASSAGE","ACRO_LINE","CHOREOGRAPHY","TRANSITION","OTHER"] : routine.apparatus === "BEAM" ? ["ACRO_SERIES","DANCE_SERIES","MIXED_SERIES","CHOREOGRAPHY","TRANSITION","DISMOUNT","OTHER"] : ["SEQUENCE","CONNECTION","TRANSITION","FLIGHT","DISMOUNT","OTHER"]).map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select>
+                  <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add section</button>
+                </form>
+              </div>
               <div className="mt-4 grid gap-2">
                 {routine.elements.map((item, index) => (
                   <div key={item.id} className="rounded-xl border border-[var(--border)] p-3">
@@ -262,6 +299,7 @@ export default async function RoutineWorkspace({
                         <p className="mt-1 text-sm text-[var(--muted)]">{item.elementDefinition.name}</p>
                         <p className="mt-1 text-xs text-[var(--muted)]">{item.elementDefinition.groupName}</p>
                         {linkedEvidence.has(item.id) && <p className="mt-2 text-xs font-semibold">{linkedEvidence.get(item.id)!.total} recent linked observations · {linkedEvidence.get(item.id)!.made} made · {linkedEvidence.get(item.id)!.spotted} spotted · {linkedEvidence.get(item.id)!.missed} missed</p>}
+                        {routine.sections.length > 0 && <form action={assignRoutineItemSection} className="mt-2 flex items-center gap-2"><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/><input type="hidden" name="itemType" value="ELEMENT"/><select name="sectionId" defaultValue={item.sectionId ?? ""} className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs"><option value="">No section</option>{routine.sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select><button className="text-xs font-semibold">Set section</button></form>}
                       </div>
                       <div className="flex gap-1">
                         <form action={moveRoutineElement}><input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="itemId" value={item.id}/><input type="hidden" name="direction" value="UP"/><button disabled={index === 0} className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs disabled:opacity-30">↑</button></form>

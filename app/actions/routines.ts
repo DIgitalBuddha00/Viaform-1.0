@@ -330,3 +330,105 @@ export async function moveRoutineCustomItem(data: FormData) {
   ]);
   revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
 }
+
+
+const SECTION_TYPES: Record<string, string[]> = {
+  FLOOR: ["DANCE_PASSAGE", "ACRO_LINE", "CHOREOGRAPHY", "TRANSITION", "OTHER"],
+  BEAM: ["ACRO_SERIES", "DANCE_SERIES", "MIXED_SERIES", "CHOREOGRAPHY", "TRANSITION", "DISMOUNT", "OTHER"],
+  BARS: ["SEQUENCE", "CONNECTION", "TRANSITION", "FLIGHT", "DISMOUNT", "OTHER"],
+};
+
+export async function addRoutineSection(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  if (!routine || routine.apparatus === "VAULT") return;
+  const sectionType = value(data, "sectionType") || "OTHER";
+  if (!(SECTION_TYPES[routine.apparatus] ?? ["OTHER"]).includes(sectionType)) return;
+  const last = await prisma.routineSection.findFirst({ where: { routineId: routine.id }, orderBy: { orderIndex: "desc" }, select: { orderIndex: true } });
+  await prisma.routineSection.create({ data: {
+    routineId: routine.id,
+    sectionType,
+    title: value(data, "title") || sectionType.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (match) => match.toUpperCase()),
+    orderIndex: (last?.orderIndex ?? -1) + 1,
+  } });
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
+
+export async function updateRoutineSection(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  if (!routine || routine.apparatus === "VAULT") return;
+  const section = await prisma.routineSection.findFirst({ where: { id: value(data, "sectionId"), routineId: routine.id } });
+  const sectionType = value(data, "sectionType") || section?.sectionType;
+  if (!section || !sectionType || !(SECTION_TYPES[routine.apparatus] ?? ["OTHER"]).includes(sectionType)) return;
+  const numberOrNull = (key: string) => {
+    const raw = value(data, key);
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  await prisma.routineSection.update({ where: { id: section.id }, data: {
+    sectionType,
+    title: value(data, "title") || section.title,
+    startTimeSec: numberOrNull("startTimeSec"),
+    endTimeSec: numberOrNull("endTimeSec"),
+    startX: numberOrNull("startX"),
+    startY: numberOrNull("startY"),
+    endX: numberOrNull("endX"),
+    endY: numberOrNull("endY"),
+    startRail: value(data, "startRail") || null,
+    endRail: value(data, "endRail") || null,
+    startPosition: value(data, "startPosition") || null,
+    endPosition: value(data, "endPosition") || null,
+    facing: value(data, "facing") || null,
+    direction: value(data, "direction") || null,
+    rhythm: value(data, "rhythm") || null,
+    musicCue: value(data, "musicCue") || null,
+    notes: value(data, "notes") || null,
+  } });
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
+
+export async function moveRoutineSection(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  if (!routine) return;
+  const section = await prisma.routineSection.findFirst({ where: { id: value(data, "sectionId"), routineId: routine.id } });
+  const direction = value(data, "direction");
+  if (!section || !["UP", "DOWN"].includes(direction)) return;
+  const other = await prisma.routineSection.findFirst({
+    where: { routineId: routine.id, orderIndex: direction === "UP" ? { lt: section.orderIndex } : { gt: section.orderIndex } },
+    orderBy: { orderIndex: direction === "UP" ? "desc" : "asc" },
+  });
+  if (!other) return;
+  await prisma.$transaction([
+    prisma.routineSection.update({ where: { id: section.id }, data: { orderIndex: -1 } }),
+    prisma.routineSection.update({ where: { id: other.id }, data: { orderIndex: section.orderIndex } }),
+    prisma.routineSection.update({ where: { id: section.id }, data: { orderIndex: other.orderIndex } }),
+  ]);
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
+
+export async function removeRoutineSection(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  if (!routine) return;
+  await prisma.routineSection.deleteMany({ where: { id: value(data, "sectionId"), routineId: routine.id } });
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
+
+export async function assignRoutineItemSection(data: FormData) {
+  const c = await context();
+  const routine = await visibleRoutine(value(data, "routineId"), c);
+  if (!routine || routine.apparatus === "VAULT") return;
+  const sectionId = value(data, "sectionId") || null;
+  if (sectionId && !await prisma.routineSection.findFirst({ where: { id: sectionId, routineId: routine.id } })) return;
+  const itemId = value(data, "itemId");
+  const itemType = value(data, "itemType");
+  if (itemType === "ELEMENT") {
+    await prisma.gymnastRoutineElement.updateMany({ where: { id: itemId, routineId: routine.id }, data: { sectionId } });
+  } else if (itemType === "CUSTOM") {
+    await prisma.gymnastRoutineCustomItem.updateMany({ where: { id: itemId, routineId: routine.id }, data: { sectionId } });
+  } else return;
+  revalidatePath("/gymnasts/" + routine.gymnastId + "/routines/" + routine.id);
+}
