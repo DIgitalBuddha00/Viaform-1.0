@@ -25,6 +25,7 @@ model User {
   memberships OrganisationMembership[]
   sessions    AuthSession[]
   athletePortalAccesses AthletePortalAccess[]
+  acceptedStaffInvitations StaffInvitation[] @relation("StaffInvitationAcceptedBy")
 }
 
 model Organisation {
@@ -57,6 +58,7 @@ model Organisation {
   trainingPlans TrainingPlan[]
   clubRotationPlans ClubRotationPlan[]
   extensionSkills ViaformSkill[]
+  staffInvitations StaffInvitation[]
 }
 
 model OrganisationMembership {
@@ -99,6 +101,30 @@ model OrganisationMembership {
   @@unique([userId, organisationId])
   @@index([organisationId, isActive])
   @@index([userId, isActive])
+}
+
+model StaffInvitation {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  email                 String
+  displayName           String?
+  tokenHash             String   @unique
+  isAdministrator       Boolean  @default(false)
+  coachingRoles         String   @default("[]")
+  delegatedCapabilities String   @default("[]")
+  status                String   @default("PENDING")
+  expiresAt             DateTime
+  acceptedAt            DateTime?
+  acceptedByUserId      String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  acceptedBy User? @relation("StaffInvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, email, status])
+  @@index([organisationId, status, expiresAt])
+  @@index([email, status, expiresAt])
 }
 
 model MembershipPresentationPreference {
