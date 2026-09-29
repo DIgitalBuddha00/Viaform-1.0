@@ -225,7 +225,12 @@ export async function updateSessionBlock(data: FormData) {
   if (!session || !block) return;
   const title = value(data, "title");
   const category = value(data, "category");
-  const apparatusValue = value(data, "apparatus");
+  let apparatusValue = value(data, "apparatus");
+  const assignment = await prisma.sessionBlockSpaceAssignment.findUnique({ where: { blockId }, include: { trainingSpace: true } });
+  if (!apparatusValue && assignment?.trainingSpace.apparatus) {
+    const mapped: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE", CONDITIONING: "PHYSICAL_PREPARATION" };
+    apparatusValue = mapped[assignment.trainingSpace.apparatus] ?? "";
+  }
   const durationRaw = value(data, "durationMin");
   const durationMin = durationRaw ? Number(durationRaw) : null;
   const targetGymnastId = value(data, "targetGymnastId") || null;
