@@ -463,7 +463,22 @@ export default async function RoutineWorkspace({
           <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_340px]">
             <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <p className="text-sm font-semibold text-[var(--muted)]">Build</p>
-              <h2 className="mt-1 text-xl font-semibold">Vault selection</h2>
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div><h2 className="mt-1 text-xl font-semibold">Vault programme</h2><p className="mt-1 text-sm text-[var(--muted)]">{routine.vaultMode === "TWO_VAULT" ? "Two-vault programme" : "One-vault programme"} · coach-owned selection</p></div>
+                <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold">{routine.rulesetLevelName ?? routine.rulesetLevelCode ?? "Ruleset context not saved"}</span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {["PRIMARY","SECONDARY"].map((role) => {
+                  const canonical = routine.vaults.find((item) => item.role === role);
+                  const custom = routine.customItems.find((item) => item.role === role);
+                  const required = role === "PRIMARY" || routine.vaultMode === "TWO_VAULT";
+                  return <div key={role} className="rounded-xl border border-[var(--border)] p-4">
+                    <span className="text-xs font-semibold text-[var(--muted)]">{role === "PRIMARY" ? "Primary vault" : "Secondary vault"}</span>
+                    {canonical ? <><p className="mt-2 font-semibold">{canonical.vaultDefinition.officialNumber}{canonical.vaultDefinition.variantKey !== "a" ? canonical.vaultDefinition.variantKey : ""} · D {canonical.vaultDefinition.dValue.toFixed(1)}</p><p className="mt-1 text-sm">{canonical.vaultDefinition.name}</p><p className="mt-1 text-xs text-[var(--muted)]">Group {canonical.vaultDefinition.groupNumber} · {canonical.vaultDefinition.secondFlightDirection.toLowerCase()}</p></> : custom ? <><p className="mt-2 font-semibold">{custom.label}</p><p className="mt-1 text-xs text-[var(--muted)]">Coach-authored · canonical identity not assigned</p></> : <p className="mt-2 text-sm text-[var(--muted)]">{required ? "Not selected yet" : "Not required for this one-vault programme"}</p>}
+                  </div>;
+                })}
+              </div>
+              <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Programme mode records the coach’s intended vault structure. Competition qualification/final requirements remain part of verified rules context and are not inferred from this selection alone.</p>
               <div className="mt-4 grid gap-3">
                 {routine.vaults.map((item) => (
                   <div key={item.id} className="rounded-xl border border-[var(--border)] p-4">
