@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
-import { finishTestingSession, pauseTestingSession, resumeTestingSession } from "@/app/actions/testing";
+import { finishTestingSession, pauseTestingSession, reopenTestingSession, resumeTestingSession } from "@/app/actions/testing";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
@@ -21,7 +21,7 @@ export default async function TestingSessionPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ metric?: string }>;
+  searchParams: Promise<{ metric?: string; edit?: string }>;
 }) {
   const c = await requireAuthContext();
   if (!c.access.canUseCoachingWorkspace) notFound();
@@ -58,7 +58,9 @@ export default async function TestingSessionPage({
   const selectedMetric = availableMetrics.find((metric) => metric.id === query.metric) ?? availableMetrics[0] ?? null;
   const metricResults = selectedMetric ? session.results.filter((result) => result.metricId === selectedMetric.id) : [];
   const completedCount = metricResults.length;
-  const isLive = session.status === "IN_PROGRESS";
+  const gymnastPointTotals=new Map<string,number>();session.results.forEach(r=>{if(r.pointsValue!==null)gymnastPointTotals.set(r.gymnastId,(gymnastPointTotals.get(r.gymnastId)??0)+r.pointsValue)});
+  const editingCompleted=session.status==="COMPLETED"&&query.edit==="1";
+  const isLive = session.status === "IN_PROGRESS" || editingCompleted;
   const canFinish = session.status === "IN_PROGRESS" || session.status === "PAUSED";
 
   return (
@@ -75,6 +77,8 @@ export default async function TestingSessionPage({
             <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status==="IN_PROGRESS"?"In progress":session.status.charAt(0)+session.status.slice(1).toLowerCase()}</span>
             {isLive && <form action={pauseTestingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Pause testing</button></form>}
             {session.status==="PAUSED"&&<form action={resumeTestingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Resume testing</button></form>}
+            {session.status==="COMPLETED"&&!editingCompleted&&<a href={"/testing/"+session.id+"?metric="+(selectedMetric?.id??"")+"&edit=1"} className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Edit results</a>}
+            {editingCompleted&&<form action={reopenTestingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Reopen session</button></form>}
             {canFinish && (
               <form action={finishTestingSession}>
                 <input type="hidden" name="sessionId" value={session.id} />
@@ -122,7 +126,7 @@ export default async function TestingSessionPage({
                       <article key={entry.gymnastId} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <a href={"/gymnasts/" + entry.gymnastId} className="font-semibold hover:underline">{entry.gymnast.name}</a>
-                          <span className="text-xs text-[var(--muted)]">{result ? "Recorded" : "Not yet assessed"}</span>
+                          <span className="text-xs text-[var(--muted)]">{result ? (result.pointsValue!==null?result.numberValue+" · "+result.pointsValue+" pts":"Recorded") : "Not yet assessed"}</span>
                         </div>
                         <TestingCapture
                           sessionId={session.id}
@@ -135,6 +139,7 @@ export default async function TestingSessionPage({
                           initialNote={result?.note ?? null}
                           scoringMode={selectedMetric.scoringMode}
                           initialPoints={result?.pointsValue ?? null}
+                          batteryPoints={session.batteryId?gymnastPointTotals.get(entry.gymnastId)??0:null}
                           disabled={!isLive || selectedMetric.status !== "ACTIVE"}
                         />
                       </article>

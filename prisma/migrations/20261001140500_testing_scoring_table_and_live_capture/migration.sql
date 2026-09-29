@@ -1,0 +1,2 @@
+ALTER TABLE "TestScoreBand" ADD COLUMN "ruleType" TEXT NOT NULL DEFAULT 'NUMERIC';
+ALTER TABLE "TestScoreBand" ADD COLUMN "criterionLabel" TEXT;

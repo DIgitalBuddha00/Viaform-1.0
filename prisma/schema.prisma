@@ -936,6 +936,8 @@ model TestScoreBand {
   minValue Float?
   maxValue Float?
   points Float
+  ruleType String @default("NUMERIC")
+  criterionLabel String?
   orderIndex Int @default(0)
   metric TestMetric @relation(fields:[metricId],references:[id],onDelete:Cascade)
   @@index([metricId,orderIndex])

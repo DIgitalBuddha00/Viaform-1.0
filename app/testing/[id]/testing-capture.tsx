@@ -14,6 +14,7 @@ type Props = {
   initialNote: string | null;
   scoringMode: string;
   initialPoints: number | null;
+  batteryPoints: number | null;
   disabled: boolean;
 };
 
@@ -63,6 +64,7 @@ export function TestingCapture(props: Props) {
       <input type="hidden" name="gymnastId" value={props.gymnastId} />
       <input type="hidden" name="metricId" value={props.metricId} />
       <input type="hidden" name="numberValue" value={value} />
+      {props.batteryPoints!==null&&<div className="testing-points-summary"><span>Battery points</span><strong>{props.batteryPoints}</strong></div>}
 
       {props.captureMode === "COUNTDOWN_TALLY" && (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -75,9 +77,9 @@ export function TestingCapture(props: Props) {
           </div>
           <div className="rounded-xl border border-[var(--border)] p-3 text-center">
             <div className="flex items-center justify-center gap-4">
-              <button type="button" disabled={props.disabled} onClick={() => tally(-1)} className="min-h-11 min-w-11 rounded-lg border border-[var(--border)] text-xl">−</button>
-              <strong className="min-w-12 text-3xl tabular-nums">{value || "0"}</strong>
-              <button type="button" disabled={props.disabled} onClick={() => tally(1)} className="min-h-11 min-w-11 rounded-lg border border-[var(--border)] text-xl">+</button>
+              <button type="button" disabled={props.disabled} onClick={() => tally(-1)} className="testing-tally-button">−</button>
+              <input aria-label="Tally result" disabled={props.disabled} type="number" min="0" step="1" inputMode="numeric" value={value} onChange={e=>setValue(e.target.value)} className="testing-tally-input"/>
+              <button type="button" disabled={props.disabled} onClick={() => tally(1)} className="testing-tally-button">+</button>
             </div>
             <p className="mt-2 text-xs text-[var(--muted)]">{props.unit || "repetitions"}</p>
           </div>
@@ -97,9 +99,9 @@ export function TestingCapture(props: Props) {
 
       {props.captureMode === "REPETITION_TALLY" && (
         <div className="flex items-center justify-center gap-4 rounded-xl border border-[var(--border)] p-3">
-          <button type="button" disabled={props.disabled} onClick={() => tally(-1)} className="min-h-12 min-w-12 rounded-lg border border-[var(--border)] text-xl">−</button>
-          <strong className="min-w-14 text-center text-3xl tabular-nums">{value || "0"}</strong>
-          <button type="button" disabled={props.disabled} onClick={() => tally(1)} className="min-h-12 min-w-12 rounded-lg border border-[var(--border)] text-xl">+</button>
+          <button type="button" disabled={props.disabled} onClick={() => tally(-1)} className="testing-tally-button">−</button>
+          <input aria-label="Tally result" disabled={props.disabled} type="number" min="0" step="1" inputMode="numeric" value={value} onChange={e=>setValue(e.target.value)} className="testing-tally-input"/>
+          <button type="button" disabled={props.disabled} onClick={() => tally(1)} className="testing-tally-button">+</button>
         </div>
       )}
 
@@ -111,7 +113,7 @@ export function TestingCapture(props: Props) {
       )}
 
       {props.scoringMode==="MANUAL"&&<label className="text-sm font-medium">Points<input name="pointsValue" disabled={props.disabled} type="number" step="any" inputMode="decimal" defaultValue={props.initialPoints??""} placeholder="Enter points from reference" className="mt-1 w-full rounded-xl border border-[var(--border)] px-3 py-3 text-lg"/></label>}
-      {props.scoringMode==="AUTOMATIC"&&<p className="text-xs text-[var(--muted)]">Points are assigned automatically from the saved point system when this result is recorded.</p>}
+      {props.scoringMode==="AUTOMATIC"&&<div className="testing-result-points">{props.initialPoints!==null?<><strong>{props.initialPoints} points</strong><span>Calculated from the saved point system</span></>:<span>Save the result to calculate points from the point system.</span>}</div>}
       <input name="note" disabled={props.disabled} defaultValue={props.initialNote ?? ""} placeholder="Coach context (optional)" className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm" />
       <button disabled={props.disabled || value === ""} className="rounded-xl bg-[var(--foreground)] px-4 py-3 text-sm font-semibold text-white">
         {props.initialValue === null ? "Save result" : "Update result"}
