@@ -320,6 +320,14 @@ export default async function RoutineWorkspace({
                   {routine.sections.map((section, index) => (
                     <details key={section.id} className="rounded-lg border border-[var(--border)] p-3">
                       <summary className="cursor-pointer text-sm font-semibold">{index + 1}. {section.title} · {section.sectionType.replaceAll("_", " ").toLowerCase()}</summary>
+                      <div className="mt-3 rounded-lg border border-[var(--border)] p-3">
+                        <p className="text-xs font-semibold text-[var(--muted)]">Section contents</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {routine.elements.filter((item) => item.sectionId === section.id).map((item) => <span key={item.id} className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{item.elementDefinition.officialNumber}{item.elementDefinition.variantKey !== "a" ? item.elementDefinition.variantKey : ""} · {item.elementDefinition.name}</span>)}
+                          {routine.customItems.filter((item) => item.sectionId === section.id).map((item) => <span key={item.id} className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{item.label}</span>)}
+                          {!routine.elements.some((item) => item.sectionId === section.id) && !routine.customItems.some((item) => item.sectionId === section.id) && <span className="text-xs text-[var(--muted)]">No routine items assigned yet.</span>}
+                        </div>
+                      </div>
                       <form action={updateRoutineSection} className="mt-3 grid gap-2">
                         <input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="sectionId" value={section.id}/>
                         <div className="grid gap-2 sm:grid-cols-2"><input name="title" defaultValue={section.title} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><select name="sectionType" defaultValue={section.sectionType} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm">{(routine.apparatus === "FLOOR" ? ["DANCE_PASSAGE","ACRO_LINE","CHOREOGRAPHY","TRANSITION","OTHER"] : routine.apparatus === "BEAM" ? ["ACRO_SERIES","DANCE_SERIES","MIXED_SERIES","CHOREOGRAPHY","TRANSITION","DISMOUNT","OTHER"] : ["SEQUENCE","CONNECTION","TRANSITION","FLIGHT","DISMOUNT","OTHER"]).map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select></div>
