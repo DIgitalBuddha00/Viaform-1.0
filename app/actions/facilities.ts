@@ -203,13 +203,15 @@ export async function assignGroupFacility(data: FormData) {
   const context = await coachingContext();
   const trainingGroupId = value(data, "groupId");
   const locationId = value(data, "locationId");
-  const group = await prisma.trainingGroup.findFirst({
-    where: {
-      id: trainingGroupId,
-      ...groupScopeWhere(context.organisation.id, context.membership.id, context.access),
-    },
-  });
-  const location = await locationInOrganisation(locationId, context.organisation.id);
+  const [group, location] = await Promise.all([
+    prisma.trainingGroup.findFirst({
+      where: {
+        id: trainingGroupId,
+        ...groupScopeWhere(context.organisation.id, context.membership.id, context.access),
+      },
+    }),
+    locationInOrganisation(locationId, context.organisation.id),
+  ]);
   if (!group || !location) return;
   await prisma.trainingGroupFacility.upsert({
     where: { trainingGroupId },
@@ -237,8 +239,10 @@ export async function assignSessionFacility(data: FormData) {
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");
   const locationId = value(data, "locationId");
-  const session = await visibleSession(sessionId, context);
-  const location = await locationInOrganisation(locationId, context.organisation.id);
+  const [session, location] = await Promise.all([
+    visibleSession(sessionId, context),
+    locationInOrganisation(locationId, context.organisation.id),
+  ]);
   if (!session || !location) return;
   const current = await prisma.trainingSessionFacility.findUnique({ where: { sessionId } });
   if (current && current.locationId !== locationId) {

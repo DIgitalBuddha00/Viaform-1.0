@@ -122,11 +122,12 @@ export async function recordTrainingEvidence(data: FormData) {
     }),
   ]);
   if (!block || !gymnast || (block.targetGymnastId && block.targetGymnastId !== gymnastId)) return;
-  const station = stationId
-    ? await prisma.sessionStation.findFirst({ where: { id: stationId, blockId } })
-    : null;
+  const [station, workItem] = await Promise.all([
+    stationId ? prisma.sessionStation.findFirst({ where: { id: stationId, blockId } }) : Promise.resolve(null),
+    workItemId ? prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId},include:{trainingResource:true,landingResource:true}}) : Promise.resolve(null),
+  ]);
   if (stationId && !station) return;
-  const workItem=workItemId?await prisma.sessionBlockWorkItem.findFirst({where:{id:workItemId,blockId},include:{trainingResource:true,landingResource:true}}):null;if(workItemId&&!workItem)return;if(workItem?.targetGymnastId&&workItem.targetGymnastId!==gymnastId)return;if(station?.workItemId&&workItemId!==station.workItemId)return;
+  if(workItemId&&!workItem)return;if(workItem?.targetGymnastId&&workItem.targetGymnastId!==gymnastId)return;if(station?.workItemId&&workItemId!==station.workItemId)return;
   if ([routineElementId, routineVaultId, routineCustomItemId].filter(Boolean).length > 1) return;
 
   const routineApparatus: Record<string, string> = {

@@ -48,12 +48,12 @@ export async function createCompetitionEvent(data: FormData) {
 
 export async function addCompetitionEntry(data: FormData) {
   const c = await context();
-  const event = await visibleEvent(value(data, "eventId"), c);
   const gymnastId = value(data, "gymnastId");
+  const [event, gymnast] = await Promise.all([
+    visibleEvent(value(data, "eventId"), c),
+    prisma.gymnast.findFirst({ where: { id: gymnastId, ...gymnastScopeWhere(c.organisation.id, c.membership.id, c.access) } }),
+  ]);
   if (!event || event.status !== "PLANNED") return;
-  const gymnast = await prisma.gymnast.findFirst({
-    where: { id: gymnastId, ...gymnastScopeWhere(c.organisation.id, c.membership.id, c.access) },
-  });
   if (!gymnast) return;
   const rules = await getGymnastRulesContext(gymnast.id, c.organisation.id);
 
