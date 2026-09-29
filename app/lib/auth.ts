@@ -52,21 +52,27 @@ export async function destroySession() {
 export async function setActiveMembership(membershipId:string|null){const jar=await cookies();if(membershipId)jar.set(ACTIVE_MEMBERSHIP_COOKIE,membershipId,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/"});else jar.delete(ACTIVE_MEMBERSHIP_COOKIE);}
 
 export async function currentAuthContext() {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const jar=await cookies(),token=jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  const session = await prisma.authSession.findUnique({
-    where: { tokenHash: tokenHash(token) },
-    include: { user: { include: { memberships: { where: { isActive: true }, include: { organisation: true }, orderBy: { joinedAt: "asc" } } } } },
-  }).catch(() => null);
-  if (!session || session.expiresAt <= new Date() || !session.user.isActive) return null;
-  const ownerMembership = session.user.memberships.find((m) => m.organisationId === session.organisationId) ?? session.user.memberships[0];
-  if (!ownerMembership) return null;
-  const requested=(await cookies()).get(ACTIVE_MEMBERSHIP_COOKIE)?.value;
-  if(requested){
-    const activeMembership=await prisma.organisationMembership.findFirst({where:{id:requested,organisationId:ownerMembership.organisationId,isActive:true},include:{user:true,organisation:true}});
-    if(activeMembership)return {user:activeMembership.user,loginUser:session.user,ownerMembership,membership:activeMembership,organisation:activeMembership.organisation,access:resolveAccessProfile(activeMembership)};
-  }
-  return {user:session.user,loginUser:session.user,ownerMembership,membership:ownerMembership,organisation:ownerMembership.organisation,access:resolveAccessProfile(ownerMembership)};
+  const requested=jar.get(ACTIVE_MEMBERSHIP_COOKIE)?.value;
+  const session=await prisma.authSession.findUnique({
+    where:{tokenHash:tokenHash(token)},
+    select:{
+      expiresAt:true,organisationId:true,
+      user:{select:{id:true,email:true,displayName:true,isActive:true}},
+      organisation:{select:{id:true,name:true,slug:true}},
+    },
+  }).catch(()=>null);
+  if(!session||session.expiresAt<=new Date()||!session.user.isActive||!session.organisationId||!session.organisation)return null;
+  const memberships=await prisma.organisationMembership.findMany({
+    where:{organisationId:session.organisationId,isActive:true,...(requested?{OR:[{id:requested},{userId:session.user.id}]}:{userId:session.user.id})},
+    include:{user:true,organisation:true},
+    take:requested?2:1,
+  });
+  const ownerMembership=memberships.find(m=>m.userId===session.user.id);
+  if(!ownerMembership)return null;
+  const activeMembership=requested?memberships.find(m=>m.id===requested)??ownerMembership:ownerMembership;
+  return {user:activeMembership.user,loginUser:session.user,ownerMembership,membership:activeMembership,organisation:activeMembership.organisation,access:resolveAccessProfile(activeMembership)};
 }
 
 export async function requireAuthContext() {
