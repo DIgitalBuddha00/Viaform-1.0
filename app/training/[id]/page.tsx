@@ -6,6 +6,8 @@ import {
   resumeTrainingSession,
   markAllTrainingPresent,
   recordTrainingAttendance,
+  setLeavingEarly,
+  recordTrainingCheckIn,
   recordTrainingEvidence,
   reopenTrainingSession,
   startTrainingSession,
@@ -59,6 +61,7 @@ export default async function LiveTrainingSessionPage({
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
       evidence: { orderBy: { recordedAt: "asc" } },
       attendance: true,
+      checkIns: true,
       facilityAssignment: { include: { location: true } },
     },
   });
@@ -83,7 +86,7 @@ export default async function LiveTrainingSessionPage({
   const spotted = blockEvidence.filter((entry) => entry.outcome === "SPOTTED").length;
   const balked = blockEvidence.filter((entry) => entry.outcome === "BALK").length;
   const isLive = session.status === "IN_PROGRESS";
-  const attendanceByGymnast = new Map(session.attendance.map((entry) => [entry.gymnastId, entry.status]));
+  const attendanceByGymnast = new Map(session.attendance.map((entry) => [entry.gymnastId, entry]));
   const presentCount = session.attendance.filter((entry) => entry.status === "PRESENT" || entry.status === "LATE").length;
   const routineApparatusByTraining: Record<string, string> = {
     VAULT: "VAULT",
@@ -91,6 +94,7 @@ export default async function LiveTrainingSessionPage({
     BALANCE_BEAM: "BEAM",
     FLOOR_EXERCISE: "FLOOR",
   };
+  const guidedBlock = !!selectedBlock && ["WARM_UP","COOLDOWN"].includes(selectedBlock.category);
   const selectedRoutineApparatus = selectedBlock?.apparatus ? routineApparatusByTraining[selectedBlock.apparatus] : undefined;
   const currentRoutines = selectedRoutineApparatus && session.gymnasts.length
     ? await prisma.gymnastRoutine.findMany({
@@ -136,7 +140,7 @@ export default async function LiveTrainingSessionPage({
                 <button className="rounded-xl bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-white">Start session</button>
               </form>
             )}
-            {isLive && (<><form action={pauseTrainingSession}><input type="hidden" name="sessionId" value={session.id} /><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Pause session</button></form><form action={finishTrainingSession}>
+            {["PLANNED","IN_PROGRESS","PAUSED"].includes(session.status) && (<><form action={pauseTrainingSession}><input type="hidden" name="sessionId" value={session.id} /><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Pause session</button></form><form action={finishTrainingSession}>
                 <input type="hidden" name="sessionId" value={session.id} />
                 <button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Finish session</button></form></>)}
             {session.status === "PAUSED" && (<><form action={resumeTrainingSession}><input type="hidden" name="sessionId" value={session.id} /><button className="rounded-xl bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-white">Resume session</button></form><form action={finishTrainingSession}><input type="hidden" name="sessionId" value={session.id} /><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Finish session</button></form></>)}
@@ -152,7 +156,7 @@ export default async function LiveTrainingSessionPage({
                 <p className="font-semibold">Attendance</p>
                 <p className="mt-1 text-sm text-[var(--muted)]">{presentCount} present / late · {session.gymnasts.length} assigned</p>
               </div>
-              {isLive && <span className="text-sm font-semibold">Tap to record →</span>}
+              <span className="text-sm font-semibold">Arrival & check-in</span>
             </div>
           </summary>
           <div className="mt-4 border-t border-[var(--border)] pt-4">
@@ -164,15 +168,15 @@ export default async function LiveTrainingSessionPage({
             )}
             <div className="grid gap-2">
               {session.gymnasts.map((entry) => {
-                const status = attendanceByGymnast.get(entry.gymnastId) ?? "NOT_RECORDED";
+                const attendance = attendanceByGymnast.get(entry.gymnastId); const status = attendance?.status ?? "NOT_RECORDED";
                 return (
                   <div key={entry.gymnastId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-3 py-3">
                     <div>
                       <p className="font-medium">{entry.gymnast.name}</p>
                       <p className="mt-1 text-xs text-[var(--muted)]">{status.replaceAll("_", " ")}</p>
                     </div>
-                    {isLive && (
-                      <div className="flex flex-wrap gap-2">
+                    {["PLANNED","IN_PROGRESS","PAUSED"].includes(session.status) && (
+                      <div className="live-arrival-actions">
                         {(["PRESENT", "ABSENT", "LATE"] as const).map((attendanceStatus) => (
                           <form key={attendanceStatus} action={recordTrainingAttendance}>
                             <input type="hidden" name="sessionId" value={session.id} />
@@ -186,8 +190,9 @@ export default async function LiveTrainingSessionPage({
                             </button>
                           </form>
                         ))}
-                      </div>
+                      <form action={setLeavingEarly}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><button className={attendance?.leavingEarly?"is-selected":""}>Leaving early</button></form></div>
                     )}
+                    <div className="live-checkin"><span>How are you feeling?</span><div>{[["GREAT","Great"],["GOOD","Good"],["OKAY","Okay"],["LOW","Low"],["NOT_WELL","Not well"]].map(([v,l])=><form key={v} action={recordTrainingCheckIn}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="feeling" value={v}/><button>{l}</button></form>)}</div></div>
                   </div>
                 );
               })}
@@ -281,7 +286,7 @@ export default async function LiveTrainingSessionPage({
               </div>
             </article>
 
-            <div className="live-gymnast-board mt-5">
+            {guidedBlock ? <section className="live-guided-block mt-5"><h3>{selectedBlock.title}</h3><p>{selectedBlock.groupObjective||selectedBlock.notes||"Follow the planned sequence."}</p><div>{selectedWorkItems.map((item,i)=><div key={item.id} className="live-guided-item"><strong>{i+1}</strong><span>{item.title}{item.notes?" · "+item.notes:""}</span></div>)}</div></section> : <><div className="live-block-checkins mt-5"><h3>How are you feeling for {selectedBlock.title}?</h3><div className="live-gymnast-board">{session.gymnasts.map(entry=><div key={entry.gymnastId} className="live-block-checkin-card"><strong>{entry.gymnast.name}</strong><div>{[["CONFIDENT","Confident"],["OKAY","Okay"],["UNSURE","Unsure"],["NERVOUS","Nervous"]].map(([v,l])=><form key={v} action={recordTrainingCheckIn}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="confidence" value={v}/><button>{l}</button></form>)}</div></div>)}</div></div><div className="live-gymnast-board mt-5">
               {session.gymnasts.filter(entry=>!selectedBlock.targetGymnastId||entry.gymnastId===selectedBlock.targetGymnastId).map((entry) => {
                 const evidence = blockEvidence.filter((item) => item.gymnastId === entry.gymnastId);
                 const latest = evidence[evidence.length - 1];
@@ -290,7 +295,7 @@ export default async function LiveTrainingSessionPage({
                   <article key={entry.gymnastId} className="live-gymnast-card"><div className="grid gap-3">
                       <div>
                         <a href={"/gymnasts/" + entry.gymnastId} className="font-semibold hover:underline">{entry.gymnast.name}</a>
-                        <p className="mt-1 text-xs text-[var(--muted)]">Attendance: {(attendanceByGymnast.get(entry.gymnastId) ?? "NOT_RECORDED").replaceAll("_", " ")}</p>
+                        <p className="mt-1 text-xs text-[var(--muted)]">Attendance: {(attendanceByGymnast.get(entry.gymnastId)?.status ?? "NOT_RECORDED").replaceAll("_", " ")}</p>
                         <p className="mt-1 text-xs text-[var(--muted)]">
                           {evidence.length
                             ? evidence.length + " observations · latest " + outcomeLabel[latest.outcome]
@@ -382,7 +387,7 @@ export default async function LiveTrainingSessionPage({
                   </article>
                 );
               })}
-            </div>
+            </div></>}
 
             {!session.gymnasts.length && (
               <p className="mt-5 rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--muted)]">

@@ -190,6 +190,7 @@ model Gymnast {
   trainingPlans TrainingPlan[]
   trainingPlanItems TrainingPlanItem[]
   trainingPlanSkillTargets TrainingPlanSkillTarget[]
+  trainingCheckIns TrainingCheckIn[]
   sessionBlockWorkItems SessionBlockWorkItem[]
   targetedSessionBlocks SessionBlock[]
 
@@ -505,6 +506,7 @@ model TrainingSession {
   rotationAssignments SessionRotationAssignment[]
   evidence TrainingEvidence[]
   attendance TrainingAttendance[]
+  checkIns TrainingCheckIn[]
 
   @@index([organisationId, sessionDate])
   @@index([trainingGroupId, sessionDate])
@@ -547,6 +549,7 @@ model SessionBlock {
   resourceAssignments SessionBlockResource[]
   rotationAssignments SessionRotationAssignment[]
   evidence TrainingEvidence[]
+  checkIns TrainingCheckIn[]
   stations SessionStation[]
   workItems SessionBlockWorkItem[]
 
@@ -817,10 +820,27 @@ model TrainingAttendance {
   session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
   recordedBy OrganisationMembership @relation(fields: [recordedByMembershipId], references: [id], onDelete: Restrict)
+  leavingEarly Boolean @default(false)
 
   @@id([sessionId, gymnastId])
   @@index([gymnastId, recordedAt])
   @@index([recordedByMembershipId, recordedAt])
+}
+
+model TrainingCheckIn {
+  id String @id @default(cuid())
+  sessionId String
+  blockId String?
+  gymnastId String
+  feeling String?
+  confidence String?
+  recordedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  session TrainingSession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
+  block SessionBlock? @relation(fields:[blockId],references:[id],onDelete:Cascade)
+  gymnast Gymnast @relation(fields:[gymnastId],references:[id],onDelete:Cascade)
+  @@unique([sessionId,blockId,gymnastId])
+  @@index([gymnastId,recordedAt])
 }
 
 model TestMetric {

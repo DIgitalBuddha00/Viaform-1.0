@@ -8,6 +8,8 @@ import { groupScopeWhere } from "@/app/lib/coaching-scope";
 
 const OUTCOMES = ["MADE", "MISSED", "SPOTTED", "BALK"] as const;
 const ATTENDANCE = ["PRESENT", "ABSENT", "LATE"] as const;
+const FEELINGS=["GREAT","GOOD","OKAY","LOW","NOT_WELL"] as const;
+const CONFIDENCE=["CONFIDENT","OKAY","UNSURE","NERVOUS"] as const;
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
 
 async function coachingContext() {
@@ -231,7 +233,7 @@ export async function recordTrainingAttendance(data: FormData) {
   if (!ATTENDANCE.includes(status as (typeof ATTENDANCE)[number])) return;
 
   const session = await visibleSession(sessionId, context);
-  if (!session || session.status !== "IN_PROGRESS") return;
+  if (!session || !["PLANNED","IN_PROGRESS","PAUSED"].includes(session.status)) return;
   const assigned = await prisma.trainingSessionGymnast.findUnique({
     where: { sessionId_gymnastId: { sessionId, gymnastId } },
   });
@@ -254,11 +256,15 @@ export async function recordTrainingAttendance(data: FormData) {
   revalidatePath("/training/" + sessionId);
 }
 
+export async function setLeavingEarly(data:FormData){const context=await coachingContext(),sessionId=value(data,"sessionId"),gymnastId=value(data,"gymnastId");const session=await visibleSession(sessionId,context);if(!session||!["PLANNED","IN_PROGRESS","PAUSED"].includes(session.status))return;const existing=await prisma.trainingAttendance.findUnique({where:{sessionId_gymnastId:{sessionId,gymnastId}}});if(existing)await prisma.trainingAttendance.update({where:{sessionId_gymnastId:{sessionId,gymnastId}},data:{leavingEarly:!existing.leavingEarly}});else await prisma.trainingAttendance.create({data:{sessionId,gymnastId,status:"NOT_RECORDED",leavingEarly:true,recordedByMembershipId:context.membership.id}});revalidatePath("/training/"+sessionId);}
+
+export async function recordTrainingCheckIn(data:FormData){const context=await coachingContext(),sessionId=value(data,"sessionId"),gymnastId=value(data,"gymnastId"),blockId=value(data,"blockId")||null,feeling=value(data,"feeling")||null,confidence=value(data,"confidence")||null;const session=await visibleSession(sessionId,context);if(!session||!["PLANNED","IN_PROGRESS","PAUSED"].includes(session.status))return;if(feeling&&!FEELINGS.includes(feeling as any))return;if(confidence&&!CONFIDENCE.includes(confidence as any))return;const assigned=await prisma.trainingSessionGymnast.findUnique({where:{sessionId_gymnastId:{sessionId,gymnastId}}});if(!assigned)return;if(blockId&&!await prisma.sessionBlock.findFirst({where:{id:blockId,sessionId}}))return;const existing=await prisma.trainingCheckIn.findFirst({where:{sessionId,blockId,gymnastId}});if(existing)await prisma.trainingCheckIn.update({where:{id:existing.id},data:{feeling,confidence}});else await prisma.trainingCheckIn.create({data:{sessionId,blockId,gymnastId,feeling,confidence}});revalidatePath("/training/"+sessionId);}
+
 export async function markAllTrainingPresent(data: FormData) {
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");
   const session = await visibleSession(sessionId, context);
-  if (!session || session.status !== "IN_PROGRESS") return;
+  if (!session || !["PLANNED","IN_PROGRESS","PAUSED"].includes(session.status)) return;
 
   const assigned = await prisma.trainingSessionGymnast.findMany({
     where: { sessionId },
