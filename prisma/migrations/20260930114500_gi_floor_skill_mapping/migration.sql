@@ -59,13 +59,23 @@ INSERT OR IGNORE INTO "RulesetLevelSkill" ("id","levelId","skillId","role","note
 ('gi_floor_p5_backrollhs','canonical_gi_wag_plus_5','gi_skill_floor_backward_roll_handstand','REQUIRED','Prescribed routine.',CURRENT_TIMESTAMP);
 
 -- Explicit repeated sequence: Plus 2/3 Split Leap → Chassé → Split Leap.
+-- Resolve FIG Split Leap through its stable canonical key; never assume a physical ViaformSkill row id.
+INSERT OR IGNORE INTO "RulesetRoutineRequirement" ("id","levelId","apparatus","skillId","sequenceIndex","repetitions","occurrenceContext","sourcePackageId","sourcePage","notes")
+SELECT 'gi_req_p2_floor_split1','canonical_gi_wag_plus_2','FLOOR',"id",30,1,NULL,'canonical_gi_wag_plus_2025_plus_v4_2026_02',21,'First Split Leap occurrence.'
+FROM "ViaformSkill" WHERE "canonicalKey"='FIG:ELEMENT:FLOOR:1.101:a';
 INSERT OR IGNORE INTO "RulesetRoutineRequirement" ("id","levelId","apparatus","skillId","sequenceIndex","repetitions","occurrenceContext","sourcePackageId","sourcePage","notes") VALUES
-('gi_req_p2_floor_split1','canonical_gi_wag_plus_2','FLOOR','fig_element_fig25_fx_1_101_a',30,1,NULL,'canonical_gi_wag_plus_2025_plus_v4_2026_02',21,'First Split Leap occurrence.'),
-('gi_req_p2_floor_chasse','canonical_gi_wag_plus_2','FLOOR','gi_skill_floor_chasse',31,1,'CONNECTED_SEQUENCE','canonical_gi_wag_plus_2025_plus_v4_2026_02',21,NULL),
-('gi_req_p2_floor_split2','canonical_gi_wag_plus_2','FLOOR','fig_element_fig25_fx_1_101_a',32,1,'CONNECTED_SEQUENCE','canonical_gi_wag_plus_2025_plus_v4_2026_02',21,'Second Split Leap occurrence; same stable skill identity.'),
-('gi_req_p3_floor_split1','canonical_gi_wag_plus_3','FLOOR','fig_element_fig25_fx_1_101_a',30,1,NULL,'canonical_gi_wag_plus_2025_plus_v4_2026_02',22,'First Split Leap occurrence.'),
-('gi_req_p3_floor_chasse','canonical_gi_wag_plus_3','FLOOR','gi_skill_floor_chasse',31,1,'CONNECTED_SEQUENCE','canonical_gi_wag_plus_2025_plus_v4_2026_02',22,NULL),
-('gi_req_p3_floor_split2','canonical_gi_wag_plus_3','FLOOR','fig_element_fig25_fx_1_101_a',32,1,'CONNECTED_SEQUENCE','canonical_gi_wag_plus_2025_plus_v4_2026_02',22,'Second Split Leap occurrence; same stable skill identity.');
+('gi_req_p2_floor_chasse','canonical_gi_wag_plus_2','FLOOR','gi_skill_floor_chasse',31,1,'CONNECTED_SEQUENCE','canonical_gi_wag_plus_2025_plus_v4_2026_02',21,NULL);
+INSERT OR IGNORE INTO "RulesetRoutineRequirement" ("id","levelId","apparatus","skillId","sequenceIndex","repetitions","occurrenceContext","sourcePackageId","sourcePage","notes")
+SELECT 'gi_req_p2_floor_split2','canonical_gi_wag_plus_2','FLOOR',"id",32,1,'CONNECTED_SEQUENCE','canonical_gi_wag_plus_2025_plus_v4_2026_02',21,'Second Split Leap occurrence; same stable skill identity.'
+FROM "ViaformSkill" WHERE "canonicalKey"='FIG:ELEMENT:FLOOR:1.101:a';
+INSERT OR IGNORE INTO "RulesetRoutineRequirement" ("id","levelId","apparatus","skillId","sequenceIndex","repetitions","occurrenceContext","sourcePackageId","sourcePage","notes")
+SELECT 'gi_req_p3_floor_split1','canonical_gi_wag_plus_3','FLOOR',"id",30,1,NULL,'canonical_gi_wag_plus_2025_plus_v4_2026_02',22,'First Split Leap occurrence.'
+FROM "ViaformSkill" WHERE "canonicalKey"='FIG:ELEMENT:FLOOR:1.101:a';
+INSERT OR IGNORE INTO "RulesetRoutineRequirement" ("id","levelId","apparatus","skillId","sequenceIndex","repetitions","occurrenceContext","sourcePackageId","sourcePage","notes") VALUES
+('gi_req_p3_floor_chasse','canonical_gi_wag_plus_3','FLOOR','gi_skill_floor_chasse',31,1,'CONNECTED_SEQUENCE','canonical_gi_wag_plus_2025_plus_v4_2026_02',22,NULL);
+INSERT OR IGNORE INTO "RulesetRoutineRequirement" ("id","levelId","apparatus","skillId","sequenceIndex","repetitions","occurrenceContext","sourcePackageId","sourcePage","notes")
+SELECT 'gi_req_p3_floor_split2','canonical_gi_wag_plus_3','FLOOR',"id",32,1,'CONNECTED_SEQUENCE','canonical_gi_wag_plus_2025_plus_v4_2026_02',22,'Second Split Leap occurrence; same stable skill identity.'
+FROM "ViaformSkill" WHERE "canonicalKey"='FIG:ELEMENT:FLOOR:1.101:a';
 
 -- Explicit repeated flic sequences: repetitions remain separate occurrences of one FIG Back Handspring identity.
 INSERT OR IGNORE INTO "RulesetRoutineRequirement" ("id","levelId","apparatus","skillId","sequenceIndex","repetitions","occurrenceContext","sourcePackageId","sourcePage","notes")
