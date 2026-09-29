@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
-import { createStaffMember, resetStaffPassword, setStaffActive, updateStaffAccess, updateStaffIdentity } from "@/app/actions/people";
+import { createStaffMember, resetStaffPassword, resetStaffPin, setStaffActive, updateStaffAccess, updateStaffIdentity } from "@/app/actions/people";
 import { COACHING_ROLES, DELEGATED_CAPABILITIES } from "@/app/lib/access-control";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
@@ -48,7 +48,7 @@ export default async function PeoplePage() {
           {c.access.canManageAdministratorRole&&<label className="text-sm"><input type="checkbox" name="isAdministrator" defaultChecked={m.isAdministrator} disabled={m.id===c.membership.id} className="mr-2"/>Administrator{m.id===c.membership.id?" · your own administrator access is protected":""}</label>}
           <button className="w-fit rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save roles & responsibilities</button>
         </form>
-        <form action={resetStaffPassword} className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border)] pt-4"><input type="hidden" name="membershipId" value={m.id}/><input name="password" type="password" minLength={10} required placeholder="New password" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Reset password</button></form>
+        <form action={resetStaffPin} className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border)] pt-4"><input type="hidden" name="membershipId" value={m.id}/><input name="pin" inputMode="numeric" pattern="[0-9]{4,8}" required placeholder="Coach PIN" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Set / reset PIN</button></form><form action={resetStaffPassword} className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border)] pt-4"><input type="hidden" name="membershipId" value={m.id}/><input name="password" type="password" minLength={10} required placeholder="New password" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Reset password</button></form>
         {m.id!==c.membership.id&&<form action={setStaffActive} className="mt-3"><input type="hidden" name="membershipId" value={m.id}/><input type="hidden" name="active" value={m.isActive?"false":"true"}/><button className="text-sm text-[var(--muted)]">{m.isActive?"Deactivate account":"Reactivate account"}</button></form>}
       </details>
     </article>})}</div>

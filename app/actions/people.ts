@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { COACHING_ROLES, DELEGATED_CAPABILITIES } from "@/app/lib/access-control";
-import { makePassword, normaliseEmail, requireAuthContext } from "@/app/lib/auth";
+import { makePassword, makePin, normaliseEmail, requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 
 const field = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
@@ -98,3 +98,5 @@ export async function resetStaffPassword(data: FormData) {
   ]);
   revalidatePath("/people");
 }
+
+export async function resetStaffPin(data:FormData){const c=await peopleManager();const target=await member(field(data,"membershipId"),c.organisation.id),pin=field(data,"pin");if(!target||!/^\d{4,8}$/.test(pin))return;const x=makePin(pin);await prisma.organisationMembership.update({where:{id:target.id},data:{pinHash:x.hash,pinSalt:x.salt}});revalidatePath("/people");}

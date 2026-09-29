@@ -65,6 +65,8 @@ model OrganisationMembership {
   coachingRoles         String   @default("[]")
   delegatedCapabilities String   @default("[]")
   apparatusSpecialties  String   @default("[]")
+  pinHash                String?
+  pinSalt                String?
   isActive              Boolean  @default(true)
   joinedAt              DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -111,6 +113,7 @@ model AuthSession {
   id             String   @id @default(cuid())
   userId         String
   organisationId String?
+  activeMembershipId String?
   tokenHash      String   @unique
   expiresAt      DateTime
   lastSeenAt     DateTime @default(now())
