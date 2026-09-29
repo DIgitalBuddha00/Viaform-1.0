@@ -68,7 +68,7 @@ export default async function LiveTrainingSessionPage({
   });
   if (!session) notFound();
 
-  const arrivalSelected = query.phase === "arrival" || (!query.block && !session.attendance.length);
+  const arrivalSelected = query.phase === "arrival" || !query.block;
   const selectedBlock = arrivalSelected ? null : (
     session.blocks.find((block) => block.id === query.block) ?? session.blocks[0] ?? null
   );
