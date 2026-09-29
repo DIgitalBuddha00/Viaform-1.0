@@ -226,7 +226,7 @@ export async function updateSessionBlock(data: FormData) {
   const title = value(data, "title");
   const category = value(data, "category");
   let apparatusValue = value(data, "apparatus");
-  const assignment = await prisma.sessionBlockSpaceAssignment.findUnique({ where: { blockId }, include: { trainingSpace: true } });
+  const assignment = await prisma.sessionBlockSpace.findUnique({ where: { blockId }, include: { trainingSpace: true } });
   if (!apparatusValue && assignment?.trainingSpace.apparatus) {
     const mapped: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE", CONDITIONING: "PHYSICAL_PREPARATION" };
     apparatusValue = mapped[assignment.trainingSpace.apparatus] ?? "";
