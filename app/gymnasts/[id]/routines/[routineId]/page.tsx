@@ -64,12 +64,40 @@ export default async function RoutineWorkspace({
   const routine = gymnast?.routines[0];
   if (!gymnast || !routine) notFound();
 
-  const currentRules = await getGymnastRulesContext(gymnast.id, c.organisation.id);
-  const applicableRules = await getRulesetSnapshotRules(
-    routine.rulesetPackageCode,
-    routine.rulesetLevelCode,
-    routine.apparatus as RulesetApparatus,
-  );
+  const trainingApparatus: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE" };
+  const [currentRules, applicableRules, recentEvidence, catalogueElements, catalogueVaults, canonicalRoutineRequirements] = await Promise.all([
+    getGymnastRulesContext(gymnast.id, c.organisation.id),
+    getRulesetSnapshotRules(routine.rulesetPackageCode, routine.rulesetLevelCode, routine.apparatus as RulesetApparatus),
+    prisma.trainingEvidence.findMany({
+      where: { gymnastId: gymnast.id, block: { apparatus: trainingApparatus[routine.apparatus] }, session: { organisationId: c.organisation.id } },
+      include: {
+        session: { select: { id: true, title: true, sessionDate: true } },
+        block: { select: { title: true } },
+        station: { select: { name: true } },
+      },
+      orderBy: { recordedAt: "desc" },
+      take: 24,
+    }),
+    routine.rulesetPackageCode && routine.apparatus !== "VAULT"
+      ? prisma.figElementDefinition.findMany({
+          where: { apparatus: routine.apparatus, verificationStatus: "VERIFIED", status: "ACTIVE", package: { code: routine.rulesetPackageCode, status: "ACTIVE" } },
+          orderBy: [{ groupCode: "asc" }, { officialNumber: "asc" }, { variantKey: "asc" }],
+        })
+      : Promise.resolve([]),
+    routine.rulesetPackageCode && routine.apparatus === "VAULT"
+      ? prisma.figVaultDefinition.findMany({
+          where: { status: "ACTIVE", package: { code: routine.rulesetPackageCode, status: "ACTIVE" } },
+          orderBy: [{ groupNumber: "asc" }, { officialNumber: "asc" }, { variantKey: "asc" }],
+        })
+      : Promise.resolve([]),
+    routine.rulesetProgramCode === "GI_WAG" && routine.rulesetLevelCode
+      ? prisma.rulesetRoutineRequirement.findMany({
+          where: { level: { code: routine.rulesetLevelCode, program: { code: routine.rulesetProgramCode } }, apparatus: routine.apparatus },
+          include: { skill: true },
+          orderBy: { sequenceIndex: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
   const routineEvaluation = evaluateStoredRoutine({
     programCode: routine.rulesetProgramCode,
     apparatus: routine.apparatus,
@@ -82,17 +110,6 @@ export default async function RoutineWorkspace({
     (currentRules.package.code !== routine.rulesetPackageCode || currentRules.level.code !== routine.rulesetLevelCode),
   );
   const href = "/gymnasts/" + gymnast.id + "/routines/" + routine.id;
-  const trainingApparatus: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE" };
-  const recentEvidence = await prisma.trainingEvidence.findMany({
-    where: { gymnastId: gymnast.id, block: { apparatus: trainingApparatus[routine.apparatus] }, session: { organisationId: c.organisation.id } },
-    include: {
-      session: { select: { id: true, title: true, sessionDate: true } },
-      block: { select: { title: true } },
-      station: { select: { name: true } },
-    },
-    orderBy: { recordedAt: "desc" },
-    take: 24,
-  });
   const evidenceCounts = recentEvidence.reduce((counts, item) => {
     if (item.outcome === "MADE") counts.made += 1;
     if (item.outcome === "MISSED") counts.missed += 1;
@@ -111,42 +128,6 @@ export default async function RoutineWorkspace({
     if (entry.outcome === "SPOTTED") counts.spotted += 1;
     linkedEvidence.set(key, counts);
   }
-
-  const [catalogueElements, catalogueVaults] = routine.rulesetPackageCode
-    ? await Promise.all([
-        routine.apparatus !== "VAULT"
-          ? prisma.figElementDefinition.findMany({
-              where: {
-                apparatus: routine.apparatus,
-                verificationStatus: "VERIFIED",
-                status: "ACTIVE",
-                package: { code: routine.rulesetPackageCode, status: "ACTIVE" },
-              },
-              orderBy: [{ groupCode: "asc" }, { officialNumber: "asc" }, { variantKey: "asc" }],
-            })
-          : Promise.resolve([]),
-        routine.apparatus === "VAULT"
-          ? prisma.figVaultDefinition.findMany({
-              where: {
-                status: "ACTIVE",
-                package: { code: routine.rulesetPackageCode, status: "ACTIVE" },
-              },
-              orderBy: [{ groupNumber: "asc" }, { officialNumber: "asc" }, { variantKey: "asc" }],
-            })
-          : Promise.resolve([]),
-      ])
-    : [[], []];
-
-  const canonicalRoutineRequirements = routine.rulesetProgramCode === "GI_WAG" && routine.rulesetLevelCode
-    ? await prisma.rulesetRoutineRequirement.findMany({
-        where: {
-          level: { code: routine.rulesetLevelCode, program: { code: routine.rulesetProgramCode } },
-          apparatus: routine.apparatus,
-        },
-        include: { skill: true },
-        orderBy: { sequenceIndex: "asc" },
-      })
-    : [];
   const expandedCanonicalRequirements = canonicalRoutineRequirements.flatMap((requirement) =>
     Array.from({ length: Math.max(1, requirement.repetitions) }, (_, repetitionIndex) => ({
       id: requirement.id + ":" + repetitionIndex,
