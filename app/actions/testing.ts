@@ -8,6 +8,7 @@ import { groupScopeWhere } from "@/app/lib/coaching-scope";
 
 const MODES = ["COUNTDOWN_TALLY", "STOPWATCH", "REPETITION_TALLY", "MEASUREMENT"] as const;
 const CLASSIFICATIONS=["SKILL","STRENGTH","FLEXIBILITY","ROUTINE","CUSTOM"] as const;
+const SCORING_MODES=["NONE","AUTOMATIC","MANUAL"] as const;
 const DIRECTIONS = ["HIGHER", "LOWER", "COACH_INTERPRETATION"] as const;
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
 
@@ -59,6 +60,7 @@ export async function createTestMetric(data: FormData) {
       unit: value(data, "unit") || null,
       durationSeconds,
       direction,
+      scoringMode:SCORING_MODES.includes(value(data,"scoringMode") as any)?value(data,"scoringMode"):"NONE",
     },
   }).catch(() => null);
   revalidatePath("/testing");
@@ -96,6 +98,7 @@ export async function updateTestMetric(data: FormData) {
       unit: value(data, "unit") || null,
       durationSeconds,
       direction,
+      scoringMode:SCORING_MODES.includes(value(data,"scoringMode") as any)?value(data,"scoringMode"):"NONE",
     },
   }).catch(() => null);
   revalidatePath("/testing");
@@ -162,7 +165,10 @@ export async function recordTestingResult(data: FormData) {
   if (!assigned || !metric) return;
 
   const band=metric.scoreBands.find(b=>(b.minValue===null||numberValue>=b.minValue)&&(b.maxValue===null||numberValue<=b.maxValue));
-  const pointsValue=band?.points??null;
+  const manualPoints=value(data,"pointsValue");
+  const manualPointsValue=manualPoints===""?null:Number(manualPoints);
+  if(metric.scoringMode==="MANUAL"&&manualPointsValue!==null&&!Number.isFinite(manualPointsValue))return;
+  const pointsValue=metric.scoringMode==="AUTOMATIC"?(band?.points??null):metric.scoringMode==="MANUAL"?manualPointsValue:null;
   await prisma.testingResult.upsert({
     where: { sessionId_gymnastId_metricId: { sessionId, gymnastId, metricId } },
     create: {
@@ -187,11 +193,14 @@ export async function recordTestingResult(data: FormData) {
   revalidatePath("/testing/" + sessionId);
 }
 
+export async function pauseTestingSession(data:FormData){const c=await coachingContext(),sessionId=value(data,"sessionId"),session=await visibleTestingSession(sessionId,c);if(!session||session.status!=="IN_PROGRESS")return;await prisma.testingSession.update({where:{id:session.id},data:{status:"PAUSED"}});revalidatePath("/testing");revalidatePath("/testing/"+sessionId);}
+export async function resumeTestingSession(data:FormData){const c=await coachingContext(),sessionId=value(data,"sessionId"),session=await visibleTestingSession(sessionId,c);if(!session||session.status!=="PAUSED")return;await prisma.testingSession.update({where:{id:session.id},data:{status:"IN_PROGRESS"}});revalidatePath("/testing");revalidatePath("/testing/"+sessionId);}
+
 export async function finishTestingSession(data: FormData) {
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");
   const session = await visibleTestingSession(sessionId, context);
-  if (!session || session.status !== "IN_PROGRESS") return;
+  if (!session || !["IN_PROGRESS","PAUSED"].includes(session.status)) return;
   await prisma.testingSession.update({ where: { id: session.id }, data: { status: "COMPLETED" } });
   revalidatePath("/testing");
   revalidatePath("/testing/" + sessionId);

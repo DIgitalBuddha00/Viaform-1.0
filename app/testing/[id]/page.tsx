@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/app/components/app-shell";
-import { finishTestingSession } from "@/app/actions/testing";
+import { finishTestingSession, pauseTestingSession, resumeTestingSession } from "@/app/actions/testing";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
@@ -59,6 +59,7 @@ export default async function TestingSessionPage({
   const metricResults = selectedMetric ? session.results.filter((result) => result.metricId === selectedMetric.id) : [];
   const completedCount = metricResults.length;
   const isLive = session.status === "IN_PROGRESS";
+  const canFinish = session.status === "IN_PROGRESS" || session.status === "PAUSED";
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
@@ -72,7 +73,9 @@ export default async function TestingSessionPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.status==="IN_PROGRESS"?"In progress":session.status.charAt(0)+session.status.slice(1).toLowerCase()}</span>
-            {isLive && (
+            {isLive && <form action={pauseTestingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Pause testing</button></form>}
+            {session.status==="PAUSED"&&<form action={resumeTestingSession}><input type="hidden" name="sessionId" value={session.id}/><button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Resume testing</button></form>}
+            {canFinish && (
               <form action={finishTestingSession}>
                 <input type="hidden" name="sessionId" value={session.id} />
                 <button className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold">Finish testing</button>
@@ -130,6 +133,8 @@ export default async function TestingSessionPage({
                           durationSeconds={selectedMetric.durationSeconds}
                           initialValue={result?.numberValue ?? null}
                           initialNote={result?.note ?? null}
+                          scoringMode={selectedMetric.scoringMode}
+                          initialPoints={result?.pointsValue ?? null}
                           disabled={!isLive || selectedMetric.status !== "ACTIVE"}
                         />
                       </article>

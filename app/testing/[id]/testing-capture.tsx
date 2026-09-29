@@ -12,6 +12,8 @@ type Props = {
   durationSeconds: number | null;
   initialValue: number | null;
   initialNote: string | null;
+  scoringMode: string;
+  initialPoints: number | null;
   disabled: boolean;
 };
 
@@ -108,6 +110,8 @@ export function TestingCapture(props: Props) {
         </label>
       )}
 
+      {props.scoringMode==="MANUAL"&&<label className="text-sm font-medium">Points<input name="pointsValue" disabled={props.disabled} type="number" step="any" inputMode="decimal" defaultValue={props.initialPoints??""} placeholder="Enter points from reference" className="mt-1 w-full rounded-xl border border-[var(--border)] px-3 py-3 text-lg"/></label>}
+      {props.scoringMode==="AUTOMATIC"&&<p className="text-xs text-[var(--muted)]">Points are assigned automatically from the saved point system when this result is recorded.</p>}
       <input name="note" disabled={props.disabled} defaultValue={props.initialNote ?? ""} placeholder="Coach context (optional)" className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm" />
       <button disabled={props.disabled || value === ""} className="rounded-xl bg-[var(--foreground)] px-4 py-3 text-sm font-semibold text-white">
         {props.initialValue === null ? "Save result" : "Update result"}
