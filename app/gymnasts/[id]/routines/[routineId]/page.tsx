@@ -130,6 +130,28 @@ export default async function RoutineWorkspace({
       ])
     : [[], []];
 
+  const canonicalRoutineRequirements = routine.rulesetProgramCode === "GI_WAG" && routine.rulesetLevelCode
+    ? await prisma.rulesetRoutineRequirement.findMany({
+        where: {
+          level: { code: routine.rulesetLevelCode, program: { code: routine.rulesetProgramCode } },
+          apparatus: routine.apparatus,
+        },
+        include: { skill: true },
+        orderBy: { sequenceIndex: "asc" },
+      })
+    : [];
+  const expandedCanonicalRequirements = canonicalRoutineRequirements.flatMap((requirement) =>
+    Array.from({ length: Math.max(1, requirement.repetitions) }, (_, repetitionIndex) => ({
+      id: requirement.id + ":" + repetitionIndex,
+      skillName: requirement.skill.name,
+      repetition: repetitionIndex + 1,
+      repetitions: Math.max(1, requirement.repetitions),
+      occurrenceContext: requirement.occurrenceContext,
+      sourcePage: requirement.sourcePage,
+      notes: requirement.notes,
+    })),
+  );
+
   const recognised = routine.elements.filter((item) => item.recognition === "RECOGNISED");
   const rawRecognisedDv = recognised.reduce((sum, item) => sum + (difficultyValue[item.elementDefinition.difficulty ?? ""] ?? 0), 0);
 
@@ -287,7 +309,28 @@ export default async function RoutineWorkspace({
                 {!routine.elements.length && !routine.customItems.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-5 text-sm text-[var(--muted)]">No elements added yet.</p>}
               </div>
             </article>
-            <aside className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <aside className="grid content-start gap-4">
+              {expandedCanonicalRequirements.length > 0 && (
+                <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                  <p className="text-sm font-semibold">Canonical routine requirements</p>
+                  <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Verified governing-body sequence for {routine.rulesetLevelName ?? routine.rulesetLevelCode}. This is reference context; it does not automatically alter the coach-built routine.</p>
+                  <ol className="mt-4 grid gap-2">
+                    {expandedCanonicalRequirements.map((requirement, index) => (
+                      <li key={requirement.id} className="rounded-xl border border-[var(--border)] p-3 text-sm">
+                        <div className="flex items-start gap-2">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-xs font-semibold">{index + 1}</span>
+                          <div>
+                            <p className="font-semibold">{requirement.skillName}{requirement.repetitions > 1 ? " · " + requirement.repetition + "/" + requirement.repetitions : ""}</p>
+                            {requirement.occurrenceContext && <p className="mt-1 text-xs text-[var(--muted)]">{requirement.occurrenceContext.replaceAll("_", " ").toLowerCase()}</p>}
+                            {(requirement.sourcePage || requirement.notes) && <p className="mt-1 text-xs text-[var(--muted)]">{requirement.sourcePage ? "Source p. " + requirement.sourcePage : ""}{requirement.sourcePage && requirement.notes ? " · " : ""}{requirement.notes ?? ""}</p>}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </article>
+              )}
+              <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <p className="text-sm font-semibold">Add verified element</p>
               {catalogueElements.length ? (
                 <form action={addRoutineElement} className="mt-3 grid gap-3">
@@ -309,6 +352,7 @@ export default async function RoutineWorkspace({
                 </>
               )}
               <p className="mt-4 text-xs leading-5 text-[var(--muted)]">{catalogueElements.length ? "Elements are drawn only from the verified canonical package snapshotted when this plan was created." : "Coach-authored items remain clearly separate from verified governing-body definitions and are not included in FIG evaluation."}</p>
+              </article>
             </aside>
           </div>
         )}
