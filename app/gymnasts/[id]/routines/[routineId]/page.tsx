@@ -275,10 +275,12 @@ export default async function RoutineWorkspace({
                       const hasStart = section.startX !== null && section.startY !== null;
                       const hasEnd = section.endX !== null && section.endY !== null;
                       if (!hasStart && !hasEnd) return null;
-                      return (\n                        <div key={section.id}>
+                      return (
+                        <div key={section.id}>
                         {hasStart && <span title={section.title + " start"} className="absolute flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--foreground)] bg-[var(--surface)] text-xs font-semibold" style={{ left: (section.startX! * 100) + "%", top: (section.startY! * 100) + "%" }}>{index + 1}</span>}
                         {hasEnd && <span title={section.title + " end"} className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--foreground)] bg-[var(--foreground)]" style={{ left: (section.endX! * 100) + "%", top: (section.endY! * 100) + "%" }}/>
-                      </div>\n                      );
+                      </div>
+                      );
                     })}
                   </div>
                   <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Coordinates run 0–1 from the top-left to bottom-right of the floor. Numbered markers are section starts; small markers are section ends. This records choreography and travel context only and is not a judging inference.</p>
