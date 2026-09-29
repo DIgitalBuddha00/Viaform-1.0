@@ -51,7 +51,7 @@ export async function createTestMetric(data: FormData) {
     data: {
       organisationId: context.organisation.id,
       name,
-      category: value(data, "category") || "CUSTOM",
+      category: "CUSTOM",
       evidenceClassification: CLASSIFICATIONS.includes(value(data,"evidenceClassification") as any)?value(data,"evidenceClassification"):"CUSTOM",
       apparatus: value(data, "apparatus") || null,
       description: value(data, "description") || null,
@@ -89,7 +89,7 @@ export async function updateTestMetric(data: FormData) {
     where: { id: metric.id },
     data: {
       name,
-      category: value(data, "category") || "CUSTOM",
+      category: metric.category,
       evidenceClassification: CLASSIFICATIONS.includes(value(data,"evidenceClassification") as any)?value(data,"evidenceClassification"):"CUSTOM",
       apparatus: value(data, "apparatus") || null,
       description: value(data, "description") || null,
@@ -104,6 +104,8 @@ export async function updateTestMetric(data: FormData) {
   revalidatePath("/testing");
   revalidatePath("/progress");
 }
+
+export async function restoreTestMetric(data:FormData){const c=await coachingContext(),id=value(data,"metricId");await prisma.testMetric.updateMany({where:{id,organisationId:c.organisation.id,status:"ARCHIVED"},data:{status:"ACTIVE"}});revalidatePath("/testing");}
 
 export async function archiveTestMetric(data: FormData) {
   const context = await coachingContext();
@@ -211,3 +213,12 @@ export async function finishTestingSession(data: FormData) {
 
 export async function createTestBattery(data:FormData){const c=await coachingContext(),name=value(data,"name"),classification=value(data,"classification");if(!name)return;const metricIds=data.getAll("metricIds").map(String);await prisma.testBattery.create({data:{organisationId:c.organisation.id,name,description:value(data,"description")||null,classification:CLASSIFICATIONS.includes(classification as any)?classification:"CUSTOM",scoringEnabled:value(data,"scoringEnabled")==="on",items:{create:metricIds.map((metricId,orderIndex)=>({metricId,orderIndex}))}}}).catch(()=>null);revalidatePath("/testing");}
 export async function addTestScoreBand(data:FormData){const c=await coachingContext(),metricId=value(data,"metricId"),metric=await prisma.testMetric.findFirst({where:{id:metricId,organisationId:c.organisation.id}});if(!metric)return;const points=Number(value(data,"points")),min=value(data,"minValue"),max=value(data,"maxValue"),minNumber=min?Number(min):null,maxNumber=max?Number(max):null;if(!Number.isFinite(points)||(minNumber!==null&&!Number.isFinite(minNumber))||(maxNumber!==null&&!Number.isFinite(maxNumber))||(minNumber!==null&&maxNumber!==null&&minNumber>maxNumber))return;await prisma.testScoreBand.create({data:{metricId,label:value(data,"label")||null,minValue:minNumber,maxValue:maxNumber,points}});revalidatePath("/testing");}
+
+export async function updateTestBattery(data:FormData){const c=await coachingContext(),id=value(data,"batteryId"),classification=value(data,"classification"),metricIds=data.getAll("metricIds").map(String);const b=await prisma.testBattery.findFirst({where:{id,organisationId:c.organisation.id}});if(!b)return;await prisma.$transaction([prisma.testBatteryItem.deleteMany({where:{batteryId:id}}),prisma.testBattery.update({where:{id},data:{name:value(data,"name")||b.name,description:value(data,"description")||null,classification:CLASSIFICATIONS.includes(classification as any)?classification:b.classification,scoringEnabled:value(data,"scoringEnabled")==="on",pointSystemId:value(data,"pointSystemId")||null,items:{create:metricIds.map((metricId,orderIndex)=>({metricId,orderIndex}))}}})]);revalidatePath("/testing");}
+export async function archiveTestBattery(data:FormData){const c=await coachingContext(),id=value(data,"batteryId");await prisma.testBattery.updateMany({where:{id,organisationId:c.organisation.id,status:"ACTIVE"},data:{status:"ARCHIVED"}});revalidatePath("/testing");}
+export async function restoreTestBattery(data:FormData){const c=await coachingContext(),id=value(data,"batteryId");await prisma.testBattery.updateMany({where:{id,organisationId:c.organisation.id,status:"ARCHIVED"},data:{status:"ACTIVE"}});revalidatePath("/testing");}
+export async function createPointSystem(data:FormData){const c=await coachingContext(),name=value(data,"name");if(!name)return;const metricIds=data.getAll("metricIds").map(String);const ps=await prisma.testPointSystem.create({data:{organisationId:c.organisation.id,name,description:value(data,"description")||null}}).catch(()=>null);if(!ps)return;if(metricIds.length)await prisma.testMetric.updateMany({where:{organisationId:c.organisation.id,id:{in:metricIds}},data:{pointSystemId:ps.id,scoringMode:"AUTOMATIC"}});revalidatePath("/testing");}
+export async function updatePointSystem(data:FormData){const c=await coachingContext(),id=value(data,"pointSystemId"),name=value(data,"name"),metricIds=data.getAll("metricIds").map(String);const ps=await prisma.testPointSystem.findFirst({where:{id,organisationId:c.organisation.id}});if(!ps||!name)return;await prisma.$transaction([prisma.testPointSystem.update({where:{id},data:{name,description:value(data,"description")||null}}),prisma.testMetric.updateMany({where:{organisationId:c.organisation.id,pointSystemId:id,id:{notIn:metricIds}},data:{pointSystemId:null}}),prisma.testMetric.updateMany({where:{organisationId:c.organisation.id,id:{in:metricIds}},data:{pointSystemId:id,scoringMode:"AUTOMATIC"}})]);revalidatePath("/testing");}
+export async function archivePointSystem(data:FormData){const c=await coachingContext(),id=value(data,"pointSystemId");await prisma.testPointSystem.updateMany({where:{id,organisationId:c.organisation.id,status:"ACTIVE"},data:{status:"ARCHIVED"}});revalidatePath("/testing");}
+export async function restorePointSystem(data:FormData){const c=await coachingContext(),id=value(data,"pointSystemId");await prisma.testPointSystem.updateMany({where:{id,organisationId:c.organisation.id,status:"ARCHIVED"},data:{status:"ACTIVE"}});revalidatePath("/testing");}
+export async function removeTestScoreBand(data:FormData){const c=await coachingContext(),id=value(data,"bandId");await prisma.testScoreBand.deleteMany({where:{id,metric:{organisationId:c.organisation.id}}});revalidatePath("/testing");}

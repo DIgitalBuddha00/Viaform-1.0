@@ -44,6 +44,7 @@ model Organisation {
   facilityLocations FacilityLocation[]
   testMetrics TestMetric[]
   testBatteries TestBattery[]
+  testPointSystems TestPointSystem[]
   testingSessions TestingSession[]
   competitionEvents CompetitionEvent[]
   programmeLeadAssignments ProgrammeLeadAssignment[]
@@ -867,17 +868,34 @@ model TestMetric {
   durationSeconds Int?
   direction       String   @default("COACH_INTERPRETATION")
   scoringMode     String   @default("NONE")
+  pointSystemId   String?
   status          String   @default("ACTIVE")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  pointSystem TestPointSystem? @relation(fields:[pointSystemId],references:[id],onDelete:SetNull)
   results TestingResult[]
   batteryItems TestBatteryItem[]
   scoreBands TestScoreBand[]
 
   @@unique([organisationId, name])
   @@index([organisationId, category, status])
+}
+
+model TestPointSystem {
+  id String @id @default(cuid())
+  organisationId String
+  name String
+  description String?
+  status String @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organisation Organisation @relation(fields:[organisationId],references:[id],onDelete:Cascade)
+  metrics TestMetric[]
+  batteries TestBattery[]
+  @@unique([organisationId,name])
+  @@index([organisationId,status])
 }
 
 model TestBattery {
@@ -887,10 +905,12 @@ model TestBattery {
   description String?
   classification String @default("CUSTOM")
   scoringEnabled Boolean @default(false)
+  pointSystemId String?
   status String @default("ACTIVE")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   organisation Organisation @relation(fields:[organisationId],references:[id],onDelete:Cascade)
+  pointSystem TestPointSystem? @relation(fields:[pointSystemId],references:[id],onDelete:SetNull)
   items TestBatteryItem[]
   sessions TestingSession[]
   @@unique([organisationId,name])
