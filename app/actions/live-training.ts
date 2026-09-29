@@ -195,6 +195,15 @@ export async function recordTrainingEvidence(data: FormData) {
   revalidatePath("/training/" + sessionId);
 }
 
+export async function decrementTrainingEvidence(data: FormData) {
+  const context=await coachingContext(); const sessionId=value(data,"sessionId"),blockId=value(data,"blockId"),gymnastId=value(data,"gymnastId");
+  const stationId=value(data,"stationId")||null,workItemId=value(data,"workItemId")||null,outcome=value(data,"outcome");
+  if(!OUTCOMES.includes(outcome as (typeof OUTCOMES)[number]))return;
+  const session=await visibleSession(sessionId,context);if(!session||session.status!=="IN_PROGRESS")return;
+  const latest=await prisma.trainingEvidence.findFirst({where:{sessionId,blockId,gymnastId,stationId,workItemId,outcome},orderBy:{recordedAt:"desc"}});
+  if(!latest)return;await prisma.trainingEvidence.delete({where:{id:latest.id}});revalidatePath("/training/"+sessionId);
+}
+
 export async function undoLastTrainingEvidence(data: FormData) {
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");

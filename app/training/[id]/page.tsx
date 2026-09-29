@@ -9,7 +9,7 @@ import {
   recordTrainingEvidence,
   reopenTrainingSession,
   startTrainingSession,
-  undoLastTrainingEvidence,
+  decrementTrainingEvidence,
 } from "@/app/actions/live-training";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
@@ -241,8 +241,6 @@ export default async function LiveTrainingSessionPage({
               </div>
             )}
 
-            {selectedWorkItems.length>0&&<div className="mt-4"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Skill work</p><div className="mt-2 flex flex-wrap gap-2">{selectedWorkItems.map(item=><a key={item.id} href={"/training/"+session.id+"?block="+selectedBlock.id+"&work="+item.id+(selectedStation?"&station="+selectedStation.id:"")} className={"rounded-xl border px-3 py-2 text-sm "+(selectedWorkItem?.id===item.id?"border-[var(--foreground)] font-semibold":"border-[var(--border)]")}>{item.title}</a>)}</div>{selectedWorkItem&&<p className="mt-2 text-xs text-[var(--muted)]">{selectedWorkItem.elementDefinition?"Canonical skill · "+selectedWorkItem.elementDefinition.officialNumber:selectedWorkItem.vaultDefinition?"Canonical vault · "+selectedWorkItem.vaultDefinition.officialNumber:"Coach-authored work"}{selectedWorkItem.trainingResource?" · "+selectedWorkItem.trainingResource.name:selectedWorkItem.trainingSurface?" · "+selectedWorkItem.trainingSurface:""}{selectedWorkItem.landingResource?" · landing "+selectedWorkItem.landingResource.name:selectedWorkItem.landingSurface?" · landing "+selectedWorkItem.landingSurface:""}{selectedWorkItem.takeoffEquipment?" · "+selectedWorkItem.takeoffEquipment:""}</p>}</div>}
-
             <article className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -283,14 +281,13 @@ export default async function LiveTrainingSessionPage({
               </div>
             </article>
 
-            <div className="mt-5 grid gap-3">
+            <div className="live-gymnast-board mt-5">
               {session.gymnasts.filter(entry=>!selectedBlock.targetGymnastId||entry.gymnastId===selectedBlock.targetGymnastId).map((entry) => {
                 const evidence = blockEvidence.filter((item) => item.gymnastId === entry.gymnastId);
                 const latest = evidence[evidence.length - 1];
                 const routinePlan = currentRoutineByGymnast.get(entry.gymnastId) ?? null;
                 return (
-                  <article key={entry.gymnastId} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(180px,1fr)_auto] lg:items-center">
+                  <article key={entry.gymnastId} className="live-gymnast-card"><div className="grid gap-3">
                       <div>
                         <a href={"/gymnasts/" + entry.gymnastId} className="font-semibold hover:underline">{entry.gymnast.name}</a>
                         <p className="mt-1 text-xs text-[var(--muted)]">Attendance: {(attendanceByGymnast.get(entry.gymnastId) ?? "NOT_RECORDED").replaceAll("_", " ")}</p>
@@ -299,30 +296,8 @@ export default async function LiveTrainingSessionPage({
                             ? evidence.length + " observations · latest " + outcomeLabel[latest.outcome]
                             : "No evidence recorded for this block"}
                         </p>
-                      </div>
-                      {isLive ? (
-                        <div className="flex flex-wrap gap-2">
-                          {(["MADE", "MISSED", "SPOTTED", "BALK"] as const).map((outcome) => (
-                            <form key={outcome} action={recordTrainingEvidence}>
-                              <input type="hidden" name="sessionId" value={session.id} />
-                              <input type="hidden" name="blockId" value={selectedBlock.id} />
-                              <input type="hidden" name="gymnastId" value={entry.gymnastId} />
-                              <input type="hidden" name="stationId" value={selectedStation?.id ?? ""} /><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""} />
-                              <button name="outcome" value={outcome} className="min-w-24 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">
-                                {outcomeLabel[outcome]}
-                              </button>
-                            </form>
-                          ))}
-                          {latest && (
-                            <form action={undoLastTrainingEvidence}>
-                              <input type="hidden" name="sessionId" value={session.id} />
-                              <input type="hidden" name="blockId" value={selectedBlock.id} />
-                              <input type="hidden" name="gymnastId" value={entry.gymnastId} />
-                              <input type="hidden" name="stationId" value={selectedStation?.id ?? ""} /><input type="hidden" name="workItemId" value={selectedWorkItem?.id ?? ""} />
-                              <button className="rounded-xl px-3 py-3 text-sm text-[var(--muted)]">Undo</button>
-                            </form>
-                          )}
-                        </div>
+                      {selectedWorkItems.length>0&&<div className="mt-3"><p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Work</p><div className="mt-2 flex flex-wrap gap-2">{selectedWorkItems.filter(item=>!item.targetGymnastId||item.targetGymnastId===entry.gymnastId).map(item=><a key={item.id} href={"/training/"+session.id+"?block="+selectedBlock.id+"&work="+item.id+(selectedStation?"&station="+selectedStation.id:"")} className={"rounded-lg border px-3 py-2 text-xs "+(selectedWorkItem?.id===item.id?"border-[var(--foreground)] font-semibold":"border-[var(--border)]")}>{item.title}</a>)}</div>{selectedWorkItem&&(!selectedWorkItem.targetGymnastId||selectedWorkItem.targetGymnastId===entry.gymnastId)&&<p className="mt-2 text-xs text-[var(--muted)]">Recording: {selectedWorkItem.title}{selectedWorkItem.targetCount?" · target "+selectedWorkItem.targetCount:""}</p>}</div>}</div>
+                      {isLive ? (<div className="live-counter-grid">{(["MADE","MISSED","SPOTTED","BALK"] as const).map(outcome=>{const count=evidence.filter(e=>(!selectedWorkItem||e.workItemId===selectedWorkItem.id)&&e.outcome===outcome).length;return <div key={outcome} className="live-counter"><span className="live-counter-label">{outcomeLabel[outcome]}</span><div className="live-counter-controls"><form action={decrementTrainingEvidence}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id??""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id??""}/><input type="hidden" name="outcome" value={outcome}/><button disabled={count===0}>−</button></form><strong>{count}</strong><form action={recordTrainingEvidence}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={selectedBlock.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="stationId" value={selectedStation?.id??""}/><input type="hidden" name="workItemId" value={selectedWorkItem?.id??""}/><button name="outcome" value={outcome}>+</button></form></div></div>})}</div>
                       ) : (
                         <span className="text-sm text-[var(--muted)]">
                           {latest ? "Latest: " + outcomeLabel[latest.outcome] : "—"}
@@ -421,7 +396,7 @@ export default async function LiveTrainingSessionPage({
           <p className="text-sm text-[var(--muted)]">
             Evidence records what happened in this training context. It does not make a progression or selection decision for the coach.
           </p>
-          <a href={"/planning/" + session.id} className="text-sm font-semibold">View session plan →</a>
+          
         </div>
       </section>
     </AppShell>
