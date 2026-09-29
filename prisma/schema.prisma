@@ -881,6 +881,7 @@ model TestMetric {
 
   @@unique([organisationId, name])
   @@index([organisationId, category, status])
+  @@index([pointSystemId])
 }
 
 model TestPointSystem {
@@ -915,6 +916,7 @@ model TestBattery {
   sessions TestingSession[]
   @@unique([organisationId,name])
   @@index([organisationId,classification,status])
+  @@index([pointSystemId])
 }
 
 model TestBatteryItem {
