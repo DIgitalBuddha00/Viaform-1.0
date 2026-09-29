@@ -179,7 +179,6 @@ model Gymnast {
   trainingSessions TrainingSessionGymnast[]
   rotationAssignments SessionRotationGymnast[]
   trainingEvidence TrainingEvidence[]
-  trainingPlanTargets TrainingPlanSkillTarget[]
   trainingAttendance TrainingAttendance[]
   testingSessions TestingSessionGymnast[]
   testingResults TestingResult[]
@@ -1138,6 +1137,7 @@ model ViaformSkill {
   sessionWorkItems SessionBlockWorkItem[]
   sessionStations SessionStation[]
   trainingEvidence TrainingEvidence[]
+  trainingPlanTargets TrainingPlanSkillTarget[]
   developsFrom VaultDevelopmentLink[] @relation("VaultTargetSkill")
   developsToward VaultDevelopmentLink[] @relation("VaultDevelopmentSkill")
   vaultFamilyDevelopmentLinks VaultDevelopmentFamilyLink[]
