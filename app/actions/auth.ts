@@ -45,7 +45,7 @@ export async function signIn(data: FormData) {
     await createSession(user.id,membership.organisationId);
     const preference=await prisma.membershipPresentationPreference.findUnique({where:{membershipId:membership.id},select:{theme:true}});
     (await cookies()).set("viaform_theme",resolveAppearanceTheme(preference?.theme),{sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:31536000});
-    redirect("/dashboard");
+    redirect("/coach-select");
   }
   await createSession(user.id,portal!.organisationId);
   (await cookies()).set("viaform_theme","preparation",{sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:31536000});
