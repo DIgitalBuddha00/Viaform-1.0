@@ -40,7 +40,7 @@ export default async function LiveTrainingSessionPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ block?: string; station?: string; work?: string }>;
+  searchParams: Promise<{ block?: string; station?: string; work?: string; phase?: string }>;
 }) {
   const c = await requireAuthContext();
   if (!c.access.canUseCoachingWorkspace) notFound();
@@ -68,11 +68,10 @@ export default async function LiveTrainingSessionPage({
   });
   if (!session) notFound();
 
-  const selectedBlock =
-    session.blocks.find((block) => block.id === query.block) ??
-    session.blocks.find((block) => block.category === "APPARATUS") ??
-    session.blocks[0] ??
-    null;
+  const arrivalSelected = query.phase === "arrival" || (!query.block && !session.attendance.length);
+  const selectedBlock = arrivalSelected ? null : (
+    session.blocks.find((block) => block.id === query.block) ?? session.blocks[0] ?? null
+  );
 
   const selectedStation = selectedBlock?.stations.find((station) => station.id === query.station) ?? null;
   const selectedWorkItems = selectedBlock?.workItems ?? [];
@@ -148,9 +147,7 @@ export default async function LiveTrainingSessionPage({
           </div>
         </div>
 
-        {selectedBlock && selectedWorkItems.length > 0 && <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Planned skill work · {selectedBlock.title}</p><div className="mt-3 grid gap-2">{selectedWorkItems.map(item => <div key={item.id} className="rounded-xl border border-[var(--border)] px-3 py-3"><p className="font-semibold">{item.title}</p><p className="mt-1 text-xs text-[var(--muted)]">{item.targetGymnast?.name ?? "Whole group"}{item.targetCount ? " · target " + item.targetCount : ""}{item.notes ? " · " + item.notes : ""}</p></div>)}</div></section>}
-
-        <details className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5" open={isLive && session.attendance.length < session.gymnasts.length}>
+        {arrivalSelected && <details className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5" open>
           <summary className="cursor-pointer list-none">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -199,10 +196,10 @@ export default async function LiveTrainingSessionPage({
               })}
             </div>
           </div>
-        </details>
+        </details>}
 
         <div className="mt-6 overflow-x-auto pb-2">
-          <div className="flex min-w-max gap-2">
+          <div className="flex min-w-max gap-2"><a href={"/training/"+session.id+"?phase=arrival"} className={"rounded-xl border px-4 py-3 text-sm "+(arrivalSelected?"border-[var(--foreground)] font-semibold":"border-[var(--border)]")}><span className="block">Arrival & check-in</span><span className="mt-1 block text-xs text-[var(--muted)]">{presentCount} of {session.gymnasts.length} arrived</span></a>
             {session.blocks.map((block) => (
               <a
                 key={block.id}
@@ -216,7 +213,7 @@ export default async function LiveTrainingSessionPage({
           </div>
         </div>
 
-        {!selectedBlock ? (
+        {arrivalSelected ? null : !selectedBlock ? (
           <div className="mt-6 rounded-2xl border border-dashed border-[var(--border)] p-8 text-center">
             <h2 className="font-semibold">No planned blocks</h2>
             <p className="mt-2 text-sm text-[var(--muted)]">Add blocks in Planning before capturing block-level training evidence.</p>
@@ -230,7 +227,7 @@ export default async function LiveTrainingSessionPage({
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Current block</p>
                   <h2 className="mt-1 text-2xl font-semibold">{selectedBlock.title}</h2>
                   <p className="mt-2 text-sm text-[var(--muted)]">
-                    {selectedBlock.apparatus ? apparatusLabel[selectedBlock.apparatus] ?? selectedBlock.apparatus : selectedBlock.category}
+                    {selectedBlock.apparatus ? apparatusLabel[selectedBlock.apparatus] ?? selectedBlock.apparatus : selectedBlock.category==="WARM_UP"?"Warm-up":selectedBlock.category==="COOLDOWN"?"Cooldown":selectedBlock.category.replaceAll("_"," ")}
                     {selectedBlock.durationMin ? " · " + selectedBlock.durationMin + " min" : ""}
                     {selectedBlock.targetCount ? " · target " + selectedBlock.targetCount : ""}
                     {selectedBlock.targetGymnast ? " · " + selectedBlock.targetGymnast.name : " · whole group"}
