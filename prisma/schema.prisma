@@ -824,6 +824,7 @@ model TrainingAttendance {
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
   recordedBy OrganisationMembership @relation(fields: [recordedByMembershipId], references: [id], onDelete: Restrict)
   leavingEarly Boolean @default(false)
+  leftSessionAt DateTime?
 
   @@id([sessionId, gymnastId])
   @@index([gymnastId, recordedAt])
