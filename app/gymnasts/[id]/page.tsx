@@ -16,8 +16,9 @@ export default async function GymnastOverview({params}:{params:Promise<{id:strin
  const gymnast=await prisma.gymnast.findFirst({where:{id,...gymnastScopeWhere(c.organisation.id,c.membership.id,c.access)},include:{groups:{include:{trainingGroup:true},orderBy:{joinedAt:"asc"}},programmeAssignments:{include:{programme:true,stage:true}},rulesetAssignments:{include:{program:true,level:true}}}});
  if(!gymnast)notFound();
  const primary=gymnast.groups.find(x=>x.isPrimary),programmeContext=gymnast.programmeAssignments[0],rulesetContext=gymnast.rulesetAssignments[0];
- const canonicalRules=rulesetContext?await getGymnastRulesContext(gymnast.id,c.organisation.id):null,apparatusContexts=rulesByApparatus(canonicalRules),sharedRuleCount=canonicalRules?.rules.filter(r=>r.apparatus==="ALL").length??0;
- const [recentEvidence,recentTests,routines,competitionEntries,evidenceCount,testCount,preference,attendanceCount]=await Promise.all([
+ const canManage=c.access.canManageProgrammesAndMethodology;
+ const [canonicalRules,recentEvidence,recentTests,routines,competitionEntries,evidenceCount,testCount,preference,attendanceCount,programmes,rulesets]=await Promise.all([
+  rulesetContext?getGymnastRulesContext(gymnast.id,c.organisation.id):Promise.resolve(null),
   prisma.trainingEvidence.findMany({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}},include:{session:{select:{id:true,title:true,sessionDate:true}},block:{select:{title:true,apparatus:true}}},orderBy:{recordedAt:"desc"},take:5}),
   prisma.testingResult.findMany({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}},include:{metric:true,session:true},orderBy:{recordedAt:"desc"},take:5}),
   prisma.gymnastRoutine.findMany({where:{gymnastId:gymnast.id,status:"ACTIVE"},include:{_count:{select:{elements:true,vaults:true,customItems:true}}},orderBy:{updatedAt:"desc"}}),
@@ -25,10 +26,11 @@ export default async function GymnastOverview({params}:{params:Promise<{id:strin
   prisma.trainingEvidence.count({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}}}),
   prisma.testingResult.count({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}}}),
   prisma.membershipPresentationPreference.findUnique({where:{membershipId:c.membership.id}}),
-  prisma.trainingAttendance.count({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id},status:{not:"NOT_RECORDED"}}})
+  prisma.trainingAttendance.count({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id},status:{not:"NOT_RECORDED"}}}),
+  canManage?prisma.coachingProgramme.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},include:{stages:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}},orderBy:{name:"asc"}}):Promise.resolve([]),
+  canManage?prisma.organisationRulesetAssignment.findMany({where:{organisationId:c.organisation.id},include:{program:{include:{levels:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}}}}}):Promise.resolve([])
  ]);
- const programmes=c.access.canManageProgrammesAndMethodology?await prisma.coachingProgramme.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},include:{stages:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}},orderBy:{name:"asc"}}):[];
- const rulesets=c.access.canManageProgrammesAndMethodology?await prisma.organisationRulesetAssignment.findMany({where:{organisationId:c.organisation.id},include:{program:{include:{levels:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}}}}}):[];
+ const apparatusContexts=rulesByApparatus(canonicalRules),sharedRuleCount=canonicalRules?.rules.filter(r=>r.apparatus==="ALL").length??0;
  const nextCompetition=[...competitionEntries].filter(x=>x.event.eventDate>=new Date()).sort((a,b)=>a.event.eventDate.getTime()-b.event.eventDate.getTime())[0]??null;
  const latestCompetition=[...competitionEntries].sort((a,b)=>b.event.eventDate.getTime()-a.event.eventDate.getTime())[0]??null;
  const card="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm";
