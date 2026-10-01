@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
 import { resolveAccessProfile } from "./access-control";
+import { logServerTiming } from "./server-performance";
 
 const SESSION_COOKIE = "viaform_session";
 const SESSION_DAYS = 30;
@@ -52,9 +53,11 @@ export async function destroySession() {
 export async function setActiveMembership(membershipId:string|null){const jar=await cookies(),token=jar.get(SESSION_COOKIE)?.value;if(token)await prisma.authSession.updateMany({where:{tokenHash:tokenHash(token)},data:{activeMembershipId:membershipId}});if(membershipId)jar.set(ACTIVE_MEMBERSHIP_COOKIE,membershipId,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/"});else jar.delete(ACTIVE_MEMBERSHIP_COOKIE);}
 
 export async function currentAuthContext() {
+  const authStartedAt=Date.now();
   const jar=await cookies(),token=jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const requested=jar.get(ACTIVE_MEMBERSHIP_COOKIE)?.value;
+  const sessionStartedAt=Date.now();
   const session=await prisma.authSession.findUnique({
     where:{tokenHash:tokenHash(token)},
     select:{
@@ -63,13 +66,16 @@ export async function currentAuthContext() {
       organisation:{select:{id:true,name:true,slug:true}},
     },
   }).catch(()=>null);
+  const sessionMs=Date.now()-sessionStartedAt;
   if(!session||session.expiresAt<=new Date()||!session.user.isActive||!session.organisationId||!session.organisation)return null;
   const activeId=requested??session.activeMembershipId;
+  const membershipsStartedAt=Date.now();
   const memberships=await prisma.organisationMembership.findMany({
     where:{organisationId:session.organisationId,isActive:true,...(activeId?{OR:[{id:activeId},{userId:session.user.id}]}:{userId:session.user.id})},
     include:{user:true,organisation:true},
     take:activeId?2:1,
   });
+  logServerTiming("auth.current",authStartedAt,{sessionMs,membershipsMs:Date.now()-membershipsStartedAt});
   const ownerMembership=memberships.find(m=>m.userId===session.user.id);
   if(!ownerMembership)return null;
   const activeMembership=activeId?memberships.find(m=>m.id===activeId)??ownerMembership:ownerMembership;

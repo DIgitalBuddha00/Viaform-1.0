@@ -10,14 +10,14 @@ import {
   setLeavingEarly,
   setLeftSession,
   recordTrainingCheckIn,
-  recordTrainingEvidence,
   reopenTrainingSession,
   startTrainingSession,
-  decrementTrainingEvidence,
 } from "@/app/actions/live-training";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
+import { logServerTiming, startServerTiming } from "@/app/lib/server-performance";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -27,13 +27,6 @@ const apparatusLabel: Record<string, string> = {
   BALANCE_BEAM: "Balance Beam",
   FLOOR_EXERCISE: "Floor Exercise",
   PHYSICAL_PREPARATION: "Physical Preparation",
-};
-
-const outcomeLabel: Record<string, string> = {
-  MADE: "Made",
-  MISSED: "Missed",
-  SPOTTED: "Spotted",
-  BALK: "Balk",
 };
 
 export default async function LiveTrainingSessionPage({
@@ -48,6 +41,7 @@ export default async function LiveTrainingSessionPage({
   const { id } = await params;
   const query = await searchParams;
 
+  const sessionStartedAt = startServerTiming();
   const session = await prisma.trainingSession.findFirst({
     where: {
       id,
@@ -61,13 +55,19 @@ export default async function LiveTrainingSessionPage({
         include: { targetGymnast: { select: { name: true } }, workItems: { include: { targetGymnast: { select: { name: true } }, elementDefinition:true, vaultDefinition:true, trainingResource:true, landingResource:true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] }, stations: { include: { workItem: true, skill: true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] } },
       },
       gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
-      evidence: { orderBy: { recordedAt: "asc" } },
+      evidence: { where: query.block ? { blockId: query.block } : { id: "__none__" }, orderBy: { recordedAt: "asc" } },
       attendance: true,
-      checkIns: true,
+      checkIns: { where: query.block ? { blockId: query.block } : { id: "__none__" } },
       facilityAssignment: { include: { location: true } },
     },
   });
   if (!session) notFound();
+  logServerTiming("page.live-training.session", sessionStartedAt, {
+    blockSelected: Boolean(query.block),
+    blocks: session.blocks.length,
+    gymnasts: session.gymnasts.length,
+    evidenceRows: session.evidence.length,
+  });
 
   const arrivalSelected = query.phase === "arrival" || !query.block;
   const selectedBlock = arrivalSelected ? null : (
@@ -76,7 +76,6 @@ export default async function LiveTrainingSessionPage({
 
   const selectedStation = selectedBlock?.stations.find((station) => station.id === query.station) ?? null;
   const selectedWorkItems = selectedBlock?.workItems ?? [];
-  const selectedWorkItem = selectedWorkItems.find(item=>item.id===query.work) ?? (selectedStation?.workItemId ? selectedWorkItems.find(item=>item.id===selectedStation.workItemId) : null) ?? (!selectedStation ? selectedWorkItems[0] : null) ?? null;
   const blockEvidence = selectedBlock
     ? session.evidence.filter((entry) =>
         entry.blockId === selectedBlock.id && (!selectedStation || entry.stationId === selectedStation.id)
@@ -89,38 +88,10 @@ export default async function LiveTrainingSessionPage({
   const isLive = session.status === "IN_PROGRESS";
   const attendanceByGymnast = new Map(session.attendance.map((entry) => [entry.gymnastId, entry]));
   const presentCount = session.attendance.filter((entry) => entry.status === "PRESENT" || entry.status === "LATE").length;
-  const routineApparatusByTraining: Record<string, string> = {
-    VAULT: "VAULT",
-    UNEVEN_BARS: "BARS",
-    BALANCE_BEAM: "BEAM",
-    FLOOR_EXERCISE: "FLOOR",
-  };
   const guidedBlock = !!selectedBlock && selectedBlock.behaviour==="GUIDED";
-  const selectedRoutineApparatus = selectedBlock?.apparatus ? routineApparatusByTraining[selectedBlock.apparatus] : undefined;
-  const currentRoutines = selectedRoutineApparatus && session.gymnasts.length
-    ? await prisma.gymnastRoutine.findMany({
-        where: {
-          gymnastId: { in: session.gymnasts.map((entry) => entry.gymnastId) },
-          apparatus: selectedRoutineApparatus,
-          purpose: "CURRENT",
-          status: "ACTIVE",
-        },
-        include: {
-          elements: { include: { elementDefinition: true }, orderBy: { orderIndex: "asc" } },
-          vaults: { include: { vaultDefinition: true }, orderBy: { orderIndex: "asc" } },
-          customItems: { orderBy: { orderIndex: "asc" } },
-        },
-        orderBy: { updatedAt: "desc" },
-      })
-    : [];
-  const currentRoutineByGymnast = new Map<string, (typeof currentRoutines)[number]>();
-  for (const routine of currentRoutines) {
-    if (!currentRoutineByGymnast.has(routine.gymnastId)) currentRoutineByGymnast.set(routine.gymnastId, routine);
-  }
-
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section className="workspace-page"><a href="/training" className="workspace-back">← Training</a><div className="workspace-hero"><div><p className="workspace-kicker">{session.trainingGroup.name}</p><h1>{session.title}</h1>
+      <section className="workspace-page"><Link href="/training" className="workspace-back">← Training</Link><div className="workspace-hero"><div><p className="workspace-kicker">{session.trainingGroup.name}</p><h1>{session.title}</h1>
             <p className="mt-2 text-sm text-[var(--muted)]">
               {session.startTime}–{session.endTime}
               {session.facilityAssignment ? " · " + session.facilityAssignment.location.name : ""}

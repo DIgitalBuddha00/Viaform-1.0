@@ -12,12 +12,15 @@ import {
 } from "@/app/actions/facilities";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
+import { logServerTiming, startServerTiming } from "@/app/lib/server-performance";
+import { PendingSubmitButton } from "@/app/components/pending-submit-button";
 
 export const dynamic = "force-dynamic";
 const APPARATUS = [["", "Type (optional)"], ["WARM_UP", "Warm-up"], ["VAULT", "Vault"], ["BARS", "Bars"], ["BEAM", "Beam"], ["FLOOR", "Floor"], ["CONDITIONING", "Conditioning"], ["RINGS", "Rings"], ["POMMEL_HORSE", "Pommel horse"], ["PARALLEL_BARS", "Parallel bars"], ["HIGH_BAR", "High bar"], ["TUMBLING", "Tumbling"], ["OTHER", "Other"]] as const;
 
 export default async function FacilitiesPage() {
   const c = await requireAuthContext();
+  const queriesStartedAt = startServerTiming();
   const locations = await prisma.facilityLocation.findMany({
     where: { organisationId: c.organisation.id, status: "ACTIVE" },
     include: {
@@ -29,6 +32,10 @@ export default async function FacilitiesPage() {
     },
     orderBy: { name: "asc" },
   });
+  logServerTiming("page.facilities.queries", queriesStartedAt, {
+    locations: locations.length,
+    spaces: locations.reduce((total, location) => total + location.spaces.length, 0),
+  });
   const canConfigure = c.access.canConfigureFacilities;
 
   return (
@@ -39,7 +46,7 @@ export default async function FacilitiesPage() {
           <form action={createFacilityLocation} className="mt-8 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-[1fr_2fr_auto]">
             <input name="name" required placeholder="Facility name" className="rounded-xl border border-[var(--border)] px-3 py-3" />
             <input name="notes" placeholder="Optional facility note" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-            <button className="rounded-xl bg-[var(--foreground)] px-4 py-3 font-semibold text-white">Add facility</button>
+            <PendingSubmitButton pendingLabel="Adding…" className="rounded-xl bg-[var(--foreground)] px-4 py-3 font-semibold text-white disabled:opacity-60">Add facility</PendingSubmitButton>
           </form>
         )}
 

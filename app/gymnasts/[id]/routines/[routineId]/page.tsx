@@ -26,6 +26,8 @@ import { prisma } from "@/app/lib/prisma";
 import { gymnastScopeWhere } from "@/app/lib/coaching-scope";
 import { getGymnastRulesContext, getRulesetSnapshotRules, type RulesetApparatus } from "@/app/lib/rulesets/context";
 import { evaluateStoredRoutine } from "@/app/lib/routines/ruleset-evaluation";
+import { logServerTiming, startServerTiming } from "@/app/lib/server-performance";
+import { PendingSubmitButton } from "@/app/components/pending-submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +48,7 @@ export default async function RoutineWorkspace({
   const query = await searchParams;
   const tab = tabs.includes(query.tab as (typeof tabs)[number]) ? query.tab! : "overview";
 
+  const baseStartedAt = startServerTiming();
   const gymnast = await prisma.gymnast.findFirst({
     where: { id, ...gymnastScopeWhere(c.organisation.id, c.membership.id, c.access) },
     include: {
@@ -63,12 +66,18 @@ export default async function RoutineWorkspace({
   });
   const routine = gymnast?.routines[0];
   if (!gymnast || !routine) notFound();
+  logServerTiming("page.routine.base", baseStartedAt, { apparatus: routine.apparatus, tab });
 
   const trainingApparatus: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE" };
+  const needsCurrentRules = tab === "overview";
+  const needsRuleSnapshot = tab === "overview" || tab === "strategy";
+  const needsEvidence = tab !== "overview";
+  const needsBuildData = tab === "build";
+  const contextStartedAt = startServerTiming();
   const [currentRules, applicableRules, recentEvidence, catalogueElements, catalogueVaults, canonicalRoutineRequirements] = await Promise.all([
-    getGymnastRulesContext(gymnast.id, c.organisation.id),
-    getRulesetSnapshotRules(routine.rulesetPackageCode, routine.rulesetLevelCode, routine.apparatus as RulesetApparatus),
-    prisma.trainingEvidence.findMany({
+    needsCurrentRules ? getGymnastRulesContext(gymnast.id, c.organisation.id) : Promise.resolve(null),
+    needsRuleSnapshot ? getRulesetSnapshotRules(routine.rulesetPackageCode, routine.rulesetLevelCode, routine.apparatus as RulesetApparatus) : Promise.resolve([]),
+    needsEvidence ? prisma.trainingEvidence.findMany({
       where: { gymnastId: gymnast.id, block: { apparatus: trainingApparatus[routine.apparatus] }, session: { organisationId: c.organisation.id } },
       include: {
         session: { select: { id: true, title: true, sessionDate: true } },
@@ -77,20 +86,20 @@ export default async function RoutineWorkspace({
       },
       orderBy: { recordedAt: "desc" },
       take: 24,
-    }),
-    routine.rulesetPackageCode && routine.apparatus !== "VAULT"
+    }) : Promise.resolve([]),
+    needsBuildData && routine.rulesetPackageCode && routine.apparatus !== "VAULT"
       ? prisma.figElementDefinition.findMany({
           where: { apparatus: routine.apparatus, verificationStatus: "VERIFIED", status: "ACTIVE", package: { code: routine.rulesetPackageCode, status: "ACTIVE" } },
           orderBy: [{ groupCode: "asc" }, { officialNumber: "asc" }, { variantKey: "asc" }],
         })
       : Promise.resolve([]),
-    routine.rulesetPackageCode && routine.apparatus === "VAULT"
+    needsBuildData && routine.rulesetPackageCode && routine.apparatus === "VAULT"
       ? prisma.figVaultDefinition.findMany({
           where: { status: "ACTIVE", package: { code: routine.rulesetPackageCode, status: "ACTIVE" } },
           orderBy: [{ groupNumber: "asc" }, { officialNumber: "asc" }, { variantKey: "asc" }],
         })
       : Promise.resolve([]),
-    routine.rulesetProgramCode === "GI_WAG" && routine.rulesetLevelCode
+    needsBuildData && routine.rulesetProgramCode === "GI_WAG" && routine.rulesetLevelCode
       ? prisma.rulesetRoutineRequirement.findMany({
           where: { level: { code: routine.rulesetLevelCode, program: { code: routine.rulesetProgramCode } }, apparatus: routine.apparatus },
           include: { skill: true },
@@ -98,13 +107,19 @@ export default async function RoutineWorkspace({
         })
       : Promise.resolve([]),
   ]);
-  const routineEvaluation = evaluateStoredRoutine({
+  logServerTiming("page.routine.context", contextStartedAt, {
+    apparatus: routine.apparatus,
+    tab,
+    evidenceRows: recentEvidence.length,
+    catalogueRows: catalogueElements.length + catalogueVaults.length,
+  });
+  const routineEvaluation = needsRuleSnapshot ? evaluateStoredRoutine({
     programCode: routine.rulesetProgramCode,
     apparatus: routine.apparatus,
     levelCode: routine.rulesetLevelCode,
     elements: routine.elements,
     rules: applicableRules,
-  });
+  }) : null;
   const rulesContextChanged = Boolean(
     currentRules &&
     (currentRules.package.code !== routine.rulesetPackageCode || currentRules.level.code !== routine.rulesetLevelCode),
@@ -162,14 +177,14 @@ export default async function RoutineWorkspace({
               </select>
               <input type="hidden" name="strategyNote" value={routine.strategyNote ?? ""} />
               <input type="hidden" name="pathwayNote" value={routine.pathwayNote ?? ""} />
-              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save settings</button>
+              <PendingSubmitButton className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold disabled:opacity-60">Save settings</PendingSubmitButton>
             </form>
             <form action={updateRoutineStructureContext} className="mt-4 grid gap-2 border-t border-[var(--border)] pt-3">
               <input type="hidden" name="routineId" value={routine.id}/>
               {routine.apparatus === "VAULT" && <label className="grid gap-1 text-xs font-semibold">Vault programme<select name="vaultMode" defaultValue={routine.vaultMode} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"><option value="ONE_VAULT">One vault</option><option value="TWO_VAULT">Two vaults</option></select></label>}
               {(routine.apparatus === "FLOOR" || routine.apparatus === "BEAM") && <label className="grid gap-1 text-xs font-semibold">Routine duration (seconds)<input type="number" min="0" name="routineDurationSeconds" defaultValue={routine.routineDurationSeconds ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"/></label>}
               {routine.apparatus === "FLOOR" && <><label className="grid gap-1 text-xs font-semibold">Music name<input name="musicFileName" defaultValue={routine.musicFileName ?? ""} placeholder="Track / file name" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"/></label><label className="grid gap-1 text-xs font-semibold">Music reference<input name="musicStorageRef" defaultValue={routine.musicStorageRef ?? ""} placeholder="Storage reference" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"/></label><label className="grid gap-1 text-xs font-semibold">Music duration (seconds)<input type="number" step="0.1" min="0" name="musicDurationSeconds" defaultValue={routine.musicDurationSeconds ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-normal"/></label></>}
-              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save routine structure</button>
+              <PendingSubmitButton className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold disabled:opacity-60">Save routine structure</PendingSubmitButton>
             </form>
             <form action={archiveGymnastRoutine} className="mt-2">
               <input type="hidden" name="routineId" value={routine.id} />
@@ -537,7 +552,7 @@ export default async function RoutineWorkspace({
               <form action={updateRoutineContext} className="mt-4">
                 <input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="name" value={routine.name}/><input type="hidden" name="purpose" value={routine.purpose}/><input type="hidden" name="pathwayNote" value={routine.pathwayNote ?? ""}/>
                 <textarea name="strategyNote" defaultValue={routine.strategyNote ?? ""} placeholder="Coach strategy…" className="min-h-40 w-full rounded-xl border border-[var(--border)] px-3 py-3"/>
-                <button className="mt-3 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Save strategy</button>
+                <PendingSubmitButton className="mt-3 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold disabled:opacity-60">Save strategy</PendingSubmitButton>
               </form>
               <div className="mt-6 border-t border-[var(--border)] pt-5">
                 <p className="text-sm font-semibold">Worth considering</p>
@@ -587,7 +602,7 @@ export default async function RoutineWorkspace({
               <form action={updateRoutineContext} className="mt-4">
                 <input type="hidden" name="routineId" value={routine.id}/><input type="hidden" name="name" value={routine.name}/><input type="hidden" name="purpose" value={routine.purpose}/><input type="hidden" name="strategyNote" value={routine.strategyNote ?? ""}/>
                 <textarea name="pathwayNote" defaultValue={routine.pathwayNote ?? ""} placeholder="Coach pathway focus…" className="min-h-40 w-full rounded-xl border border-[var(--border)] px-3 py-3"/>
-                <button className="mt-3 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Save pathway</button>
+                <PendingSubmitButton className="mt-3 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold disabled:opacity-60">Save pathway</PendingSubmitButton>
               </form>
               <div className="mt-6 border-t border-[var(--border)] pt-5">
                 <p className="text-sm font-semibold">Recent evidence context</p>

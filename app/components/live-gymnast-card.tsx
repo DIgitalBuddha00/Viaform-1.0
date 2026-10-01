@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useState,useTransition} from "react";
+import {useState,useTransition} from "react";
 import {recordTrainingEvidence,decrementTrainingEvidence,recordTrainingCheckIn} from "@/app/actions/live-training";
 
 type Work={id:string;title:string;targetCount:number|null;targetGymnastId:string|null};
@@ -8,12 +8,11 @@ type Ev={workItemId:string|null;stationId:string|null;outcome:string};
 type Check={feeling:string|null;confidence:string|null;fatigue:string|null;recordedAt:string};
 export function LiveGymnastCard({sessionId,blockId,gymnast,isLive,works,stations,evidence,latestCheck}:{sessionId:string;blockId:string;gymnast:{id:string;name:string;profileImageUrl:string|null};isLive:boolean;works:Work[];stations:Station[];evidence:Ev[];latestCheck:Check|null}){
  const [workId,setWorkId]=useState(works[0]?.id??""); const [stationId,setStationId]=useState(""); const [open,setOpen]=useState(false); const [check,setCheck]=useState(latestCheck); const [,start]=useTransition(); const [localEvidence,setLocalEvidence]=useState(evidence);
- useEffect(()=>setLocalEvidence(evidence),[evidence]);
  const initials=gymnast.name.split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase();
  const counts=(o:string)=>localEvidence.filter(e=>(!workId||e.workItemId===workId)&&(!stationId||e.stationId===stationId)&&e.outcome===o).length;
  const submit=(action:(d:FormData)=>Promise<void>,data:Record<string,string>)=>start(async()=>{const f=new FormData();Object.entries(data).forEach(([k,v])=>f.set(k,v));await action(f)});
  const changeEvidence=(outcome:string,delta:1|-1)=>{const match=(e:Ev)=>e.workItemId===(workId||null)&&e.stationId===(stationId||null)&&e.outcome===outcome;if(delta===1){setLocalEvidence(v=>[...v,{workItemId:workId||null,stationId:stationId||null,outcome}]);submit(recordTrainingEvidence,{sessionId,blockId,gymnastId:gymnast.id,stationId,workItemId:workId,outcome});}else{let removed=false;setLocalEvidence(v=>v.filter(e=>{if(!removed&&match(e)){removed=true;return false}return true}));submit(decrementTrainingEvidence,{sessionId,blockId,gymnastId:gymnast.id,stationId,workItemId:workId,outcome});}};
- const setMood=(kind:"feeling"|"confidence"|"fatigue",v:string)=>{setCheck(c=>({feeling:c?.feeling??null,confidence:c?.confidence??null,fatigue:c?.fatigue??null,recordedAt:new Date().toISOString(),[kind]:v}));submit(recordTrainingCheckIn,{sessionId,blockId,gymnastId:gymnast.id,[kind]:v})};
+ const setMood=(kind:"feeling"|"confidence"|"fatigue",v:string)=>{setCheck(c=>({feeling:c?.feeling??null,confidence:c?.confidence??null,fatigue:c?.fatigue??null,recordedAt:new Date().toISOString(),[kind]:v}));submit(recordTrainingCheckIn,{sessionId,blockId,gymnastId:gymnast.id,[kind]:v,optimistic:"1"})};
  return <article className="live-gymnast-card">
   <div className="live-person-head">{gymnast.profileImageUrl?<img src={gymnast.profileImageUrl} alt="" className="live-avatar"/>:<span className="live-avatar live-avatar-fallback">{initials}</span>}<strong>{gymnast.name}</strong></div>
   {stations.length>0&&<div className="live-choice-row"><span>Station</span><div><button className={!stationId?"is-selected":""} onClick={()=>setStationId("")}>Whole block</button>{stations.map(s=><button key={s.id} className={stationId===s.id?"is-selected":""} onClick={()=>{setStationId(s.id);if(s.workItemId)setWorkId(s.workItemId)}}>{s.name}</button>)}</div></div>}
