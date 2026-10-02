@@ -153,7 +153,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
             </div>
             <a href="/facilities" className="text-sm font-semibold">Facilities & equipment →</a>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
+          {session.clubRotationPlan ? <p className="mt-4 text-sm font-semibold">Set by {session.clubRotationPlan.name}. Change the club rota from Rotations, not from this session.</p> : <div className="mt-4 flex flex-wrap gap-2">
             <form action={assignSessionFacility} className="flex flex-wrap gap-2">
               <input type="hidden" name="sessionId" value={session.id} />
               <select name="locationId" required defaultValue={session.facilityAssignment?.locationId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2">
@@ -168,7 +168,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                 <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">Clear</button>
               </form>
             )}
-          </div>
+          </div>}
         </article>
 
         {(session.programmeNameSnapshot || session.stageNameSnapshot) && (
@@ -230,10 +230,10 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
               <input type="hidden" name="sessionId" value={session.id} />
               <input name="title" defaultValue={session.title} required className="rounded-xl border border-[var(--border)] px-3 py-3" />
               <input name="sessionIntent" defaultValue={session.sessionIntent ?? ""} placeholder="Session intent" className="rounded-xl border border-[var(--border)] px-3 py-3" />
-              <input name="sessionDate" type="date" required defaultValue={dateValue(session.sessionDate)} className="rounded-xl border border-[var(--border)] px-3 py-3" />
+              <input name="sessionDate" type="date" required disabled={Boolean(session.clubRotationPlanId)} defaultValue={dateValue(session.sessionDate)} className="rounded-xl border border-[var(--border)] px-3 py-3" />
               <div className="grid grid-cols-2 gap-2">
-                <input name="startTime" type="time" required defaultValue={session.startTime} className="rounded-xl border border-[var(--border)] px-3 py-3" />
-                <input name="endTime" type="time" required defaultValue={session.endTime} className="rounded-xl border border-[var(--border)] px-3 py-3" />
+                <input name="startTime" type="time" required disabled={Boolean(session.clubRotationPlanId)} defaultValue={session.startTime} className="rounded-xl border border-[var(--border)] px-3 py-3" />
+                <input name="endTime" type="time" required disabled={Boolean(session.clubRotationPlanId)} defaultValue={session.endTime} className="rounded-xl border border-[var(--border)] px-3 py-3" />
               </div>
               <textarea name="notes" defaultValue={session.notes ?? ""} placeholder="Planning notes" className="min-h-24 rounded-xl border border-[var(--border)] px-3 py-3 md:col-span-2" />
               <button className="rounded-xl border border-[var(--border)] px-4 py-3 font-semibold md:w-fit">Save session</button>
@@ -287,8 +287,9 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
               </div>
               <div className="mt-4 border-t border-[var(--border)] pt-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Space & resources</p>
+                {session.clubRotationPlan && <p className="mt-2 text-sm text-[var(--muted)]">The club rota fixes the apparatus/area and time window. Add the training work and equipment you will use inside that rotation rather than changing the space here.</p>}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <form action={assignSessionBlockSpace} className="flex flex-wrap gap-2">
+                  {!session.clubRotationPlan && <form action={assignSessionBlockSpace} className="flex flex-wrap gap-2">
                     <input type="hidden" name="sessionId" value={session.id} />
                     <input type="hidden" name="blockId" value={block.id} />
                     <select name="spaceId" required defaultValue={block.spaceAssignment?.trainingSpaceId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
@@ -300,8 +301,8 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                       ))}
                     </select>
                     <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Set space</button>
-                  </form>
-                  {block.spaceAssignment && (
+                  </form>}
+                  {!session.clubRotationPlan && block.spaceAssignment && (
                     <form action={clearSessionBlockSpace}>
                       <input type="hidden" name="sessionId" value={session.id} />
                       <input type="hidden" name="blockId" value={block.id} />

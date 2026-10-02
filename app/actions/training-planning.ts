@@ -162,6 +162,8 @@ export async function updateTrainingSession(data: FormData) {
   const startTime = value(data, "startTime");
   const endTime = value(data, "endTime");
   if (!validDate(sessionDate) || !validTime(startTime) || !validTime(endTime) || minutes(endTime) <= minutes(startTime)) return;
+  const changedRotationContext = session.sessionDate.toISOString().slice(0,10) !== sessionDate || session.startTime !== startTime || session.endTime !== endTime;
+  if (session.clubRotationPlanId && changedRotationContext) return;
   await prisma.trainingSession.update({
     where: { id: session.id },
     data: {

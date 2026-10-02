@@ -249,7 +249,7 @@ export async function assignSessionFacility(data: FormData) {
     visibleSession(sessionId, context),
     locationInOrganisation(locationId, context.organisation.id),
   ]);
-  if (!session || !location) return;
+  if (!session || !location || session.clubRotationPlanId) return;
   const current = await prisma.trainingSessionFacility.findUnique({ where: { sessionId } });
   if (current && current.locationId !== locationId) {
     const blocks = await prisma.sessionBlock.findMany({ where: { sessionId }, select: { id: true } });
@@ -274,7 +274,7 @@ export async function clearSessionFacility(data: FormData) {
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");
   const session = await visibleSession(sessionId, context);
-  if (!session) return;
+  if (!session || session.clubRotationPlanId) return;
   const blocks = await prisma.sessionBlock.findMany({ where: { sessionId }, select: { id: true } });
   const blockIds = blocks.map((block) => block.id);
   await prisma.$transaction([
@@ -294,7 +294,7 @@ export async function assignSessionBlockSpace(data: FormData) {
   const session = await visibleSession(sessionId, context);
   const block = session ? await prisma.sessionBlock.findFirst({ where: { id: blockId, sessionId } }) : null;
   const space = await spaceInOrganisation(trainingSpaceId, context.organisation.id);
-  if (!session || !block || !space) return;
+  if (!session || !block || !space || session.clubRotationPlanId) return;
   const sessionFacility = await prisma.trainingSessionFacility.findUnique({ where: { sessionId } });
   if (sessionFacility && sessionFacility.locationId !== space.locationId) return;
   const currentSpace = await prisma.sessionBlockSpace.findUnique({ where: { blockId } });
@@ -320,7 +320,7 @@ export async function clearSessionBlockSpace(data: FormData) {
   const session = await visibleSession(sessionId, context);
   if (!session) return;
   const block = await prisma.sessionBlock.findFirst({ where: { id: blockId, sessionId } });
-  if (!block) return;
+  if (!block || session.clubRotationPlanId) return;
   await prisma.$transaction([
     prisma.sessionBlockResource.deleteMany({ where: { blockId } }),
     prisma.sessionBlockSpace.deleteMany({ where: { blockId } }),
