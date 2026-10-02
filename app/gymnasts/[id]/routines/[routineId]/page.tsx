@@ -71,7 +71,7 @@ export default async function RoutineWorkspace({
   const trainingApparatus: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE" };
   const needsCurrentRules = tab === "overview" || tab === "pathway";
   const needsRuleSnapshot = tab === "overview" || tab === "strategy" || tab === "pathway";
-  const needsEvidence = tab !== "overview";
+  const needsEvidence = tab === "build" || tab === "pathway";
   const needsBuildData = tab === "build";
   const contextStartedAt = startServerTiming();
   const [currentRules, applicableRules, recentEvidence, catalogueElements, catalogueVaults, canonicalRoutineRequirements, pathwayLevels, linkedVideos] = await Promise.all([
@@ -121,6 +121,11 @@ export default async function RoutineWorkspace({
     evidenceRows: recentEvidence.length,
     catalogueRows: catalogueElements.length + catalogueVaults.length,
   });
+  const strategyOutcomeCounts=tab==="strategy"?await prisma.trainingEvidence.groupBy({
+    by:["outcome"],
+    where:{gymnastId:gymnast.id,block:{apparatus:trainingApparatus[routine.apparatus]},session:{organisationId:c.organisation.id}},
+    _count:{_all:true}
+  }):[];
   const routineEvaluation = needsRuleSnapshot ? evaluateStoredRoutine({
     programCode: routine.rulesetProgramCode,
     apparatus: routine.apparatus,
@@ -137,12 +142,7 @@ export default async function RoutineWorkspace({
     (currentRules.package.code !== routine.rulesetPackageCode || currentRules.level.code !== routine.rulesetLevelCode),
   );
   const href = "/gymnasts/" + gymnast.id + "/routines/" + routine.id;
-  const evidenceCounts = recentEvidence.reduce((counts, item) => {
-    if (item.outcome === "MADE") counts.made += 1;
-    if (item.outcome === "MISSED") counts.missed += 1;
-    if (item.outcome === "SPOTTED") counts.spotted += 1;
-    return counts;
-  }, { made: 0, missed: 0, spotted: 0 });
+  const evidenceCounts = tab==="strategy"?strategyOutcomeCounts.reduce((counts,item)=>{const n=item._count._all;if(item.outcome==="MADE")counts.made+=n;if(item.outcome==="MISSED")counts.missed+=n;if(item.outcome==="SPOTTED")counts.spotted+=n;return counts},{made:0,missed:0,spotted:0}):recentEvidence.reduce((counts, item) => {if (item.outcome === "MADE") counts.made += 1;if (item.outcome === "MISSED") counts.missed += 1;if (item.outcome === "SPOTTED") counts.spotted += 1;return counts;},{ made: 0, missed: 0, spotted: 0 });
   const programmeContext = gymnast.programmeAssignments[0] ?? null;
   const linkedEvidence = new Map<string, { total: number; made: number; missed: number; spotted: number }>();
   for (const entry of recentEvidence) {
@@ -590,7 +590,7 @@ export default async function RoutineWorkspace({
                   <div className="rounded-xl border border-[var(--border)] p-3"><strong className="block text-xl">{evidenceCounts.spotted}</strong><span className="text-xs text-[var(--muted)]">Spotted</span></div>
                   <div className="rounded-xl border border-[var(--border)] p-3"><strong className="block text-xl">{evidenceCounts.missed}</strong><span className="text-xs text-[var(--muted)]">Missed</span></div>
                 </div>
-                <p className="mt-3 text-xs leading-5 text-[var(--muted)]">{recentEvidence.length} recent observations shown as context only. Outcome counts do not determine readiness or routine selection.</p>
+                <p className="mt-3 text-xs leading-5 text-[var(--muted)]">{tab==="strategy"?evidenceCounts.made+evidenceCounts.spotted+evidenceCounts.missed:recentEvidence.length} recorded observations shown as context only. Outcome counts do not determine readiness or routine selection.</p>
                 <a href={"/analysis?gymnast=" + gymnast.id} className="mt-3 inline-block text-sm font-semibold">Open Analysis →</a>
               </article>
               <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
