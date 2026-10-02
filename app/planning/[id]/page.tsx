@@ -24,8 +24,7 @@ import {
   clearSessionFacility,
   removeSessionBlockResource,
 } from "@/app/actions/facilities";
-import { applyClubRotationToSession, clearClubRotationFromSession } from "@/app/actions/club-rotations";
-import { rotationDay, rotationVariant } from "@/app/lib/club-rotation-time";
+
 import {
   createSessionStation,
   deleteSessionStation,
@@ -95,7 +94,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
   const plannedMinutes = session.blocks.reduce((sum, block) => sum + (block.durationMin ?? 0), 0);
   const assignedIds = new Set(session.gymnasts.map((entry) => entry.gymnastId));
   const availableGymnasts = session.trainingGroup.memberships.filter((membership) => !assignedIds.has(membership.gymnastId));
-  const [facilities, rotationPlans, trainingPlans] = await Promise.all([
+  const [facilities, trainingPlans] = await Promise.all([
     prisma.facilityLocation.findMany({
       where: { organisationId: c.organisation.id, status: "ACTIVE" },
       include: {
@@ -107,22 +106,11 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
       },
       orderBy: { name: "asc" },
     }),
-    session.status === "PLANNED" ? prisma.clubRotationPlan.findMany({
-      where: {
-        organisationId: c.organisation.id, status: "ACTIVE",
-        effectiveFrom: { lte: session.sessionDate },
-        OR: [{ effectiveTo: null }, { effectiveTo: { gte: session.sessionDate } }],
-        ...(session.facilityAssignment ? { locationId: session.facilityAssignment.locationId } : {}),
-      },
-      include: { location: true, slots: { where: { dayOfWeek: rotationDay(session.sessionDate), trainingGroupId: session.trainingGroupId, startTime: { gte: session.startTime }, endTime: { lte: session.endTime } } } },
-    }) : Promise.resolve([]),
     prisma.trainingPlan.findMany({ where: { organisationId: c.organisation.id, trainingGroupId: session.trainingGroupId, status: "ACTIVE", startDate: { lte: session.sessionDate }, endDate: { gte: session.sessionDate } }, include: { items: { orderBy: { orderIndex: "asc" } } }, orderBy: { startDate: "desc" } }),
   ]);
   const activeFacility = session.facilityAssignment?.locationId
     ? facilities.find((facility) => facility.id === session.facilityAssignment?.locationId)
     : null;
-  const matchingRotations = rotationPlans.map(p => ({ ...p, variant: rotationVariant(p, session.sessionDate) }))
-    .filter(p => p.slots.some(s => s.variantIndex === p.variant));
   const availablePlanItems = trainingPlans.flatMap(plan => plan.items.map(item => ({ ...item, planName: plan.name })));
 
   const normalizeApparatus=(apparatus:string|null)=>{const key=(apparatus??"").trim().toUpperCase().replaceAll(" ","_");if(key==="VAULT")return "VAULT";if(key==="UNEVEN_BARS"||key==="BARS")return "BARS";if(key==="BALANCE_BEAM"||key==="BEAM")return "BEAM";if(key==="FLOOR_EXERCISE"||key==="FLOOR")return "FLOOR";return key;};
@@ -427,7 +415,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
 
         <section className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 className="text-xl font-semibold">Session rotation</h2><p className="mt-1 text-sm text-[var(--muted)]">Assign the whole group or a subgroup to a facility area for a visible time range.</p></div>
+            <div><h2 className="text-xl font-semibold">Session rotation</h2><p className="mt-1 text-sm text-[var(--muted)]">{session.clubRotationPlan ? "This session follows the club rotation for this group and date. Plan the training work inside these fixed apparatus and time windows." : "No club rotation applies to this session, so you can set apparatus, areas and time ranges here."}</p></div>
             <a href="/rotations" className="text-sm font-semibold underline">Reusable club rotas</a>
           </div>
           {session.clubRotationPlan && <p className="mt-3 text-sm font-semibold">Using {session.clubRotationPlan.name} · Rota {(session.clubRotationVariant ?? 0) + 1}</p>}
@@ -441,18 +429,9 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
             gymnasts={session.gymnasts.map(entry => ({ id: entry.gymnastId, name: entry.gymnast.name }))}
             initialGroups={session.rotationGroups.map(group => ({ id: group.id, name: group.name, gymnastIds: group.gymnasts.map(entry => entry.gymnastId) }))}
             initialAssignments={session.rotationGroups.flatMap(group => group.assignments.map(assignment => ({ id: assignment.id, rotationGroupId: group.id, blockId: assignment.blockId, trainingSpaceId: assignment.trainingSpaceId, startTime: assignment.startTime, endTime: assignment.endTime, notes: assignment.notes })))}
-            canEdit={session.status === "PLANNED" && c.access.canManageRotations}
+            canEdit={session.status === "PLANNED" && !session.clubRotationPlanId}
           />
-          {session.status === "PLANNED" && matchingRotations.length > 0 && (
-            <form action={applyClubRotationToSession} className="mt-5 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-4">
-              <input type="hidden" name="sessionId" value={session.id} />
-              <select name="planId" aria-label="Club rota" className="min-w-52 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm">
-                {matchingRotations.map(p => <option key={p.id} value={p.id}>{p.name} · Rota {p.variant + 1} · {p.location.name}</option>)}
-              </select>
-              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.clubRotationPlanId ? "Replace with club rota" : "Use club rota"}</button>
-            </form>
-          )}
-          {session.status === "PLANNED" && session.clubRotationPlanId && <form action={clearClubRotationFromSession} className="mt-3"><input type="hidden" name="sessionId" value={session.id}/><button className="text-sm text-[var(--muted)] underline">Remove club rota from session</button></form>}
+
         </section>
 
         <details className="mt-8 rounded-2xl border border-[var(--border)] p-4">

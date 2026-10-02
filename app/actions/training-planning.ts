@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
+import { rotationDay, rotationVariant } from "@/app/lib/club-rotation-time";
 import { logServerTiming, startServerTiming } from "@/app/lib/server-performance";
 
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
@@ -65,6 +66,19 @@ function addUtcDays(date: Date, days: number) {
   const next = new Date(date);
   next.setUTCDate(next.getUTCDate() + days);
   return next;
+}
+
+async function inheritClubRotation(sessionId:string, organisationId:string, trainingGroupId:string, sessionDate:Date, startTime:string, endTime:string, gymnastIds:string[]) {
+  const plans=await prisma.clubRotationPlan.findMany({where:{organisationId,status:"ACTIVE",effectiveFrom:{lte:sessionDate},OR:[{effectiveTo:null},{effectiveTo:{gte:sessionDate}}]},include:{slots:{where:{dayOfWeek:rotationDay(sessionDate),trainingGroupId,startTime:{gte:startTime},endTime:{lte:endTime}},orderBy:{startTime:"asc"}}}});
+  const matches=plans.map(plan=>({plan,variant:rotationVariant(plan,sessionDate)})).filter(x=>x.plan.slots.some(slot=>slot.variantIndex===x.variant));
+  if(matches.length!==1)return;
+  const {plan,variant}=matches[0],slots=plan.slots.filter(slot=>slot.variantIndex===variant);if(!slots.length)return;
+  await prisma.$transaction(async tx=>{
+    const group=await tx.sessionRotationGroup.create({data:{sessionId,name:"Club rotation",gymnasts:{create:gymnastIds.map(gymnastId=>({sessionId,gymnastId}))}}});
+    await tx.sessionRotationAssignment.createMany({data:slots.map((slot,orderIndex)=>({sessionId,rotationGroupId:group.id,trainingSpaceId:slot.trainingSpaceId,startTime:slot.startTime,endTime:slot.endTime,notes:slot.notes,orderIndex}))});
+    await tx.trainingSession.update({where:{id:sessionId},data:{clubRotationPlanId:plan.id,clubRotationVariant:variant}});
+    await tx.trainingSessionFacility.upsert({where:{sessionId},create:{sessionId,locationId:plan.locationId},update:{locationId:plan.locationId}});
+  });
 }
 
 async function createSessionFromGroup(params: {
@@ -133,6 +147,7 @@ export async function createTrainingSession(data: FormData) {
     notes: value(data, "notes") || null,
   });
   if (!session) return;
+  await inheritClubRotation(session.id, context.organisation.id, group.id, session.sessionDate, session.startTime, session.endTime, group.memberships.map(m=>m.gymnastId));
   revalidatePath("/planning");
   revalidatePath("/groups/" + trainingGroupId);
   redirect("/planning/" + session.id);
@@ -373,7 +388,7 @@ export async function createTrainingWeekFromSchedule(data: FormData) {
       select: { id: true },
     });
     if (existing) continue;
-    await createSessionFromGroup({
+    const created=await createSessionFromGroup({
       context,
       group,
       sessionDate,
@@ -382,6 +397,7 @@ export async function createTrainingWeekFromSchedule(data: FormData) {
       scheduleSlotId: slot.id,
       notes: slot.notes,
     });
+    if(created) await inheritClubRotation(created.id, context.organisation.id, group.id, sessionDate, slot.startTime, slot.endTime, group.memberships.map(m=>m.gymnastId));
   }
 
   revalidatePath("/planning");
