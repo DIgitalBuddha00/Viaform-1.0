@@ -89,7 +89,7 @@ export default async function TestingSessionPage({
           </div>
         </div>
 
-        {availableMetrics.length ? (
+        <div className="mt-4 flex justify-end"><a href={"/mentor?contextType=TESTING_SESSION&contextRef="+session.id} className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">Ask Mentor about this testing →</a></div>{availableMetrics.length ? (
           <>
             <div className="mt-6 overflow-x-auto pb-2">
               <div className="flex min-w-max gap-2">
