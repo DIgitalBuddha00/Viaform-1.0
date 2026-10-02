@@ -8,7 +8,7 @@ const words=(s:string)=>new Set(s.toLowerCase().replace(/[^a-z0-9 ]/g," ").split
 const score=(q:Set<string>,...parts:(string|null|undefined)[])=>{const text=words(parts.filter(Boolean).join(" "));let n=0;q.forEach(x=>{if(text.has(x))n++});return n};
 export async function askMentor(d:FormData){
  const c=await requireAuthContext();if(!c.access.canUseCoachingWorkspace)redirect("/dashboard");
- const question=v(d,"question"),gymnastId=v(d,"gymnastId")||null,apparatus=v(d,"apparatus")||null;if(!question)return;
+ const question=v(d,"question"),gymnastId=v(d,"gymnastId")||null,apparatus=v(d,"apparatus")||null,contextType=v(d,"contextType")||"GENERAL",contextRef=v(d,"contextRef")||null;if(!question)return;
  let gymnast:null|{id:string,name:string}=null;if(gymnastId)gymnast=await prisma.gymnast.findFirst({where:{id:gymnastId,...gymnastScopeWhere(c.organisation.id,c.membership.id,c.access)},select:{id:true,name:true}});if(gymnastId&&!gymnast)return;
  const [methods,checks,evidence,memory]=await Promise.all([
   prisma.methodologyRecord.findMany({where:{organisationId:c.organisation.id,status:"APPROVED",...(apparatus?{OR:[{apparatus},{apparatus:null}]}:{})},select:{id:true,title:true,provenance:true,technicalObjective:true,technicalBoundaries:true,defaultApproach:true,alternativeApproaches:true,uncertainty:true,apparatus:true},take:100}),
@@ -24,6 +24,6 @@ export async function askMentor(d:FormData){
  if(relevant[0]?.alternativeApproaches)lines.push("Alternative approach: "+relevant[0].alternativeApproaches);if(relevant[0]?.technicalBoundaries)lines.push("Boundary: "+relevant[0].technicalBoundaries);
  lines.push("");lines.push("Coach decision required");lines.push("Use the evidence and methodology above as context. Viaform is not making a readiness, progression, selection or technical decision for you.");
  const uncertainty=[...relevant.map(m=>m.uncertainty).filter(Boolean),!evidence.length&&gymnast?"Limited recent training evidence.":null].filter(Boolean).join(" ");
- const row=await prisma.mentorQuestion.create({data:{organisationId:c.organisation.id,askedByMembershipId:c.membership.id,gymnastId:gymnast?.id??null,question,apparatus,answer:lines.join("\n"),evidenceSnapshot:JSON.stringify({trainingEvidence:evidence,athleteState:checks,coachingMemory:memory}),methodologySnapshot:JSON.stringify(relevant),uncertainty:uncertainty||null}});
+ const row=await prisma.mentorQuestion.create({data:{organisationId:c.organisation.id,askedByMembershipId:c.membership.id,gymnastId:gymnast?.id??null,question,contextType,contextRef,apparatus,answer:lines.join("\n"),evidenceSnapshot:JSON.stringify({trainingEvidence:evidence,athleteState:checks,coachingMemory:memory}),methodologySnapshot:JSON.stringify(relevant),uncertainty:uncertainty||null}});
  redirect("/mentor?answer="+row.id);
 }
