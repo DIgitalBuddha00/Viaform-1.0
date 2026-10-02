@@ -19,3 +19,26 @@ export async function updateProgramme(d:FormData){const c=await manager(),id=v(d
 export async function deleteProgramme(d:FormData){const c=await manager(),id=v(d,"programmeId");const p=await programme(id,c.organisation.id);if(!p)return;await prisma.coachingProgramme.delete({where:{id}});revalidatePath("/programmes");}
 export async function updateProgrammeStage(d:FormData){const c=await manager(),programmeId=v(d,"programmeId"),stageId=v(d,"stageId"),name=v(d,"name");const p=await programme(programmeId,c.organisation.id),s=p?await stage(stageId,p.id):null;if(!p||!s||!name)return;await prisma.programmeStage.update({where:{id:stageId},data:{name,description:v(d,"description")||null}}).catch(()=>null);revalidatePath("/programmes");}
 export async function deleteProgrammeStage(d:FormData){const c=await manager(),programmeId=v(d,"programmeId"),stageId=v(d,"stageId");const p=await programme(programmeId,c.organisation.id),s=p?await stage(stageId,p.id):null;if(!p||!s)return;await prisma.programmeStage.delete({where:{id:stageId}});revalidatePath("/programmes");}
+
+export async function createProgrammeStageOutcome(d:FormData){
+ const c=await manager(),stageId=v(d,"stageId"),category=v(d,"category")||"SKILL",title=v(d,"title"),emphasis=v(d,"emphasis")||"DEVELOP",skillId=v(d,"skillId"),testMetricId=v(d,"testMetricId");
+ const st=await prisma.programmeStage.findFirst({where:{id:stageId,programme:{organisationId:c.organisation.id}}});if(!st||!title)return;
+ const [skill,metric,count]=await Promise.all([
+  skillId?prisma.viaformSkill.findFirst({where:{id:skillId,status:"ACTIVE",OR:[{sourceOrganisationId:null},{sourceOrganisationId:c.organisation.id}]},select:{id:true}}):null,
+  testMetricId?prisma.testMetric.findFirst({where:{id:testMetricId,organisationId:c.organisation.id,status:"ACTIVE"},select:{id:true}}):null,
+  prisma.programmeStageOutcome.count({where:{stageId}})
+ ]);
+ if(skillId&&!skill||testMetricId&&!metric)return;
+ await prisma.programmeStageOutcome.create({data:{organisationId:c.organisation.id,stageId,category,apparatus:v(d,"apparatus")||null,title,description:v(d,"description")||null,emphasis,successEvidence:v(d,"successEvidence")||null,coachNotes:v(d,"coachNotes")||null,skillId:skill?.id??null,testMetricId:metric?.id??null,orderIndex:count}});
+ revalidatePath("/programmes");
+}
+export async function updateProgrammeStageOutcome(d:FormData){
+ const c=await manager(),id=v(d,"outcomeId"),title=v(d,"title"),emphasis=v(d,"emphasis")||"DEVELOP";
+ const o=await prisma.programmeStageOutcome.findFirst({where:{id,organisationId:c.organisation.id}});if(!o||!title)return;
+ await prisma.programmeStageOutcome.update({where:{id},data:{title,description:v(d,"description")||null,emphasis,successEvidence:v(d,"successEvidence")||null,coachNotes:v(d,"coachNotes")||null}});
+ revalidatePath("/programmes");
+}
+export async function archiveProgrammeStageOutcome(d:FormData){
+ const c=await manager(),id=v(d,"outcomeId");const o=await prisma.programmeStageOutcome.findFirst({where:{id,organisationId:c.organisation.id}});if(!o)return;
+ await prisma.programmeStageOutcome.update({where:{id},data:{status:"ARCHIVED"}});revalidatePath("/programmes");
+}
