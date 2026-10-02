@@ -1963,3 +1963,57 @@ model ClubRotationLiveLog {
   @@index([organisationId,rotationDate,createdAt])
   @@index([sourceSlotId,rotationDate,createdAt])
 }
+
+
+model VideoAsset {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  gymnastId             String?
+  createdByMembershipId String
+  title                 String
+  apparatus             String?
+  skillLabel            String?
+  routineId             String?
+  routineItemId         String?
+  cameraAngle           String?
+  sourceType            String   @default("LOCAL")
+  fileName              String?
+  mimeType              String?
+  durationSeconds       Float?
+  storageRef            String?
+  status                String   @default("ACTIVE")
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([organisationId, status, createdAt])
+  @@index([gymnastId, createdAt])
+  @@index([routineId, createdAt])
+}
+
+model VideoAnalysis {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  videoAssetId          String
+  authorMembershipId    String
+  title                 String
+  timestampSeconds      Float?
+  rangeStartSeconds     Float?
+  rangeEndSeconds       Float?
+  playbackRate          Float?
+  zoom                   Float?
+  panX                   Float?
+  panY                   Float?
+  comparisonMode        String?
+  comparisonAssetId     String?
+  comparisonOffset      Float?
+  overlayOpacity        Float?
+  annotationJson        String   @default("[]")
+  technicalTags         String   @default("[]")
+  observation           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([organisationId, videoAssetId, createdAt])
+  @@index([videoAssetId, timestampSeconds])
+}
