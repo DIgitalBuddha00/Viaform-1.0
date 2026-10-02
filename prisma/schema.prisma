@@ -1049,6 +1049,7 @@ model TestBattery {
   scoringEnabled Boolean @default(false)
   pointSystemId String?
   status String @default("ACTIVE")
+  version Int @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   organisation Organisation @relation(fields:[organisationId],references:[id],onDelete:Cascade)
@@ -1096,6 +1097,9 @@ model TestingSession {
   purpose               String?
   conditions            String?
   notes                 String?
+  batteryNameSnapshot   String?
+  batteryVersionSnapshot Int?
+  batteryDefinitionSnapshot String?
   status                String   @default("IN_PROGRESS")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
