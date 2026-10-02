@@ -61,11 +61,12 @@ function parseRuleValue(valueJson: string): unknown {
 export async function getGymnastRulesContext(
   gymnastId: string,
   organisationId: string,
+  loadedAssignment?: { programId: string; program: { id: string; code: string; name: string; governingBody: string; discipline: string }; level: { id: string; code: string; name: string } | null } | null,
 ): Promise<GymnastRulesContext | null> {
-  const assignment = await prisma.gymnastRulesetAssignment.findFirst({
+  const assignment = loadedAssignment === undefined ? await prisma.gymnastRulesetAssignment.findFirst({
     where: { gymnastId, gymnast: { organisationId } },
     include: { program: true, level: true },
-  });
+  }) : loadedAssignment;
   if (!assignment?.level) return null;
 
   const levelCode = assignment.level.code;

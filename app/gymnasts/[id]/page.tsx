@@ -26,7 +26,7 @@ export default async function GymnastOverview({params}:{params:Promise<{id:strin
  const canManage=c.access.canManageProgrammesAndMethodology;const programmeOutcomes=programmeContext?.stageId?await prisma.programmeStageOutcome.findMany({where:{organisationId:c.organisation.id,stageId:programmeContext.stageId,status:"ACTIVE"},select:{id:true,title:true,category:true,apparatus:true,emphasis:true,successEvidence:true},orderBy:{orderIndex:"asc"},take:12}):[];
  const contextStartedAt=startServerTiming();
  const [canonicalRules,recentEvidence,recentTests,routines,competitionEntries,preference,programmes,rulesets,currentPriority,priorityHistory,currentGoals,currentCulture]=await Promise.all([
-  rulesetContext?getGymnastRulesContext(gymnast.id,c.organisation.id):Promise.resolve(null),
+  rulesetContext?getGymnastRulesContext(gymnast.id,c.organisation.id,rulesetContext):Promise.resolve(null),
   prisma.trainingEvidence.findMany({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}},select:{id:true,outcome:true,recordedAt:true,block:{select:{title:true,apparatus:true}}},orderBy:{recordedAt:"desc"},take:5}),
   prisma.testingResult.findMany({where:{gymnastId:gymnast.id,session:{organisationId:c.organisation.id}},select:{id:true,numberValue:true,recordedAt:true,metric:{select:{name:true,unit:true}}},orderBy:{recordedAt:"desc"},take:5}),
   prisma.gymnastRoutine.findMany({where:{gymnastId:gymnast.id,status:"ACTIVE"},select:{id:true,apparatus:true,name:true},orderBy:{updatedAt:"desc"}}),
@@ -39,7 +39,7 @@ export default async function GymnastOverview({params}:{params:Promise<{id:strin
   prisma.gymnastGoal.findMany({where:{organisationId:c.organisation.id,gymnastId:gymnast.id,status:{in:["ACTIVE","PAUSED"]}},select:{id:true,title:true,status:true},orderBy:{createdAt:"desc"},take:6}),
   prisma.cultureAchievement.findMany({where:{organisationId:c.organisation.id,gymnastId:gymnast.id,endedAt:null,definition:{status:"ACTIVE"}},select:{id:true,definition:{select:{name:true,badgeLabel:true}}},orderBy:{awardedAt:"desc"},take:8})
  ]);
- logServerTiming("page.gymnast.context",contextStartedAt,{parallelQueries:12});
+ logServerTiming("page.gymnast.context",contextStartedAt,{parallelQueries:12,reusedRulesetAssignment:true});
  const evidenceCount=gymnast._count.trainingEvidence,testCount=gymnast._count.testingResults,attendanceCount=gymnast._count.trainingAttendance;
  const apparatusContexts=rulesByApparatus(canonicalRules),sharedRuleCount=canonicalRules?.rules.filter(r=>r.apparatus==="ALL").length??0;
  const nextCompetition=[...competitionEntries].filter(x=>x.event.eventDate>=new Date()).sort((a,b)=>a.event.eventDate.getTime()-b.event.eventDate.getTime())[0]??null;
