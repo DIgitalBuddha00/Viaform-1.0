@@ -62,6 +62,7 @@ model Organisation {
   staffInvitations StaffInvitation[]
   cultureDefinitions CultureDefinition[]
   cultureAchievements CultureAchievement[]
+  evaluations GymnastEvaluation[]
 }
 
 model OrganisationMembership {
@@ -248,6 +249,7 @@ model Gymnast {
   targetedSessionBlocks SessionBlock[]
   goals GymnastGoal[]
   cultureAchievements CultureAchievement[]
+  evaluations GymnastEvaluation[]
 
   @@index([organisationId, status, name])
   @@index([organisationId, name])
@@ -291,6 +293,52 @@ model CultureAchievement {
   @@index([organisationId, gymnastId, awardedAt])
   @@index([cultureDefinitionId, endedAt])
   @@index([gymnastId, endedAt])
+}
+
+model GymnastEvaluation {
+  id String @id @default(cuid())
+  organisationId String
+  gymnastId String
+  createdByMembershipId String
+  evaluationType String @default("INTAKE")
+  title String
+  evaluatedAt DateTime @default(now())
+  previousExperience String?
+  overallObservation String?
+  placementContext String?
+  recommendedProgrammeId String?
+  recommendedProgrammeName String?
+  recommendedStageId String?
+  recommendedStageName String?
+  recommendedGroupId String?
+  recommendedGroupName String?
+  placementDecision String?
+  status String @default("IN_PROGRESS")
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organisation Organisation @relation(fields:[organisationId],references:[id],onDelete:Cascade)
+  gymnast Gymnast @relation(fields:[gymnastId],references:[id],onDelete:Cascade)
+  items GymnastEvaluationItem[]
+  @@index([organisationId,gymnastId,evaluatedAt])
+  @@index([organisationId,status,evaluatedAt])
+}
+model GymnastEvaluationItem {
+  id String @id @default(cuid())
+  evaluationId String
+  area String
+  apparatus String?
+  label String
+  rating String?
+  numberValue Float?
+  unit String?
+  note String?
+  testMetricId String?
+  orderIndex Int @default(0)
+  createdAt DateTime @default(now())
+  evaluation GymnastEvaluation @relation(fields:[evaluationId],references:[id],onDelete:Cascade)
+  @@index([evaluationId,area,orderIndex])
+  @@index([testMetricId])
 }
 
 model GymnastGoal {

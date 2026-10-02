@@ -9,6 +9,7 @@ export default async function More(){
     {label:"Coach profile & settings",href:"/profile",description:"Profile, coach PIN and account settings.",show:true},
     {label:"Video workspace",href:"/video",description:"Capture, review, compare and annotate coaching video.",show:c.access.canUseCoachingWorkspace},
     {label:"Analysis",href:"/analysis",description:"Explore and compare evidence across Viaform.",show:c.access.canUseCoachingWorkspace},
+    {label:"Evaluate",href:"/evaluate",description:"Intake evidence and coach-led programme or group placement.",show:c.access.canUseCoachingWorkspace},
     {label:"Organisation & access",href:"/people",description:"People, roles and organisation access.",show:c.access.canManagePeopleAndRoles},
     {label:"Programmes & methodology",href:"/programmes",description:"Programmes, stages and coaching methodology.",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},
     {label:"Culture",href:"/culture",description:"Who we are: club identity, traditions, clubs and recognition.",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},
