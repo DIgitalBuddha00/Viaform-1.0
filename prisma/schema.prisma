@@ -351,6 +351,24 @@ model GymnastProgrammeAssignment {
 
 
 
+model GymnastTrainingPriority {
+  id                     String   @id @default(cuid())
+  organisationId         String
+  gymnastId              String
+  priority               String
+  focus                  String?
+  rationale              String?
+  setByMembershipId      String
+  startedAt              DateTime @default(now())
+  endedAt                DateTime?
+  endedByMembershipId    String?
+  endReason              String?
+  createdAt              DateTime @default(now())
+
+  @@index([organisationId, gymnastId, startedAt])
+  @@index([gymnastId, endedAt])
+}
+
 model GymnastProgrammeAssignmentHistory {
   id             String   @id @default(cuid())
   organisationId String
