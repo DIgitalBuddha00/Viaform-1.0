@@ -1143,6 +1143,9 @@ model TestingResult {
   unitSnapshot            String?
   directionSnapshot       String?
   scoringModeSnapshot     String?
+  pointSystemNameSnapshot String?
+  pointSystemVersionSnapshot Int?
+  scoreRuleSnapshot       String?
   note                   String?
   recordedAt             DateTime @default(now())
   updatedAt              DateTime @updatedAt
