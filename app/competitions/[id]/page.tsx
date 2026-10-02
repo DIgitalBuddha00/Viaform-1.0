@@ -134,7 +134,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                       return (
                         <div key={plan.id} className="rounded-xl border border-[var(--border)] p-4">
                           <p className="font-semibold">{apparatusLabel[plan.apparatus] ?? plan.apparatus}</p>
-                          <p className="mt-1 text-xs text-[var(--muted)]">{plan.routineNameSnapshot ? "Planned · " + plan.routineNameSnapshot : "No routine selected yet"}</p>
+                          <p className="mt-1 text-xs text-[var(--muted)]">{plan.routineNameSnapshot ? "Planned · " + plan.routineNameSnapshot : "No routine selected yet"}</p>{plan.routineSnapshot && <p className="mt-1 text-[11px] text-[var(--muted)]">Frozen competition copy · later routine edits will not rewrite this selection.</p>}
                           <form action={selectCompetitionRoutine} className="mt-3 grid gap-2">
                             <input type="hidden" name="eventId" value={event.id}/><input type="hidden" name="planId" value={plan.id}/>
                             <select name="routineId" defaultValue={plan.routineId ?? ""} disabled={event.status !== "PLANNED"} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-60">
@@ -146,7 +146,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                           </form>
                           <details className="mt-3 border-t border-[var(--border)] pt-3">
                             <summary className="cursor-pointer text-xs font-semibold">{plan.performance?.status === "COMPETED" ? "Recorded outcome" : "Record outcome & perspectives"}</summary>
-                            <form action={recordCompetitionPerformance} className="mt-3 grid gap-2">
+                            <form action={recordCompetitionPerformance} className="mt-3 grid gap-2"><p className="text-[11px] text-[var(--muted)]">{event.eventType === "EXTERNAL" ? "Score source: official external result." : "Score source: observed control-competition result; kept separate from official external results."}</p>
                               <input type="hidden" name="eventId" value={event.id}/><input type="hidden" name="planId" value={plan.id}/>
                               <select name="performanceStatus" defaultValue={plan.performance?.status ?? "NOT_RECORDED"} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
                                 <option value="NOT_RECORDED">Not recorded</option><option value="COMPETED">Competed</option><option value="SCRATCHED">Scratched</option><option value="EXHIBITION">Exhibition</option>

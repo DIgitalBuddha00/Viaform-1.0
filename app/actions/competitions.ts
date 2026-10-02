@@ -119,24 +119,90 @@ export async function selectCompetitionRoutine(data: FormData) {
   });
   if (!plan) return;
   const routineId = value(data, "routineId");
-  let routine: { id: string; name: string } | null = null;
+  let routine: { id: string; name: string; snapshot: string } | null = null;
   if (routineId) {
-    routine = await prisma.gymnastRoutine.findFirst({
+    const selected = await prisma.gymnastRoutine.findFirst({
       where: {
         id: routineId,
         gymnastId: plan.entry.gymnastId,
         apparatus: plan.apparatus,
         status: "ACTIVE",
       },
-      select: { id: true, name: true },
+      include: {
+        elements: { include: { elementDefinition: true }, orderBy: { orderIndex: "asc" } },
+        vaults: { include: { vaultDefinition: true }, orderBy: { orderIndex: "asc" } },
+        customItems: { orderBy: { orderIndex: "asc" } },
+        sections: { orderBy: { orderIndex: "asc" } },
+      },
     });
-    if (!routine) return;
+    if (!selected) return;
+    routine = {
+      id: selected.id,
+      name: selected.name,
+      snapshot: JSON.stringify({
+        capturedAt: new Date().toISOString(),
+        routineId: selected.id,
+        name: selected.name,
+        apparatus: selected.apparatus,
+        purpose: selected.purpose,
+        ruleset: {
+          programCode: selected.rulesetProgramCode,
+          programName: selected.rulesetProgramName,
+          levelCode: selected.rulesetLevelCode,
+          levelName: selected.rulesetLevelName,
+          packageCode: selected.rulesetPackageCode,
+          versionLabel: selected.rulesetVersionLabel,
+        },
+        vaultMode: selected.vaultMode,
+        durationSeconds: selected.routineDurationSeconds,
+        elements: selected.elements.map((item) => ({
+          orderIndex: item.orderIndex,
+          recognition: item.recognition,
+          isDismount: item.isDismount,
+          coachNote: item.coachNote,
+          definition: {
+            id: item.elementDefinition.id,
+            officialNumber: item.elementDefinition.officialNumber,
+            variantKey: item.elementDefinition.variantKey,
+            name: item.elementDefinition.name,
+            difficulty: item.elementDefinition.difficulty,
+          },
+        })),
+        vaults: selected.vaults.map((item) => ({
+          orderIndex: item.orderIndex,
+          role: item.role,
+          coachNote: item.coachNote,
+          definition: {
+            id: item.vaultDefinition.id,
+            officialNumber: item.vaultDefinition.officialNumber,
+            variantKey: item.vaultDefinition.variantKey,
+            name: item.vaultDefinition.name,
+            dValue: item.vaultDefinition.dValue,
+          },
+        })),
+        customItems: selected.customItems.map((item) => ({
+          orderIndex: item.orderIndex,
+          label: item.label,
+          role: item.role,
+          coachNote: item.coachNote,
+        })),
+        sections: selected.sections.map((section) => ({
+          orderIndex: section.orderIndex,
+          sectionType: section.sectionType,
+          title: section.title,
+          startTimeSec: section.startTimeSec,
+          endTimeSec: section.endTimeSec,
+          notes: section.notes,
+        })),
+      }),
+    };
   }
   await prisma.competitionApparatusPlan.update({
     where: { id: plan.id },
     data: {
       routineId: routine?.id ?? null,
       routineNameSnapshot: routine?.name ?? null,
+      routineSnapshot: routine?.snapshot ?? null,
       planNote: value(data, "planNote") || null,
     },
   });
@@ -191,9 +257,10 @@ export async function recordCompetitionPerformance(data: FormData) {
   if ([difficultyScore, executionScore, penalty, finalScore].some((item) => typeof item === "number" && item < 0)) return;
   if (rankRaw !== null && (!Number.isInteger(rankRaw) || rankRaw < 1)) return;
 
-  if(plan.performance)await prisma.competitionPerformanceRevision.create({data:{performanceId:plan.performance.id,revisedByMembershipId:c.membership.id,status:plan.performance.status,difficultyScore:plan.performance.difficultyScore,executionScore:plan.performance.executionScore,penalty:plan.performance.penalty,finalScore:plan.performance.finalScore,rank:plan.performance.rank,warmupNote:plan.performance.warmupNote,judgeNote:plan.performance.judgeNote,coachObservation:plan.performance.coachObservation,performedAt:plan.performance.performedAt}});
+  if(plan.performance)await prisma.competitionPerformanceRevision.create({data:{performanceId:plan.performance.id,revisedByMembershipId:c.membership.id,status:plan.performance.status,difficultyScore:plan.performance.difficultyScore,executionScore:plan.performance.executionScore,penalty:plan.performance.penalty,finalScore:plan.performance.finalScore,rank:plan.performance.rank,scoreSource:plan.performance.scoreSource,warmupNote:plan.performance.warmupNote,judgeNote:plan.performance.judgeNote,coachObservation:plan.performance.coachObservation,performedAt:plan.performance.performedAt}});
   const payload = {
     status,
+    scoreSource: event.eventType === "EXTERNAL" ? "OFFICIAL_RESULT" : "CONTROL_OBSERVATION",
     difficultyScore,
     executionScore,
     penalty,

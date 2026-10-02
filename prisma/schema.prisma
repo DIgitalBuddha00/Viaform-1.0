@@ -1668,6 +1668,7 @@ model CompetitionApparatusPlan {
   apparatus          String
   routineId          String?
   routineNameSnapshot String?
+  routineSnapshot     String?
   planNote           String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -1690,6 +1691,7 @@ model CompetitionPerformance {
   penalty                  Float?
   finalScore               Float?
   rank                     Int?
+  scoreSource              String   @default("UNSPECIFIED")
   warmupNote               String?
   judgeNote                String?
   coachObservation         String?
@@ -1712,6 +1714,7 @@ model CompetitionPerformanceRevision {
   penalty Float?
   finalScore Float?
   rank Int?
+  scoreSource String
   warmupNote String?
   judgeNote String?
   coachObservation String?
