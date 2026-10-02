@@ -59,7 +59,7 @@ export function TestingCapture(props: Props) {
   }
 
   return (
-    <form action={recordTestingResult} className="grid gap-3 rounded-xl border border-[var(--border)] p-3">
+    <form action={recordTestingResult} className="grid gap-3 rounded-xl border border-[var(--border)] p-3 sm:p-4">
       <input type="hidden" name="sessionId" value={props.sessionId} />
       <input type="hidden" name="gymnastId" value={props.gymnastId} />
       <input type="hidden" name="metricId" value={props.metricId} />
@@ -71,8 +71,8 @@ export function TestingCapture(props: Props) {
           <div className="rounded-xl border border-[var(--border)] p-3 text-center">
             <p className="text-2xl font-semibold tabular-nums">{clock(time)}</p>
             <div className="mt-2 flex justify-center gap-2">
-              <button type="button" disabled={props.disabled} onClick={() => setRunning((current) => !current)} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">{running ? "Pause" : "Start"}</button>
-              <button type="button" disabled={props.disabled} onClick={reset} className="rounded-lg px-3 py-2 text-sm text-[var(--muted)]">Reset</button>
+              <button type="button" disabled={props.disabled} onClick={() => setRunning((current) => !current)} className="min-h-11 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold">{running ? "Pause" : "Start"}</button>
+              <button type="button" disabled={props.disabled} onClick={reset} className="min-h-11 rounded-lg px-4 py-2 text-sm text-[var(--muted)]">Reset</button>
             </div>
           </div>
           <div className="rounded-xl border border-[var(--border)] p-3 text-center">
@@ -90,7 +90,7 @@ export function TestingCapture(props: Props) {
         <div className="rounded-xl border border-[var(--border)] p-3 text-center">
           <p className="text-3xl font-semibold tabular-nums">{clock(time)}</p>
           <div className="mt-2 flex justify-center gap-2">
-            <button type="button" disabled={props.disabled} onClick={stopWatch} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold">{running ? "Stop" : "Start"}</button>
+            <button type="button" disabled={props.disabled} onClick={stopWatch} className="min-h-11 rounded-lg border border-[var(--border)] px-5 py-2 text-sm font-semibold">{running ? "Stop" : "Start"}</button>
             <button type="button" disabled={props.disabled} onClick={reset} className="rounded-lg px-3 py-2 text-sm text-[var(--muted)]">Reset</button>
           </div>
           {value && <p className="mt-2 text-sm">Selected result: {value} {props.unit || "sec"}</p>}
@@ -115,7 +115,7 @@ export function TestingCapture(props: Props) {
       {props.scoringMode==="MANUAL"&&<label className="text-sm font-medium">Points<input name="pointsValue" disabled={props.disabled} type="number" step="any" inputMode="decimal" defaultValue={props.initialPoints??""} placeholder="Enter points from reference" className="mt-1 w-full rounded-xl border border-[var(--border)] px-3 py-3 text-lg"/></label>}
       {props.scoringMode==="AUTOMATIC"&&<div className="testing-result-points">{props.initialPoints!==null?<><strong>{props.initialPoints} points</strong><span>Calculated from the saved point system</span></>:<span>Save the result to calculate points from the point system.</span>}</div>}
       <input name="note" disabled={props.disabled} defaultValue={props.initialNote ?? ""} placeholder="Coach context (optional)" className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm" />
-      <button disabled={props.disabled || value === ""} className="rounded-xl bg-[var(--foreground)] px-4 py-3 text-sm font-semibold text-white">
+      <button disabled={props.disabled || value === ""} className="min-h-12 rounded-xl bg-[var(--foreground)] px-4 py-3 text-sm font-semibold text-white">
         {props.initialValue === null ? "Save result" : "Update result"}
       </button>
     </form>
