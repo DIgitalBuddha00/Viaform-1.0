@@ -1,2 +1,33 @@
-import {AppShell} from "@/app/components/app-shell";import {requireAuthContext} from "@/app/lib/auth";export const dynamic="force-dynamic";
-export default async function More(){const c=await requireAuthContext();const sections=[{title:"Account & appearance",items:[{label:"My profile",href:"/profile",show:true},{label:"Appearance",href:"/appearance",show:true},{label:"Updates",href:"/updates",show:c.access.canUseCoachingWorkspace||c.access.canManageProgrammesAndMethodology}]},{title:"Coaching",items:[{label:"Programmes",href:"/programmes",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},{label:"Methodology",href:"/methodology",show:c.access.canUseCoachingWorkspace||c.access.canManageProgrammesAndMethodology},{label:"Coach handoff & cover",href:"/handoffs",show:c.access.canUseCoachingWorkspace},{label:"Rulesets",href:"/rulesets",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace}]},{title:"Club",items:[{label:"Archive",href:"/archive",show:c.access.canUseCoachingWorkspace||c.access.canManagePeopleAndRoles},{label:"People & roles",href:"/people",show:c.access.canManagePeopleAndRoles},{label:"Programme leadership",href:"/programme-leads",show:c.access.canManageProgrammesAndMethodology},{label:"Trusted contributors",href:"/contributors",show:c.access.canManageProgrammesAndMethodology},{label:"Rotations",href:"/rotations",show:c.access.canManageRotations||c.access.canUseCoachingWorkspace},{label:"Facilities & equipment",href:"/facilities",show:c.access.canConfigureFacilities||c.access.canUseCoachingWorkspace}]}].map(s=>({...s,items:s.items.filter(i=>i.show)})).filter(s=>s.items.length);return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section className="workspace-page"><div className="workspace-hero"><div><p className="workspace-kicker">More</p><h1>More</h1></div></div><div className="more-sections">{sections.map(s=><section key={s.title}><h2>{s.title}</h2><div className="more-grid">{s.items.map(i=><a key={i.href} href={i.href}><span>{i.label}</span><b>→</b></a>)}</div></section>)}</div></section></AppShell>}
+import {AppShell} from "@/app/components/app-shell";
+import {requireAuthContext} from "@/app/lib/auth";
+
+export const dynamic="force-dynamic";
+
+export default async function More(){
+  const c=await requireAuthContext();
+  const items=[
+    {label:"Coach profile & settings",href:"/profile",description:"Profile, coach PIN and account settings.",show:true},
+    {label:"Analysis",href:"/analysis",description:"Explore and compare evidence across Viaform.",show:c.access.canUseCoachingWorkspace},
+    {label:"Organisation & access",href:"/people",description:"People, roles and organisation access.",show:c.access.canManagePeopleAndRoles},
+    {label:"Programmes & methodology",href:"/programmes",description:"Programmes, stages and coaching methodology.",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},
+    {label:"Facilities & resources",href:"/facilities",description:"Locations, training spaces and equipment.",show:c.access.canConfigureFacilities||c.access.canUseCoachingWorkspace},
+    {label:"Coach handoffs",href:"/handoffs",description:"Coverage, handoffs and coaching continuity.",show:c.access.canUseCoachingWorkspace},
+    {label:"Rotations",href:"/rotations",description:"Training-space and rotation operations.",show:c.access.canManageRotations||c.access.canUseCoachingWorkspace},
+  ].filter(item=>item.show);
+  const supporting=[
+    {label:"Appearance",href:"/appearance",show:true},
+    {label:"Updates",href:"/updates",show:c.access.canUseCoachingWorkspace||c.access.canManageProgrammesAndMethodology},
+    {label:"Methodology",href:"/methodology",show:c.access.canUseCoachingWorkspace||c.access.canManageProgrammesAndMethodology},
+    {label:"Rulesets",href:"/rulesets",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},
+    {label:"Archive",href:"/archive",show:c.access.canUseCoachingWorkspace||c.access.canManagePeopleAndRoles},
+    {label:"Programme leadership",href:"/programme-leads",show:c.access.canManageProgrammesAndMethodology},
+    {label:"Trusted contributors",href:"/contributors",show:c.access.canManageProgrammesAndMethodology},
+  ].filter(item=>item.show);
+  return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
+    <section className="workspace-page">
+      <div className="workspace-hero"><div><p className="workspace-kicker">More</p><h1>More</h1><p className="workspace-meta">Settings, organisation and specialist workspaces</p></div></div>
+      <section className="mt-8"><div className="more-grid">{items.map(item=><a key={item.href} href={item.href}><span><strong>{item.label}</strong><small className="mt-1 block font-normal text-[var(--muted)]">{item.description}</small></span><b>→</b></a>)}</div></section>
+      {supporting.length>0&&<section className="mt-9"><h2 className="text-sm font-semibold text-[var(--muted)]">Related settings and administration</h2><div className="more-grid mt-3">{supporting.map(item=><a key={item.href} href={item.href}><span>{item.label}</span><b>→</b></a>)}</div></section>}
+    </section>
+  </AppShell>;
+}

@@ -16,7 +16,7 @@ function NavIcon({name}:{name:IconName}){const paths:Record<IconName,ReactNode>=
 const icons:Record<string,IconName>={Home:"home",Calendar:"calendar","My Groups":"groups",Planning:"planning",Training:"training",Testing:"testing",Routines:"routine",Competitions:"competition",More:"more"};
 const short:Record<string,string>={"My Groups":"Groups",Planning:"Plan",Training:"Train",Testing:"Test",Competitions:"Compete"};
 export function AppShell({children,organisationName,displayName,access}:Props){
- const pathname=usePathname(),navigation=primaryNavigation(access).filter(x=>x.enabled),phone=access.canUseCoachingWorkspace?navigation.filter(x=>["Home","My Groups","Planning","Training","More"].includes(x.label)):navigation;
+ const pathname=usePathname(),navigation=primaryNavigation(access).filter(x=>x.enabled),phone=access.canUseCoachingWorkspace?navigation.filter(x=>["Home","My Groups","Training","Competitions","More"].includes(x.label)):navigation;
  const [mounted,setMounted]=useState(false);useEffect(()=>setMounted(true),[]);
  const roles=[...(access.isAdministrator?["Administrator"]:[]),...access.coachingRoles.map(coachingRoleLabel)],active=(href:string)=>href==="/dashboard"?pathname==="/dashboard":pathname===href||pathname.startsWith(href+"/");
  const links=(items:typeof navigation,cls:string)=>items.map(item=><Link key={item.href} href={item.href} prefetch aria-current={active(item.href)?"page":undefined} className={cls+(active(item.href)?" nav-active":"")}><NavIcon name={icons[item.label]??"more"}/><span>{short[item.label]??item.label}</span></Link>);
