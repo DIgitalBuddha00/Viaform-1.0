@@ -32,6 +32,9 @@ export async function createStaffInvitation(data:FormData){
   redirect("/people?invite="+encodeURIComponent(inviteUrl));
 }
 
+export async function resendStaffInvitation(data:FormData){const c=await peopleManager(),id=field(data,"invitationId"),inv=await prisma.staffInvitation.findFirst({where:{id,organisationId:c.organisation.id,status:"PENDING"}});if(!inv)return;const token=randomBytes(32).toString("base64url"),expiresAt=new Date(Date.now()+7*86400000);await prisma.staffInvitation.update({where:{id:inv.id},data:{tokenHash:inviteHash(token),expiresAt}});const h=await headers(),host=h.get("x-forwarded-host")??h.get("host"),protocol=h.get("x-forwarded-proto")??"https";const inviteUrl=host?protocol+"://"+host+"/invite/"+token:"/invite/"+token;redirect("/people?invite="+encodeURIComponent(inviteUrl));}
+export async function clearExpiredStaffInvitations(data:FormData){const c=await peopleManager();await prisma.staffInvitation.updateMany({where:{organisationId:c.organisation.id,status:"PENDING",expiresAt:{lte:new Date()}},data:{status:"EXPIRED"}});revalidatePath("/people");}
+
 export async function cancelStaffInvitation(data:FormData){const c=await peopleManager();const id=field(data,"invitationId");await prisma.staffInvitation.updateMany({where:{id,organisationId:c.organisation.id,status:"PENDING"},data:{status:"CANCELLED"}});revalidatePath("/people");}
 
 export async function acceptStaffInvitation(data:FormData){

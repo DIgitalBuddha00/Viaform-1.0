@@ -9,6 +9,7 @@ import { logServerTiming } from "./server-performance";
 const SESSION_COOKIE = "viaform_session";
 const SESSION_DAYS = 30;
 const ACTIVE_MEMBERSHIP_COOKIE="viaform_active_membership";
+const ACTIVE_MEMBERSHIP_HOURS=8;
 
 export function normaliseEmail(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
@@ -50,7 +51,7 @@ export async function destroySession() {
   jar.delete(ACTIVE_MEMBERSHIP_COOKIE);
 }
 
-export async function setActiveMembership(membershipId:string|null){const jar=await cookies(),token=jar.get(SESSION_COOKIE)?.value;if(token)await prisma.authSession.updateMany({where:{tokenHash:tokenHash(token)},data:{activeMembershipId:membershipId}});if(membershipId)jar.set(ACTIVE_MEMBERSHIP_COOKIE,membershipId,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/"});else jar.delete(ACTIVE_MEMBERSHIP_COOKIE);}
+export async function setActiveMembership(membershipId:string|null){const jar=await cookies(),token=jar.get(SESSION_COOKIE)?.value;if(token)await prisma.authSession.updateMany({where:{tokenHash:tokenHash(token)},data:{activeMembershipId:membershipId,activeMembershipSelectedAt:membershipId?new Date():null}});if(membershipId)jar.set(ACTIVE_MEMBERSHIP_COOKIE,membershipId,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/"});else jar.delete(ACTIVE_MEMBERSHIP_COOKIE);}
 
 export async function currentAuthContext() {
   const authStartedAt=Date.now();
@@ -61,14 +62,16 @@ export async function currentAuthContext() {
   const session=await prisma.authSession.findUnique({
     where:{tokenHash:tokenHash(token)},
     select:{
-      expiresAt:true,organisationId:true,activeMembershipId:true,
+      expiresAt:true,organisationId:true,activeMembershipId:true,activeMembershipSelectedAt:true,
       user:{select:{id:true,email:true,displayName:true,isActive:true,passwordSalt:true,passwordHash:true}},
       organisation:{select:{id:true,name:true,slug:true}},
     },
   }).catch(()=>null);
   const sessionMs=Date.now()-sessionStartedAt;
   if(!session||session.expiresAt<=new Date()||!session.user.isActive||!session.organisationId||!session.organisation)return null;
-  const activeId=requested??session.activeMembershipId;
+  const selectionFresh=!!session.activeMembershipSelectedAt&&session.activeMembershipSelectedAt.getTime()>Date.now()-ACTIVE_MEMBERSHIP_HOURS*60*60*1000;
+  const activeId=selectionFresh?(requested??session.activeMembershipId):null;
+  if(!selectionFresh&&(requested||session.activeMembershipId)){await prisma.authSession.updateMany({where:{tokenHash:tokenHash(token)},data:{activeMembershipId:null,activeMembershipSelectedAt:null}});jar.delete(ACTIVE_MEMBERSHIP_COOKIE);}
   const membershipsStartedAt=Date.now();
   const memberships=await prisma.organisationMembership.findMany({
     where:{organisationId:session.organisationId,isActive:true,...(activeId?{OR:[{id:activeId},{userId:session.user.id}]}:{userId:session.user.id})},

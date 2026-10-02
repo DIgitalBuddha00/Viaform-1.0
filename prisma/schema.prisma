@@ -144,6 +144,7 @@ model AuthSession {
   userId         String
   organisationId String?
   activeMembershipId String?
+  activeMembershipSelectedAt DateTime?
   tokenHash      String   @unique
   expiresAt      DateTime
   lastSeenAt     DateTime @default(now())
