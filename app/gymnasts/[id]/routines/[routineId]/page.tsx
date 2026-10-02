@@ -127,7 +127,8 @@ export default async function RoutineWorkspace({
     elements: routine.elements,
     rules: applicableRules,
   }) : null;
-  const pathwayCandidates = (pathwayLevels ?? []).filter((level: { id: string; code: string; name: string; orderIndex: number; routineRequirements: { id: string }[] }) => level.code !== routine.rulesetLevelCode);
+  type PathwayLevel = { id: string; code: string; name: string; orderIndex: number; routineRequirements: { id: string }[] };
+  const pathwayCandidates: PathwayLevel[] = ((pathwayLevels ?? []) as PathwayLevel[]).filter((level) => level.code !== routine.rulesetLevelCode);
   const rulesContextChanged = Boolean(
     currentRules &&
     (currentRules.package.code !== routine.rulesetPackageCode || currentRules.level.code !== routine.rulesetLevelCode),
