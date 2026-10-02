@@ -30,13 +30,14 @@ export async function searchPlanningSkills(
   if (!context.access.canUseCoachingWorkspace) return [];
 
   const term = query.trim().slice(0, 80);
-  const normalizedApparatus = apparatusMap[(apparatus ?? "").trim().toUpperCase()] ?? "";
-  if (term.length < 2 || !normalizedApparatus) return [];
+  const requestedApparatus = (apparatus ?? "").trim().toUpperCase();
+  const normalizedApparatus = requestedApparatus ? apparatusMap[requestedApparatus] : null;
+  if (term.length < 2 || (requestedApparatus && !normalizedApparatus)) return [];
 
   const canonical = await prisma.viaformSkill.findMany({
     where: {
       discipline: "WAG",
-      apparatus: normalizedApparatus,
+      ...(normalizedApparatus ? { apparatus: normalizedApparatus } : {}),
       status: "ACTIVE",
       OR: [
         { name: { contains: term } },
@@ -67,6 +68,7 @@ export async function searchPlanningSkills(
   if (canonicalOnly || results.length >= 20) return results;
 
   const remaining = 20 - results.length;
+  if (!normalizedApparatus) return results;
   if (normalizedApparatus === "VAULT") {
     const fallback = await prisma.figVaultDefinition.findMany({
       where: {
