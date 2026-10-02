@@ -85,6 +85,7 @@ model OrganisationMembership {
   recordedTrainingAttendance TrainingAttendance[]
   createdTestingSessions TestingSession[]
   recordedTestingResults TestingResult[]
+  revisedTestingResults TestingResultRevision[]
   createdCompetitionEvents CompetitionEvent[]
   programmeLeaderships ProgrammeLeadAssignment[]
   createdMethodologyRecords MethodologyRecord[] @relation("MethodologyCreatedBy")
