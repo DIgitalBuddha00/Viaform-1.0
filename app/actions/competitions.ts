@@ -222,9 +222,11 @@ export async function recordCompetitionAthleteReflection(data: FormData) {
     include: { performance: {include:{athleteReflection:true}} },
   });
   if (!plan) return;
-  const performance = plan.performance ?? await prisma.competitionPerformance.create({
-    data: { competitionApparatusPlanId: plan.id },
-  });
+  let performance = plan.performance;
+  if (!performance) {
+    const created = await prisma.competitionPerformance.create({data:{competitionApparatusPlanId:plan.id}});
+    performance = {...created, athleteReflection:null};
+  }
   const ratingRaw = optionalNumber(data, "rating");
   const confidenceRaw = optionalNumber(data, "confidence");
   if (ratingRaw === undefined || confidenceRaw === undefined) return;
