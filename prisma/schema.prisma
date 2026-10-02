@@ -2019,3 +2019,24 @@ model VideoAnalysis {
   @@index([organisationId, videoAssetId, createdAt])
   @@index([videoAssetId, timestampSeconds])
 }
+
+
+model MentorQuestion {
+  id                   String   @id @default(cuid())
+  organisationId       String
+  askedByMembershipId  String
+  gymnastId            String?
+  question             String
+  contextType          String   @default("GENERAL")
+  contextRef           String?
+  apparatus            String?
+  answer               String
+  evidenceSnapshot     String   @default("[]")
+  methodologySnapshot  String   @default("[]")
+  uncertainty          String?
+  createdAt            DateTime @default(now())
+
+  @@index([organisationId, createdAt])
+  @@index([askedByMembershipId, createdAt])
+  @@index([gymnastId, createdAt])
+}

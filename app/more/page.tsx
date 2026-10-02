@@ -8,6 +8,7 @@ export default async function More(){
   const items=[
     {label:"Coach profile & settings",href:"/profile",description:"Profile, coach PIN and account settings.",show:true},
     {label:"Video workspace",href:"/video",description:"Capture, review, compare and annotate coaching video.",show:c.access.canUseCoachingWorkspace},
+    {label:"Ask Mentor",href:"/mentor",description:"Ask questions using Viaform evidence and approved coaching methodology.",show:c.access.canUseCoachingWorkspace},
     {label:"Analysis",href:"/analysis",description:"Explore and compare evidence across Viaform.",show:c.access.canUseCoachingWorkspace},
     {label:"Organisation & access",href:"/people",description:"People, roles and organisation access.",show:c.access.canManagePeopleAndRoles},
     {label:"Programmes & methodology",href:"/programmes",description:"Programmes, stages and coaching methodology.",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},

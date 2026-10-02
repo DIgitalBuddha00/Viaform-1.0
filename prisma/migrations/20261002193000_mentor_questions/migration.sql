@@ -1,0 +1,4 @@
+CREATE TABLE "MentorQuestion" ("id" TEXT NOT NULL PRIMARY KEY,"organisationId" TEXT NOT NULL,"askedByMembershipId" TEXT NOT NULL,"gymnastId" TEXT,"question" TEXT NOT NULL,"contextType" TEXT NOT NULL DEFAULT 'GENERAL',"contextRef" TEXT,"apparatus" TEXT,"answer" TEXT NOT NULL,"evidenceSnapshot" TEXT NOT NULL DEFAULT '[]',"methodologySnapshot" TEXT NOT NULL DEFAULT '[]',"uncertainty" TEXT,"createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "MentorQuestion_organisationId_createdAt_idx" ON "MentorQuestion"("organisationId","createdAt");
+CREATE INDEX "MentorQuestion_askedByMembershipId_createdAt_idx" ON "MentorQuestion"("askedByMembershipId","createdAt");
+CREATE INDEX "MentorQuestion_gymnastId_createdAt_idx" ON "MentorQuestion"("gymnastId","createdAt");
