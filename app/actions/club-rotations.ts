@@ -84,12 +84,12 @@ async function writeSlot(data: FormData, existingId?: string): Promise<SlotResul
     coachMembershipId ? prisma.organisationMembership.findFirst({ where: { id: coachMembershipId, organisationId: c.organisation.id, isActive: true } }) : null,
   ]);
   if (!group || !space || (coachMembershipId && !coach)) return { error: "Choose a group, apparatus, and available coach." };
-  const boardSlots = await prisma.clubRotationSlot.findMany({ where: { planId: p.id, variantIndex, dayOfWeek, ...(existingId ? { id: { not: existingId } } : {}) } });
+  const boardSlots = await prisma.clubRotationSlot.findMany({ where: { plan: { organisationId: c.organisation.id, status: "ACTIVE", locationId: p.locationId, effectiveFrom: { lte: p.effectiveTo ?? new Date("9999-12-31") }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: p.effectiveFrom } }] }, variantIndex, dayOfWeek, ...(existingId ? { id: { not: existingId } } : {}) } });
   const clash = boardSlots.find(s => overlap(startTime, endTime, s.startTime, s.endTime) && (
     s.trainingGroupId === trainingGroupId || (coachMembershipId && s.coachMembershipId === coachMembershipId) ||
     (!space.shareable && s.trainingSpaceId === space.id)
   ));
-  if (clash) return { error: "This group, coach, or exclusive apparatus is already in use at that time." };
+  if (clash) return { error: "This overlaps another active rota for the same effective period: the group, coach, or exclusive apparatus is already in use." };
   const values = { variantIndex, dayOfWeek, trainingGroupId, trainingSpaceId, coachMembershipId, startTime, endTime, notes: field(data, "notes") || null };
   if (existingId) {
     const existing = await prisma.clubRotationSlot.findFirst({ where: { id: existingId, planId: p.id } });
@@ -171,7 +171,7 @@ export async function updateLiveClubRotation(data: FormData) {
   if(now&&!validTime(now))return;
   const fromSpaceId=spaceId,fromEnd=current?.actualEndTime??slot.endTime;
   if(action==="START"){status="IN_PROGRESS";actualStart=now||slot.startTime;}
-  else if(action==="MOVE"){const target=field(data,"trainingSpaceId");const space=await prisma.trainingSpace.findFirst({where:{id:target,locationId:slot.plan.locationId,status:"ACTIVE"}});if(!space)return;spaceId=space.id;if(status==="PLANNED"){status="IN_PROGRESS";actualStart=now||slot.startTime;}}
+  else if(action==="MOVE"){const target=field(data,"trainingSpaceId");const space=await prisma.trainingSpace.findFirst({where:{id:target,locationId:slot.plan.locationId,status:"ACTIVE"}});if(!space)return;const liveStart=now||actualStart||slot.startTime,liveEnd=actualEnd||slot.endTime;const otherSlots=await prisma.clubRotationSlot.findMany({where:{plan:{organisationId:c.organisation.id,status:"ACTIVE",locationId:slot.plan.locationId},dayOfWeek:slot.dayOfWeek,variantIndex:slot.variantIndex,id:{not:slot.id}},include:{liveStates:{where:{rotationDate}}}});const clash=otherSlots.find(other=>{const state=other.liveStates[0],otherSpace=state?.trainingSpaceId??other.trainingSpaceId,otherStart=state?.actualStartTime??other.startTime,otherEnd=state?.actualEndTime??other.endTime;return otherSpace===space.id&&overlap(liveStart,liveEnd,otherStart,otherEnd);});if(clash)return;spaceId=space.id;if(status==="PLANNED"){status="IN_PROGRESS";actualStart=liveStart;}}
   else if(action==="EXTEND"){if(!now||minutes(now)<=minutes(actualStart||slot.startTime))return;actualEnd=now;}
   else if(action==="END_EARLY"){if(!now||minutes(now)<=minutes(actualStart||slot.startTime))return;status="ENDED_EARLY";actualEnd=now;}
   else if(action==="COMPLETE"){status="COMPLETED";actualEnd=now||actualEnd||slot.endTime;}
