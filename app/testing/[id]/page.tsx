@@ -67,7 +67,7 @@ export default async function TestingSessionPage({
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
       <section className="workspace-page"><a href="/testing" className="workspace-back">← Testing</a><div className="workspace-hero"><div><p className="workspace-kicker">{session.trainingGroup.name} · {dateValue(session.testedAt)}</p><h1>{session.name}</h1>
-            {session.purpose && <p className="workspace-meta">{session.purpose}</p>}
+            {session.purpose && <p className="workspace-meta">{session.purpose}</p>}{session.batteryNameSnapshot&&<p className="mt-1 text-xs text-[var(--muted)]">{session.batteryNameSnapshot} · battery v{session.batteryVersionSnapshot??1}</p>}
             {(session.conditions || session.notes) && (
               <p className="mt-2 text-sm text-[var(--muted)]">
                 {[session.conditions, session.notes].filter(Boolean).join(" · ")}
