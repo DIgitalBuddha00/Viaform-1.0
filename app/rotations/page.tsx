@@ -20,16 +20,17 @@ export default async function RotationsPage({ searchParams }: { searchParams: Pr
   const c = await requireAuthContext();
   if (!c.access.canUseCoachingWorkspace && !c.access.canManageRotations) redirect("/more");
   const query = await searchParams;
+  const day = ROTATION_DAYS.find(d => d === query.day) ?? "MONDAY";
+  const neededDays = day === previewDay ? [day] : [day, previewDay];
   const [plans, locations, groups, memberships] = await Promise.all([
     prisma.clubRotationPlan.findMany({ where: { organisationId: c.organisation.id }, include: {
-      location: true, slots: { include: { trainingGroup: { select: { name: true } }, trainingSpace: { select: { name: true } }, coach: { include: { user: { select: { displayName: true } } } } }, orderBy: { startTime: "asc" } },
+      location: true, slots: { where: { dayOfWeek: { in: neededDays } }, include: { trainingGroup: { select: { name: true } }, trainingSpace: { select: { name: true } }, coach: { include: { user: { select: { displayName: true } } } } }, orderBy: { startTime: "asc" } },
     }, orderBy: [{ status: "asc" }, { effectiveFrom: "desc" }] }),
     prisma.facilityLocation.findMany({ where: { organisationId: c.organisation.id, status: "ACTIVE" }, include: { spaces: { where: { status: "ACTIVE" }, orderBy: [{ orderIndex: "asc" }, { name: "asc" }] } }, orderBy: { name: "asc" } }),
     prisma.trainingGroup.findMany({ where: { organisationId: c.organisation.id, status: "ACTIVE" }, include: { scheduleSlots: true }, orderBy: { name: "asc" } }),
     prisma.organisationMembership.findMany({ where: { organisationId: c.organisation.id, isActive: true }, include: { user: { select: { displayName: true } } }, orderBy: { joinedAt: "asc" } }),
   ]);
   const selected = plans.find(p => p.id === query.plan) ?? plans[0];
-  const day = ROTATION_DAYS.find(d => d === query.day) ?? "MONDAY";
   const spaces = selected ? locations.find(l => l.id === selected.locationId)?.spaces ?? [] : [];
   const daySlots = selected?.slots.filter(s => s.dayOfWeek === day) ?? [];
   const daySchedules = groups.flatMap(g => g.scheduleSlots.filter(s => s.dayOfWeek === day));
