@@ -13,6 +13,7 @@ export default async function More(){
     {label:"Programmes & methodology",href:"/programmes",description:"Programmes, stages and coaching methodology.",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},
     {label:"Facilities & resources",href:"/facilities",description:"Locations, training spaces and equipment.",show:c.access.canConfigureFacilities||c.access.canUseCoachingWorkspace},
     {label:"Coach handoffs",href:"/handoffs",description:"Coverage, handoffs and coaching continuity.",show:c.access.canUseCoachingWorkspace},
+    {label:"Club collaboration",href:"/collaboration",description:"Durable coach-to-coach notes attached to coaching context.",show:c.access.canUseCoachingWorkspace},
     {label:"Rotations",href:"/rotations",description:"Training-space and rotation operations.",show:c.access.canManageRotations||c.access.canUseCoachingWorkspace},
   ].filter(item=>item.show);
   const supporting=[

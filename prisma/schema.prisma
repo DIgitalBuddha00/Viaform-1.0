@@ -51,6 +51,7 @@ model Organisation {
   programmeLeadAssignments ProgrammeLeadAssignment[]
   methodologyRecords MethodologyRecord[]
   coachHandoffs CoachHandoff[]
+  collaborationNotes CoachCollaborationNote[]
   trustedContributors TrustedContributor[]
   athletePortalAccesses AthletePortalAccess[]
   calendarEvents CalendarEvent[]
@@ -94,6 +95,9 @@ model OrganisationMembership {
   approvedMethodologyRecords MethodologyRecord[] @relation("MethodologyApprovedBy")
   sentCoachHandoffs CoachHandoff[] @relation("HandoffFrom")
   receivedCoachHandoffs CoachHandoff[] @relation("HandoffTo")
+  authoredCollaborationNotes CoachCollaborationNote[] @relation("CollaborationAuthor")
+  receivedCollaborationNotes CoachCollaborationNote[] @relation("CollaborationRecipient")
+  resolvedCollaborationNotes CoachCollaborationNote[] @relation("CollaborationResolver")
   presentationPreference MembershipPresentationPreference?
   createdCalendarEvents CalendarEvent[]
   createdMacrocycles Macrocycle[]
@@ -178,6 +182,7 @@ model TrainingGroup {
   facilityPreference TrainingGroupFacility?
   testingSessions TestingSession[]
   coachHandoffs CoachHandoff[]
+  collaborationNotes CoachCollaborationNote[]
   macrocycles MacrocycleGroup[]
   trainingPlans TrainingPlan[]
   clubRotationSlots ClubRotationSlot[]
@@ -230,6 +235,7 @@ model Gymnast {
   routines GymnastRoutine[]
   competitionEntries CompetitionEntry[]
   handoffEntries CoachHandoffGymnast[]
+  collaborationNotes CoachCollaborationNote[]
   portalAccesses AthletePortalAccess[]
   macrocycles MacrocycleGymnast[]
   trainingPlans TrainingPlan[]
@@ -1567,6 +1573,37 @@ model ProgrammeStageSkill {
   @@unique([stageId, skillId, role])
   @@index([skillId])
   @@index([stageId, orderIndex])
+}
+
+model CoachCollaborationNote {
+  id                       String   @id @default(cuid())
+  organisationId           String
+  authorMembershipId       String
+  recipientMembershipId    String
+  gymnastId                String?
+  trainingGroupId          String?
+  priority                 String   @default("NORMAL")
+  authorRoleSnapshot       String?
+  message                  String
+  status                   String   @default("OPEN")
+  acknowledgedAt           DateTime?
+  resolvedAt               DateTime?
+  resolvedByMembershipId   String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  author OrganisationMembership @relation("CollaborationAuthor", fields: [authorMembershipId], references: [id], onDelete: Restrict)
+  recipient OrganisationMembership @relation("CollaborationRecipient", fields: [recipientMembershipId], references: [id], onDelete: Restrict)
+  resolvedBy OrganisationMembership? @relation("CollaborationResolver", fields: [resolvedByMembershipId], references: [id], onDelete: SetNull)
+  gymnast Gymnast? @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  trainingGroup TrainingGroup? @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId, createdAt])
+  @@index([recipientMembershipId, status, createdAt])
+  @@index([authorMembershipId, createdAt])
+  @@index([gymnastId, createdAt])
+  @@index([trainingGroupId, createdAt])
 }
 
 model CoachHandoff {
