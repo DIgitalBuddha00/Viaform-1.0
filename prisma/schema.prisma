@@ -204,6 +204,9 @@ model Gymnast {
   name           String
   profileImageUrl String?
   dateOfBirth    DateTime?
+  status         String    @default("ACTIVE")
+  archivedAt     DateTime?
+  transferredAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -229,6 +232,7 @@ model Gymnast {
   sessionBlockWorkItems SessionBlockWorkItem[]
   targetedSessionBlocks SessionBlock[]
 
+  @@index([organisationId, status, name])
   @@index([organisationId, name])
 }
 
@@ -345,6 +349,40 @@ model GymnastProgrammeAssignment {
 }
 
 
+
+model GymnastProgrammeAssignmentHistory {
+  id             String   @id @default(cuid())
+  organisationId String
+  gymnastId      String
+  programmeId    String?
+  stageId        String?
+  programmeName  String
+  stageName      String?
+  startedAt      DateTime
+  endedAt        DateTime?
+  changeReason   String?
+  createdAt      DateTime @default(now())
+
+  @@index([organisationId, gymnastId, startedAt])
+  @@index([gymnastId, endedAt])
+}
+
+model TrainingGroupProgrammeAssignmentHistory {
+  id              String   @id @default(cuid())
+  organisationId  String
+  trainingGroupId String
+  programmeId     String?
+  stageId         String?
+  programmeName   String
+  stageName       String?
+  startedAt       DateTime
+  endedAt         DateTime?
+  changeReason    String?
+  createdAt       DateTime @default(now())
+
+  @@index([organisationId, trainingGroupId, startedAt])
+  @@index([trainingGroupId, endedAt])
+}
 
 model ProgrammeLeadAssignment {
   id           String   @id @default(cuid())
@@ -1206,6 +1244,24 @@ model GymnastRulesetAssignment {
  program RulesetProgram @relation(fields:[programId],references:[id],onDelete:Cascade)
  level RulesetLevel? @relation(fields:[levelId],references:[id],onDelete:SetNull)
  @@index([programId,levelId])
+}
+
+model GymnastRulesetAssignmentHistory {
+ id String @id @default(cuid())
+ organisationId String
+ gymnastId String
+ programId String?
+ levelId String?
+ programCode String
+ programName String
+ levelCode String?
+ levelName String?
+ startedAt DateTime
+ endedAt DateTime?
+ changeReason String?
+ createdAt DateTime @default(now())
+ @@index([organisationId,gymnastId,startedAt])
+ @@index([gymnastId,endedAt])
 }
 
 model RulesetPackage {

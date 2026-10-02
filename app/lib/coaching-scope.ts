@@ -8,6 +8,6 @@ export function groupScopeWhere(organisationId:string,membershipId:string,access
 
 export function gymnastScopeWhere(organisationId:string,membershipId:string,access:AccessProfile){
   return access.canViewAllCoachingData
-    ? { organisationId }
-    : { organisationId, groups: { some: { trainingGroup: { coachAssignments: { some: { membershipId } } } } } };
+    ? { organisationId, status: "ACTIVE" }
+    : { organisationId, status: "ACTIVE", groups: { some: { trainingGroup: { coachAssignments: { some: { membershipId } } } } } };
 }
