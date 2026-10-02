@@ -162,7 +162,7 @@ export default async function LiveTrainingSessionPage({
                         ))}
                       <form action={setLeavingEarly}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><button className={attendance?.leavingEarly?"is-selected":""}>Leaving early</button></form>{attendance?.leavingEarly&&["IN_PROGRESS","PAUSED"].includes(session.status)&&<form action={setLeftSession}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><button className={attendance?.leftSessionAt?"is-selected":""}>{attendance?.leftSessionAt?"Restore to session":"Left session"}</button></form>}</div>
                     )}
-                    <div className="live-checkin"><span>How are you feeling?</span><div>{[["GREAT","Great"],["GOOD","Good"],["OKAY","Okay"],["LOW","Low"],["NOT_WELL","Not well"]].map(([v,l])=><form key={v} action={recordTrainingCheckIn}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="feeling" value={v}/><button>{l}</button></form>)}</div></div>
+                    <div className="live-checkin"><span>How are you feeling? <small className="font-normal text-[var(--muted)]">Gymnast self-report</small></span><div>{[["GREAT","Great"],["GOOD","Good"],["OKAY","Okay"],["LOW","Low"],["NOT_WELL","Not well"]].map(([v,l])=><form key={v} action={recordTrainingCheckIn}><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="gymnastId" value={entry.gymnastId}/><input type="hidden" name="feeling" value={v}/><button>{l}</button></form>)}</div></div>
                   </div>
                 );
               })}
@@ -245,7 +245,7 @@ export default async function LiveTrainingSessionPage({
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-5">
           <p className="text-sm text-[var(--muted)]">
-            Evidence records what happened in this training context. It does not make a progression or selection decision for the coach.
+            Evidence records what happened in this training context. Athlete State (feeling, confidence and fatigue) is gymnast self-report captured through Live Training; the signed-in coach/session identifies the capture context, not the author of that self-report. Coach observations and coach judgement remain separate. Viaform does not turn Athlete State into readiness or a progression decision.
           </p>
           
         </div>

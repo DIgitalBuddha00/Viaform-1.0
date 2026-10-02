@@ -956,6 +956,8 @@ model TrainingCheckIn {
   feeling String?
   confidence String?
   fatigue String?
+  source String @default("GYMNAST_SELF_REPORT_LIVE_TRAINING")
+  capturedByMembershipId String?
   recordedAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   session TrainingSession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
