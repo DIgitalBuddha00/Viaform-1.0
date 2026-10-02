@@ -23,6 +23,17 @@ import { readOverviewLayout } from "@/app/lib/widget-layout";
 
 export const dynamic = "force-dynamic";
 const apparatusLabel: Record<string, string> = { VAULT: "Vault", BARS: "Uneven Bars", BEAM: "Balance Beam", FLOOR: "Floor Exercise" };
+type FrozenRoutineSnapshot = {
+  capturedAt?: string;
+  ruleset?: { programName?: string | null; levelName?: string | null; versionLabel?: string | null };
+  elements?: Array<{ definition?: { officialNumber?: string | null; name?: string | null; difficulty?: string | null } }>;
+  vaults?: Array<{ role?: string | null; definition?: { officialNumber?: string | null; name?: string | null; dValue?: number | null } }>;
+  customItems?: Array<{ label?: string | null; role?: string | null }>;
+};
+function frozenRoutine(raw: string | null): FrozenRoutineSnapshot | null {
+  if (!raw) return null;
+  try { return JSON.parse(raw) as FrozenRoutineSnapshot; } catch { return null; }
+}
 
 export default async function CompetitionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const c = await requireAuthContext();
@@ -120,21 +131,28 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                     <summary className="cursor-pointer text-sm font-semibold">Entry context</summary>
                     <form action={updateCompetitionEntryContext} className="mt-3 grid gap-2 md:grid-cols-2">
                       <input type="hidden" name="eventId" value={event.id}/><input type="hidden" name="entryId" value={entry.id}/>
-                      <input name="ageDivision" defaultValue={entry.ageDivision ?? ""} placeholder="Age division" className="rounded-lg border border-[var(--border)] px-3 py-2"/>
-                      <input name="sessionLabel" defaultValue={entry.sessionLabel ?? ""} placeholder="Session / flight" className="rounded-lg border border-[var(--border)] px-3 py-2"/>
-                      <input name="squadLabel" defaultValue={entry.squadLabel ?? ""} placeholder="Squad / team" className="rounded-lg border border-[var(--border)] px-3 py-2"/>
-                      <input name="coachNote" defaultValue={entry.coachNote ?? ""} placeholder="Coach entry note" className="rounded-lg border border-[var(--border)] px-3 py-2"/>
-                      <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:col-span-2">Save entry context</button>
+                      <input name="ageDivision" defaultValue={entry.ageDivision ?? ""} placeholder="Age division" disabled={event.status !== "PLANNED"} className="rounded-lg border border-[var(--border)] px-3 py-2 disabled:opacity-60"/>
+                      <input name="sessionLabel" defaultValue={entry.sessionLabel ?? ""} placeholder="Session / flight" disabled={event.status !== "PLANNED"} className="rounded-lg border border-[var(--border)] px-3 py-2 disabled:opacity-60"/>
+                      <input name="squadLabel" defaultValue={entry.squadLabel ?? ""} placeholder="Squad / team" disabled={event.status !== "PLANNED"} className="rounded-lg border border-[var(--border)] px-3 py-2 disabled:opacity-60"/>
+                      <input name="coachNote" defaultValue={entry.coachNote ?? ""} placeholder="Coach entry note" disabled={event.status !== "PLANNED"} className="rounded-lg border border-[var(--border)] px-3 py-2 disabled:opacity-60"/>
+                      {event.status === "PLANNED" ? <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:col-span-2">Save entry context</button> : <p className="text-xs text-[var(--muted)] md:col-span-2">Entry context is frozen once the competition starts.</p>}
                     </form>
                   </details>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     {entry.apparatusPlans.map((plan) => {
                       const choices = gymnastRoutines.filter((routine) => routine.apparatus === plan.apparatus);
+                      const frozen = frozenRoutine(plan.routineSnapshot);
+                      const frozenItems = [
+                        ...(frozen?.elements ?? []).map((item) => item.definition?.officialNumber ? item.definition.officialNumber + " · " + (item.definition.name ?? "Element") : item.definition?.name ?? "Element"),
+                        ...(frozen?.vaults ?? []).map((item) => item.definition?.officialNumber ? item.definition.officialNumber + " · " + (item.definition.name ?? "Vault") : item.definition?.name ?? "Vault"),
+                        ...(frozen?.customItems ?? []).map((item) => item.label ?? "Custom item"),
+                      ];
                       return (
                         <div key={plan.id} className="rounded-xl border border-[var(--border)] p-4">
                           <p className="font-semibold">{apparatusLabel[plan.apparatus] ?? plan.apparatus}</p>
                           <p className="mt-1 text-xs text-[var(--muted)]">{plan.routineNameSnapshot ? "Planned · " + plan.routineNameSnapshot : "No routine selected yet"}</p>{plan.routineSnapshot && <p className="mt-1 text-[11px] text-[var(--muted)]">Frozen competition copy · later routine edits will not rewrite this selection.</p>}
+                          {frozen && <details className="mt-2 rounded-lg bg-[var(--surface-muted)] p-2"><summary className="cursor-pointer text-[11px] font-semibold">View frozen routine</summary><div className="mt-2 text-[11px] leading-5 text-[var(--muted)]">{frozen.ruleset && <p>{[frozen.ruleset.programName,frozen.ruleset.levelName,frozen.ruleset.versionLabel].filter(Boolean).join(" · ") || "Ruleset snapshot preserved"}</p>}{frozenItems.length ? <ol className="mt-1 list-decimal pl-4">{frozenItems.map((item,index)=><li key={index}>{item}</li>)}</ol> : <p className="mt-1">Routine snapshot preserved with no listed items.</p>}</div></details>}
                           <form action={selectCompetitionRoutine} className="mt-3 grid gap-2">
                             <input type="hidden" name="eventId" value={event.id}/><input type="hidden" name="planId" value={plan.id}/>
                             <select name="routineId" defaultValue={plan.routineId ?? ""} disabled={event.status !== "PLANNED"} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-60">
@@ -230,8 +248,12 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                 <input type="hidden" name="eventId" value={event.id}/>
                 <input name="location" defaultValue={event.location ?? ""} placeholder="Location" className="rounded-xl border border-[var(--border)] px-3 py-3"/>
                 <select name="status" defaultValue={event.status} className="rounded-xl border border-[var(--border)] px-3 py-3">
-                  <option value="PLANNED">Planned</option><option value="IN_PROGRESS">In progress</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option>
+                  {event.status === "PLANNED" && <><option value="PLANNED">Planned</option><option value="IN_PROGRESS">In progress</option><option value="CANCELLED">Cancelled</option></>}
+                  {event.status === "IN_PROGRESS" && <><option value="IN_PROGRESS">In progress</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option></>}
+                  {event.status === "COMPLETED" && <option value="COMPLETED">Completed</option>}
+                  {event.status === "CANCELLED" && <option value="CANCELLED">Cancelled</option>}
                 </select>
+                {(event.status === "COMPLETED" || event.status === "CANCELLED") && <p className="text-xs leading-5 text-[var(--muted)]">Final event status is locked so historical planning cannot be reopened accidentally.</p>}
                 <textarea name="notes" defaultValue={event.notes ?? ""} placeholder="Event notes" className="min-h-24 rounded-xl border border-[var(--border)] px-3 py-3"/>
                 <button className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold">Save event</button>
               </form>

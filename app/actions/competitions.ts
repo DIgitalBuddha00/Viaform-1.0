@@ -89,7 +89,7 @@ export async function removeCompetitionEntry(data: FormData) {
 export async function updateCompetitionEntryContext(data: FormData) {
   const c = await context();
   const event = await visibleEvent(value(data, "eventId"), c);
-  if (!event) return;
+  if (!event || event.status !== "PLANNED") return;
   const entry = await prisma.competitionEntry.findFirst({
     where: { id: value(data, "entryId"), competitionEventId: event.id },
   });
@@ -214,7 +214,13 @@ export async function updateCompetitionEvent(data: FormData) {
   const event = await visibleEvent(value(data, "eventId"), c);
   if (!event) return;
   const status = value(data, "status") || event.status;
-  if (!["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].includes(status)) return;
+  const transitions: Record<string, readonly string[]> = {
+    PLANNED: ["PLANNED", "IN_PROGRESS", "CANCELLED"],
+    IN_PROGRESS: ["IN_PROGRESS", "COMPLETED", "CANCELLED"],
+    COMPLETED: ["COMPLETED"],
+    CANCELLED: ["CANCELLED"],
+  };
+  if (!transitions[event.status]?.includes(status)) return;
   await prisma.competitionEvent.update({
     where: { id: event.id },
     data: {
