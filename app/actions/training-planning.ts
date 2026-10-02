@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { groupScopeWhere } from "@/app/lib/coaching-scope";
+import { logServerTiming, startServerTiming } from "@/app/lib/server-performance";
 
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
 const CATEGORIES = ["WARM_UP", "COOLDOWN", "APPARATUS", "PHYSICAL_PREPARATION", "CONDITIONING", "ROUTINES", "TESTING", "OTHER"] as const;
@@ -190,6 +191,7 @@ export async function deleteTrainingSession(data: FormData) {
 }
 
 export async function createSessionBlock(data: FormData) {
+  const startedAt = startServerTiming();
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");
   const session = await visibleSession(sessionId, context);
@@ -202,13 +204,16 @@ export async function createSessionBlock(data: FormData) {
   const durationRaw = value(data, "durationMin");
   const durationMin = durationRaw ? Number(durationRaw) : null;
   const targetGymnastId = value(data, "targetGymnastId") || null;
-  const space = spaceId ? await prisma.trainingSpace.findFirst({ where: { id: spaceId, status: "ACTIVE", location: { organisationId: context.organisation.id } } }) : null;
+  const [space, targetGymnast] = await Promise.all([
+    spaceId ? prisma.trainingSpace.findFirst({ where: { id: spaceId, status: "ACTIVE", location: { organisationId: context.organisation.id } } }) : Promise.resolve(null),
+    targetGymnastId ? prisma.trainingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId: targetGymnastId } } }) : Promise.resolve(null),
+  ]);
   if (spaceId && !space) return;
   if (space?.apparatus) { const mapped: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE", CONDITIONING: "PHYSICAL_PREPARATION" }; apparatusValue = mapped[space.apparatus] ?? ""; }
   if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number]) || !BEHAVIOURS.includes(behaviour as (typeof BEHAVIOURS)[number])) return;
   if (apparatusValue && !APPARATUS.includes(apparatusValue as (typeof APPARATUS)[number])) return;
   if (durationMin !== null && (!Number.isInteger(durationMin) || durationMin <= 0 || durationMin > 480)) return;
-  if (targetGymnastId && !await prisma.trainingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId: targetGymnastId } } })) return;
+  if (targetGymnastId && !targetGymnast) return;
   const last = await prisma.sessionBlock.findFirst({ where: { sessionId }, orderBy: { orderIndex: "desc" } });
   await prisma.sessionBlock.create({
     data: {
@@ -227,6 +232,7 @@ export async function createSessionBlock(data: FormData) {
     },
   });
   revalidatePath("/planning/" + sessionId);
+  logServerTiming("training-planning.create-session-block", startedAt, { sessionId, hasSpace: Boolean(spaceId), hasTargetGymnast: Boolean(targetGymnastId) });
 }
 
 export async function updateSessionBlock(data: FormData) {

@@ -32,6 +32,7 @@ import {
   deleteSessionStation,
   updateSessionStation,
 } from "@/app/actions/session-stations";
+import { SessionRotationEditor } from "./session-rotation-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -94,37 +95,35 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
   const plannedMinutes = session.blocks.reduce((sum, block) => sum + (block.durationMin ?? 0), 0);
   const assignedIds = new Set(session.gymnasts.map((entry) => entry.gymnastId));
   const availableGymnasts = session.trainingGroup.memberships.filter((membership) => !assignedIds.has(membership.gymnastId));
-  const facilities = await prisma.facilityLocation.findMany({
-    where: { organisationId: c.organisation.id, status: "ACTIVE" },
-    include: {
-      spaces: {
-        where: { status: "ACTIVE" },
-        include: { resources: { where: { status: "ACTIVE" }, orderBy: [{ orderIndex: "asc" }, { name: "asc" }] } },
-        orderBy: [{ orderIndex: "asc" }, { name: "asc" }],
+  const [facilities, rotationPlans, trainingPlans] = await Promise.all([
+    prisma.facilityLocation.findMany({
+      where: { organisationId: c.organisation.id, status: "ACTIVE" },
+      include: {
+        spaces: {
+          where: { status: "ACTIVE" },
+          include: { resources: { where: { status: "ACTIVE" }, orderBy: [{ orderIndex: "asc" }, { name: "asc" }] } },
+          orderBy: [{ orderIndex: "asc" }, { name: "asc" }],
+        },
       },
-    },
-    orderBy: { name: "asc" },
-  });
+      orderBy: { name: "asc" },
+    }),
+    session.status === "PLANNED" ? prisma.clubRotationPlan.findMany({
+      where: {
+        organisationId: c.organisation.id, status: "ACTIVE",
+        effectiveFrom: { lte: session.sessionDate },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: session.sessionDate } }],
+        ...(session.facilityAssignment ? { locationId: session.facilityAssignment.locationId } : {}),
+      },
+      include: { location: true, slots: { where: { dayOfWeek: rotationDay(session.sessionDate), trainingGroupId: session.trainingGroupId, startTime: { gte: session.startTime }, endTime: { lte: session.endTime } } } },
+    }) : Promise.resolve([]),
+    prisma.trainingPlan.findMany({ where: { organisationId: c.organisation.id, trainingGroupId: session.trainingGroupId, status: "ACTIVE", startDate: { lte: session.sessionDate }, endDate: { gte: session.sessionDate } }, include: { items: { orderBy: { orderIndex: "asc" } } }, orderBy: { startDate: "desc" } }),
+  ]);
   const activeFacility = session.facilityAssignment?.locationId
     ? facilities.find((facility) => facility.id === session.facilityAssignment?.locationId)
     : null;
-  const rotationPlans = session.status === "PLANNED" ? await prisma.clubRotationPlan.findMany({
-    where: {
-      organisationId: c.organisation.id, status: "ACTIVE",
-      effectiveFrom: { lte: session.sessionDate },
-      OR: [{ effectiveTo: null }, { effectiveTo: { gte: session.sessionDate } }],
-      ...(session.facilityAssignment ? { locationId: session.facilityAssignment.locationId } : {}),
-    },
-    include: { location: true, slots: { where: { dayOfWeek: rotationDay(session.sessionDate), trainingGroupId: session.trainingGroupId, startTime: { gte: session.startTime }, endTime: { lte: session.endTime } } } },
-  }) : [];
   const matchingRotations = rotationPlans.map(p => ({ ...p, variant: rotationVariant(p, session.sessionDate) }))
     .filter(p => p.slots.some(s => s.variantIndex === p.variant));
-  const trainingPlans = await prisma.trainingPlan.findMany({ where: { organisationId: c.organisation.id, trainingGroupId: session.trainingGroupId, status: "ACTIVE", startDate: { lte: session.sessionDate }, endDate: { gte: session.sessionDate } }, include: { items: { orderBy: { orderIndex: "asc" } } }, orderBy: { startDate: "desc" } });
   const availablePlanItems = trainingPlans.flatMap(plan => plan.items.map(item => ({ ...item, planName: plan.name })));
-  const canonicalSkills=await prisma.viaformSkill.findMany({where:{discipline:"WAG",status:"ACTIVE"},include:{figElementDefinition:{include:{package:{include:{program:true}}}},figVaultDefinition:{include:{package:{include:{program:true}}}}},orderBy:[{apparatus:"asc"},{name:"asc"}]});
-  const [figElementFallback,figVaultFallback]=await Promise.all([prisma.figElementDefinition.findMany({where:{status:"ACTIVE",verificationStatus:"VERIFIED",package:{program:{code:"FIG_WAG"}}},orderBy:[{apparatus:"asc"},{name:"asc"}]}),prisma.figVaultDefinition.findMany({where:{status:"ACTIVE",package:{program:{code:"FIG_WAG"}}},orderBy:[{officialNumber:"asc"},{variantKey:"asc"}]})]);
-  const canonicalElementIds=new Set(canonicalSkills.map(skill=>skill.figElementDefinitionId).filter(Boolean)),canonicalVaultIds=new Set(canonicalSkills.map(skill=>skill.figVaultDefinitionId).filter(Boolean));
-  const searchableSkills=[...canonicalSkills.map(skill=>({id:skill.id,name:skill.name,aliases:skill.aliases,apparatus:skill.apparatus,officialNumber:skill.figElementDefinition?.officialNumber??skill.figVaultDefinition?.officialNumber??null,provenance:skill.provenance})),...figElementFallback.filter(element=>!canonicalElementIds.has(element.id)).map(element=>({id:"element:"+element.id,name:element.name,aliases:element.aliases,apparatus:element.apparatus,officialNumber:element.officialNumber,provenance:"FIG"})),...figVaultFallback.filter(vault=>!canonicalVaultIds.has(vault.id)).map(vault=>({id:"vault:"+vault.id,name:vault.name,aliases:vault.aliases,apparatus:"VAULT",officialNumber:vault.officialNumber,provenance:"FIG"}))];
 
   const normalizeApparatus=(apparatus:string|null)=>{const key=(apparatus??"").trim().toUpperCase().replaceAll(" ","_");if(key==="VAULT")return "VAULT";if(key==="UNEVEN_BARS"||key==="BARS")return "BARS";if(key==="BALANCE_BEAM"||key==="BEAM")return "BEAM";if(key==="FLOOR_EXERCISE"||key==="FLOOR")return "FLOOR";return key;};
   const contextOptionsForApparatus=(apparatus:string|null)=>{const key=normalizeApparatus(apparatus);const landing=["Competition landing","Soft mat","Resi / soft landing","Pit"];if(key==="VAULT")return {training:["Vault table"],landing,takeoff:["Springboard","Soft board","Hard board","Trampette"]};if(key==="BARS")return {training:["Full bars set","Single rail","Single loop","Loop set"],landing,takeoff:[] as string[]};if(key==="BEAM")return {training:["High beam","Low beam","Floor beam"],landing,takeoff:[] as string[]};if(key==="FLOOR")return {training:["Competition floor","Tumble track","Air floor","Rod floor"],landing,takeoff:[] as string[]};return {training:[] as string[],landing:[] as string[],takeoff:[] as string[]};};
@@ -296,7 +295,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                 <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Skill work</p><p className="mt-1 text-sm text-[var(--muted)]">What will be trained in this area. Repetition targets belong to the work, not the block.</p></div><span className="text-sm text-[var(--muted)]">{block.workItems.length} items</span></div>
                 <div className="mt-3 grid gap-2">{block.workItems.map(item => <details key={item.id} className="rounded-xl border border-[var(--border)] p-3"><summary className="cursor-pointer text-sm font-semibold">{item.title}{item.elementDefinition?" · "+item.elementDefinition.package.program.name:item.vaultDefinition?" · "+item.vaultDefinition.package.program.name:" · coach-authored"}{item.targetGymnast ? " · " + item.targetGymnast.name : " · whole group"}{item.targetCount ? " · target " + item.targetCount : ""}</summary><form action={updateSessionBlockWorkItem} className="mt-3 grid gap-2 md:grid-cols-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><input type="hidden" name="workItemId" value={item.id}/><input name="title" required defaultValue={item.title} className="rounded-lg border border-[var(--border)] px-3 py-2"/><select name="targetGymnastId" defaultValue={item.targetGymnastId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select><input name="targetCount" type="number" min="1" max="1000" defaultValue={item.targetCount ?? ""} placeholder="Target repetitions (optional)" className="rounded-lg border border-[var(--border)] px-3 py-2"/><input name="notes" defaultValue={item.notes ?? ""} placeholder="Drill, sequence, or coaching notes" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save work</button></form><form action={deleteSessionBlockWorkItem} className="mt-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><input type="hidden" name="workItemId" value={item.id}/><button className="text-xs text-[var(--muted)]">Remove work</button></form></details>)}</div>
                 {availablePlanItems.length > 0 && <form action={addSessionBlockWorkItem} className="mt-3 flex flex-wrap gap-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><select name="trainingPlanItemId" required className="min-w-64 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"><option value="">Add from training plan…</option>{availablePlanItems.map(item => <option key={item.id} value={item.id}>{item.planName} · {item.title}{item.gymnastId ? " · individual" : ""}</option>)}</select><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Add planned work</button></form>}
-                <details className="mt-3 rounded-xl border border-dashed border-[var(--border)] p-3"><summary className="cursor-pointer text-sm font-semibold">Add skill / work</summary>{(()=>{const skillApparatus=normalizeApparatus(block.apparatus);const contextOptions=contextOptionsForApparatus(block.apparatus);const matchingSkills=searchableSkills.filter(skill=>normalizeApparatus(skill.apparatus)===skillApparatus);return <form action={addSessionBlockWorkItem} className="mt-3 grid gap-2 md:grid-cols-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><SkillSearch name="canonicalSkillId" skills={matchingSkills}/><input name="title" maxLength={160} placeholder="Or coach-authored skill / task" className="rounded-lg border border-[var(--border)] px-3 py-2"/><select name="targetGymnastId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry=><option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select><input name="targetCount" type="number" min="1" max="1000" placeholder="Target repetitions (optional)" className="rounded-lg border border-[var(--border)] px-3 py-2"/>{block.spaceAssignment&&<select name="trainingResourceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Configured training equipment (optional)…</option>{(activeFacility?.spaces.find(space=>space.id===block.spaceAssignment?.trainingSpaceId)?.resources??[]).map(resource=><option key={resource.id} value={resource.id}>{resource.name}</option>)}</select>}{block.spaceAssignment&&<select name="landingResourceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Configured landing surface (optional)…</option>{(activeFacility?.spaces.find(space=>space.id===block.spaceAssignment?.trainingSpaceId)?.resources??[]).map(resource=><option key={resource.id} value={resource.id}>{resource.name}</option>)}</select>}<select name="trainingSurface" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Training setup / surface…</option>{(contextOptions.training).map(option=><option key={option} value={option}>{option}</option>)}</select><select name="landingSurface" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Landing surface…</option>{(contextOptions.landing).map(option=><option key={option} value={option}>{option}</option>)}</select>{(contextOptions.takeoff.length)>0&&<select name="takeoffEquipment" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Take-off equipment…</option>{contextOptions.takeoff.map(option=><option key={option} value={option}>{option}</option>)}</select>}<input name="notes" placeholder="Drill, sequence, or coaching notes" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Add work</button></form>})()}</details>
+                <details className="mt-3 rounded-xl border border-dashed border-[var(--border)] p-3"><summary className="cursor-pointer text-sm font-semibold">Add skill / work</summary>{(()=>{const contextOptions=contextOptionsForApparatus(block.apparatus);return <form action={addSessionBlockWorkItem} className="mt-3 grid gap-2 md:grid-cols-2"><input type="hidden" name="sessionId" value={session.id}/><input type="hidden" name="blockId" value={block.id}/><SkillSearch name="canonicalSkillId" apparatus={block.apparatus}/><input name="title" maxLength={160} placeholder="Or coach-authored skill / task" className="rounded-lg border border-[var(--border)] px-3 py-2"/><select name="targetGymnastId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry=><option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select><input name="targetCount" type="number" min="1" max="1000" placeholder="Target repetitions (optional)" className="rounded-lg border border-[var(--border)] px-3 py-2"/>{block.spaceAssignment&&<select name="trainingResourceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Configured training equipment (optional)…</option>{(activeFacility?.spaces.find(space=>space.id===block.spaceAssignment?.trainingSpaceId)?.resources??[]).map(resource=><option key={resource.id} value={resource.id}>{resource.name}</option>)}</select>}{block.spaceAssignment&&<select name="landingResourceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Configured landing surface (optional)…</option>{(activeFacility?.spaces.find(space=>space.id===block.spaceAssignment?.trainingSpaceId)?.resources??[]).map(resource=><option key={resource.id} value={resource.id}>{resource.name}</option>)}</select>}<select name="trainingSurface" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Training setup / surface…</option>{(contextOptions.training).map(option=><option key={option} value={option}>{option}</option>)}</select><select name="landingSurface" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Landing surface…</option>{(contextOptions.landing).map(option=><option key={option} value={option}>{option}</option>)}</select>{(contextOptions.takeoff.length)>0&&<select name="takeoffEquipment" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Take-off equipment…</option>{contextOptions.takeoff.map(option=><option key={option} value={option}>{option}</option>)}</select>}<input name="notes" placeholder="Drill, sequence, or coaching notes" className="rounded-lg border border-[var(--border)] px-3 py-2"/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Add work</button></form>})()}</details>
               </div>
               <div className="mt-4 border-t border-[var(--border)] pt-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Space & resources</p>
@@ -381,7 +380,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                         <input name="equipment" defaultValue={station.equipment ?? ""} placeholder="Equipment" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                         <input name="cues" defaultValue={station.cues ?? ""} placeholder="Key coaching cues" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                         <input name="easierOption" defaultValue={station.easierOption ?? ""} placeholder="Easier option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
-                        <div className="grid gap-2"><select name="stationLinkMode" defaultValue={station.skillId?"LIBRARY":station.workItemId?"SESSION":"NONE"} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="NONE">No linked skill</option><option value="SESSION">Session skill</option><option value="LIBRARY">Find another skill</option></select><select name="workItemId" defaultValue={station.workItemId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Choose session skill…</option>{block.workItems.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select><SkillSearch name="stationSkillId" initialSelectedId={station.skillId ?? ""} skills={searchableSkills.filter(skill=>normalizeApparatus(skill.apparatus)===normalizeApparatus(block.apparatus))}/><p className="text-xs text-[var(--muted)]">Use Session skill for today’s planned work, or Find another skill for future/developmental work.</p></div><input name="harderOption" defaultValue={station.harderOption ?? ""} placeholder="Harder option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                        <div className="grid gap-2"><select name="stationLinkMode" defaultValue={station.skillId?"LIBRARY":station.workItemId?"SESSION":"NONE"} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="NONE">No linked skill</option><option value="SESSION">Session skill</option><option value="LIBRARY">Find another skill</option></select><select name="workItemId" defaultValue={station.workItemId ?? ""} className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Choose session skill…</option>{block.workItems.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select><SkillSearch name="stationSkillId" apparatus={block.apparatus} initialSelection={station.skill ? { id: station.skill.id, name: station.skill.name } : null} canonicalOnly/><p className="text-xs text-[var(--muted)]">Use Session skill for today’s planned work, or Find another skill for future/developmental work.</p></div><input name="harderOption" defaultValue={station.harderOption ?? ""} placeholder="Harder option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                         <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Save station</button>
                       </form>
                       <form action={deleteSessionStation} className="mt-2">
@@ -405,7 +404,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
                     <input name="equipment" placeholder="Equipment" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                     <input name="cues" placeholder="Key coaching cues" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                     <input name="easierOption" placeholder="Easier option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
-                    <div className="grid gap-2"><select name="stationLinkMode" defaultValue="NONE" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="NONE">No linked skill</option><option value="SESSION">Session skill</option><option value="LIBRARY">Find another skill</option></select><select name="workItemId" defaultValue="" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Choose session skill…</option>{block.workItems.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select><SkillSearch name="stationSkillId" skills={searchableSkills.filter(skill=>normalizeApparatus(skill.apparatus)===normalizeApparatus(block.apparatus))}/><p className="text-xs text-[var(--muted)]">Session skills stay quick to select. Search the full apparatus library for future/developmental work.</p></div><input name="harderOption" placeholder="Harder option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
+                    <div className="grid gap-2"><select name="stationLinkMode" defaultValue="NONE" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="NONE">No linked skill</option><option value="SESSION">Session skill</option><option value="LIBRARY">Find another skill</option></select><select name="workItemId" defaultValue="" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Choose session skill…</option>{block.workItems.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select><SkillSearch name="stationSkillId" apparatus={block.apparatus} canonicalOnly/><p className="text-xs text-[var(--muted)]">Session skills stay quick to select. Search the full apparatus library for future/developmental work.</p></div><input name="harderOption" placeholder="Harder option" className="rounded-lg border border-[var(--border)] px-3 py-2" />
                     <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold md:w-fit">Add station</button>
                   </form>
                 </details>
@@ -441,32 +440,35 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
           <button className="mt-3 rounded-xl bg-[var(--foreground)] px-4 py-3 font-semibold text-white">Add block</button>
         </form>
 
-        {(matchingRotations.length > 0 || session.clubRotationPlanId || session.rotationGroups.length > 0) && (
-          <section className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold">Rotation</h2>
-              <a href="/rotations" className="text-sm font-semibold underline">Club rotas</a>
-            </div>
-            {session.clubRotationPlan && <p className="mt-3 text-sm font-semibold">{session.clubRotationPlan.name} · Rota {(session.clubRotationVariant ?? 0) + 1}</p>}
-            {session.rotationGroups.flatMap(group => group.assignments.map(assignment => (
-              <div key={assignment.id} className="mt-2 flex flex-wrap gap-2 text-sm">
-                <strong>{assignment.startTime}–{assignment.endTime}</strong>
-                <span>{assignment.trainingSpace?.name ?? "Open rotation"}</span>
-                {assignment.notes && <span className="text-[var(--muted)]">{assignment.notes}</span>}
-              </div>
-            )))}
-            {session.status === "PLANNED" && matchingRotations.length > 0 && (
-              <form action={applyClubRotationToSession} className="mt-4 flex flex-wrap items-center gap-2">
-                <input type="hidden" name="sessionId" value={session.id} />
-                <select name="planId" aria-label="Club rota" className="min-w-52 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm">
-                  {matchingRotations.map(p => <option key={p.id} value={p.id}>{p.name} · Rota {p.variant + 1} · {p.location.name}</option>)}
-                </select>
-                <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.clubRotationPlanId ? "Replace rota" : "Use rota"}</button>
-              </form>
-            )}
-            {session.status === "PLANNED" && session.clubRotationPlanId && <form action={clearClubRotationFromSession} className="mt-3"><input type="hidden" name="sessionId" value={session.id}/><button className="text-sm text-[var(--muted)] underline">Remove rota from session</button></form>}
-          </section>
-        )}
+        <section className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div><h2 className="text-xl font-semibold">Session rotation</h2><p className="mt-1 text-sm text-[var(--muted)]">Assign the whole group or a subgroup to a facility area for a visible time range.</p></div>
+            <a href="/rotations" className="text-sm font-semibold underline">Reusable club rotas</a>
+          </div>
+          {session.clubRotationPlan && <p className="mt-3 text-sm font-semibold">Using {session.clubRotationPlan.name} · Rota {(session.clubRotationVariant ?? 0) + 1}</p>}
+          <SessionRotationEditor
+            sessionId={session.id}
+            trainingGroupName={session.trainingGroup.name}
+            sessionStart={session.startTime}
+            sessionEnd={session.endTime}
+            spaces={(activeFacility?.spaces ?? []).map(space => ({ id: space.id, name: space.name }))}
+            blocks={session.blocks.map(block => ({ id: block.id, name: block.title }))}
+            gymnasts={session.gymnasts.map(entry => ({ id: entry.gymnastId, name: entry.gymnast.name }))}
+            initialGroups={session.rotationGroups.map(group => ({ id: group.id, name: group.name, gymnastIds: group.gymnasts.map(entry => entry.gymnastId) }))}
+            initialAssignments={session.rotationGroups.flatMap(group => group.assignments.map(assignment => ({ id: assignment.id, rotationGroupId: group.id, blockId: assignment.blockId, trainingSpaceId: assignment.trainingSpaceId, startTime: assignment.startTime, endTime: assignment.endTime, notes: assignment.notes })))}
+            canEdit={session.status === "PLANNED" && c.access.canManageRotations}
+          />
+          {session.status === "PLANNED" && matchingRotations.length > 0 && (
+            <form action={applyClubRotationToSession} className="mt-5 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-4">
+              <input type="hidden" name="sessionId" value={session.id} />
+              <select name="planId" aria-label="Club rota" className="min-w-52 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm">
+                {matchingRotations.map(p => <option key={p.id} value={p.id}>{p.name} · Rota {p.variant + 1} · {p.location.name}</option>)}
+              </select>
+              <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">{session.clubRotationPlanId ? "Replace with club rota" : "Use club rota"}</button>
+            </form>
+          )}
+          {session.status === "PLANNED" && session.clubRotationPlanId && <form action={clearClubRotationFromSession} className="mt-3"><input type="hidden" name="sessionId" value={session.id}/><button className="text-sm text-[var(--muted)] underline">Remove club rota from session</button></form>}
+        </section>
 
         <details className="mt-8 rounded-2xl border border-[var(--border)] p-4">
           <summary className="cursor-pointer text-sm font-semibold">Remove session</summary>

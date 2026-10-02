@@ -30,7 +30,11 @@ async function visibleSession(sessionId: string, context: Awaited<ReturnType<typ
       organisationId: context.organisation.id,
       trainingGroup: groupScopeWhere(context.organisation.id, context.membership.id, context.access),
     },
-    include: { facilityAssignment: true },
+    include: {
+      facilityAssignment: true,
+      trainingGroup: { select: { name: true } },
+      gymnasts: { select: { gymnastId: true } },
+    },
   });
 }
 
@@ -152,20 +156,37 @@ async function validateRotationAssignment(params: {
   return { blockId: block?.id ?? null, trainingSpaceId: space?.id ?? null };
 }
 
-export async function createRotationGroup(data: FormData) {
+type RotationActionResult = {
+  error?: string;
+  group?: { id: string; name: string };
+  assignment?: {
+    id: string;
+    rotationGroupId: string;
+    blockId: string | null;
+    trainingSpaceId: string | null;
+    startTime: string;
+    endTime: string;
+    notes: string | null;
+  };
+};
+
+export async function createRotationGroup(data: FormData): Promise<RotationActionResult> {
   const context = await rotationManager();
   const sessionId = value(data, "sessionId");
   const name = value(data, "name");
   const session = await visibleSession(sessionId, context);
-  if (!session || !name) return;
+  if (!session || !name || name.length > 80) return { error: "Enter a group name." };
   const last = await prisma.sessionRotationGroup.findFirst({
     where: { sessionId },
     orderBy: { orderIndex: "desc" },
   });
-  await prisma.sessionRotationGroup.create({
+  const group = await prisma.sessionRotationGroup.create({
     data: { sessionId, name, orderIndex: (last?.orderIndex ?? -1) + 1 },
+    select: { id: true, name: true },
   }).catch(() => null);
+  if (!group) return { error: "A rotation group with that name already exists." };
   revalidatePath("/planning/" + sessionId);
+  return { group };
 }
 
 export async function deleteRotationGroup(data: FormData) {
@@ -179,7 +200,7 @@ export async function deleteRotationGroup(data: FormData) {
   revalidatePath("/planning/" + sessionId);
 }
 
-export async function assignGymnastToRotationGroup(data: FormData) {
+export async function assignGymnastToRotationGroup(data: FormData): Promise<RotationActionResult> {
   const context = await rotationManager();
   const sessionId = value(data, "sessionId");
   const rotationGroupId = value(data, "rotationGroupId");
@@ -189,14 +210,14 @@ export async function assignGymnastToRotationGroup(data: FormData) {
   const sessionGymnast = session ? await prisma.trainingSessionGymnast.findUnique({
     where: { sessionId_gymnastId: { sessionId, gymnastId } },
   }) : null;
-  if (!session || !group || !sessionGymnast) return;
+  if (!session || !group || !sessionGymnast) return { error: "Gymnast or rotation group not found." };
 
   const spaces = await prisma.sessionRotationAssignment.findMany({
     where: { sessionId, rotationGroupId, trainingSpaceId: { not: null } },
     include: { trainingSpace: true },
   });
   const currentCount = await prisma.sessionRotationGymnast.count({ where: { sessionId, rotationGroupId } });
-  if (spaces.some((assignment) => assignment.trainingSpace?.capacity && currentCount + 1 > assignment.trainingSpace.capacity)) return;
+  if (spaces.some((assignment) => assignment.trainingSpace?.capacity && currentCount + 1 > assignment.trainingSpace.capacity)) return { error: "That group would exceed the capacity of one of its assigned areas." };
 
   await prisma.sessionRotationGymnast.upsert({
     where: { sessionId_gymnastId: { sessionId, gymnastId } },
@@ -204,28 +225,49 @@ export async function assignGymnastToRotationGroup(data: FormData) {
     update: { rotationGroupId },
   });
   revalidatePath("/planning/" + sessionId);
+  return {};
 }
 
-export async function removeGymnastFromRotationGroup(data: FormData) {
+export async function removeGymnastFromRotationGroup(data: FormData): Promise<RotationActionResult> {
   const context = await rotationManager();
   const sessionId = value(data, "sessionId");
   const gymnastId = value(data, "gymnastId");
   const session = await visibleSession(sessionId, context);
-  if (!session) return;
+  if (!session) return { error: "Session not found." };
   await prisma.sessionRotationGymnast.deleteMany({ where: { sessionId, gymnastId } });
   revalidatePath("/planning/" + sessionId);
+  return {};
 }
 
-export async function createRotationAssignment(data: FormData) {
+export async function createRotationAssignment(data: FormData): Promise<RotationActionResult> {
   const context = await rotationManager();
   const sessionId = value(data, "sessionId");
-  const rotationGroupId = value(data, "rotationGroupId");
+  let rotationGroupId = value(data, "rotationGroupId");
   const blockId = value(data, "blockId") || null;
   const trainingSpaceId = value(data, "spaceId") || null;
   const startTime = value(data, "startTime");
   const endTime = value(data, "endTime");
   const session = await visibleSession(sessionId, context);
-  if (!session) return;
+  if (!session || session.status !== "PLANNED") return { error: "This session can no longer be edited." };
+  if (!session.facilityAssignment || !trainingSpaceId) return { error: "Choose a facility and training area first." };
+
+  let createdGroup: { id: string; name: string } | undefined;
+  if (rotationGroupId === "WHOLE_SESSION_GROUP") {
+    const groupName = session.trainingGroup.name;
+    const group = await prisma.sessionRotationGroup.upsert({
+      where: { sessionId_name: { sessionId, name: groupName } },
+      create: { sessionId, name: groupName },
+      update: {},
+      select: { id: true, name: true },
+    });
+    await prisma.$transaction(session.gymnasts.map((gymnast) => prisma.sessionRotationGymnast.upsert({
+      where: { sessionId_gymnastId: { sessionId, gymnastId: gymnast.gymnastId } },
+      create: { sessionId, gymnastId: gymnast.gymnastId, rotationGroupId: group.id },
+      update: { rotationGroupId: group.id },
+    })));
+    rotationGroupId = group.id;
+    createdGroup = group;
+  }
   const validated = await validateRotationAssignment({
     sessionId,
     rotationGroupId,
@@ -235,12 +277,12 @@ export async function createRotationAssignment(data: FormData) {
     endTime,
     organisationId: context.organisation.id,
   });
-  if (!validated) return;
+  if (!validated) return { error: "That time, group, or area conflicts with the current rotation." };
   const last = await prisma.sessionRotationAssignment.findFirst({
     where: { sessionId, rotationGroupId },
     orderBy: { orderIndex: "desc" },
   });
-  await prisma.sessionRotationAssignment.create({
+  const assignment = await prisma.sessionRotationAssignment.create({
     data: {
       sessionId,
       rotationGroupId,
@@ -251,8 +293,19 @@ export async function createRotationAssignment(data: FormData) {
       notes: value(data, "notes") || null,
       orderIndex: (last?.orderIndex ?? -1) + 1,
     },
+    select: {
+      id: true,
+      rotationGroupId: true,
+      blockId: true,
+      trainingSpaceId: true,
+      startTime: true,
+      endTime: true,
+      notes: true,
+    },
   });
   revalidatePath("/planning/" + sessionId);
+  revalidatePath("/training/" + sessionId);
+  return { assignment, group: createdGroup };
 }
 
 export async function updateRotationAssignment(data: FormData) {
@@ -292,12 +345,14 @@ export async function updateRotationAssignment(data: FormData) {
   revalidatePath("/planning/" + sessionId);
 }
 
-export async function deleteRotationAssignment(data: FormData) {
+export async function deleteRotationAssignment(data: FormData): Promise<RotationActionResult> {
   const context = await rotationManager();
   const sessionId = value(data, "sessionId");
   const assignmentId = value(data, "assignmentId");
   const session = await visibleSession(sessionId, context);
-  if (!session) return;
+  if (!session) return { error: "Session not found." };
   await prisma.sessionRotationAssignment.deleteMany({ where: { id: assignmentId, sessionId } });
   revalidatePath("/planning/" + sessionId);
+  revalidatePath("/training/" + sessionId);
+  return {};
 }
