@@ -57,7 +57,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
       trainingGroup: groupScopeWhere(c.organisation.id, c.membership.id, c.access),
     },
     include: {
-      trainingGroup: { include: { memberships: { include: { gymnast: true }, orderBy: { joinedAt: "asc" } } } },
+      trainingGroup: { include: { memberships: { include: { gymnast: { select: { id: true, name: true } } }, orderBy: { joinedAt: "asc" } } } },
       blocks: {
         orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
         include: {
@@ -65,17 +65,17 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
           spaceAssignment: { include: { trainingSpace: true } },
           resourceAssignments: { include: { resource: { include: { trainingSpace: true } } } },
           stations: { include: { workItem: true, skill: true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
-          workItems: { include: { targetGymnast: { select: { name: true } }, elementDefinition: { include: { package: { include: { program: true } } } }, vaultDefinition: { include: { package: { include: { program: true } } } }, trainingResource: true, landingResource: true, trainingPlanItem: { select: { id: true, planId: true } } }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
+          workItems: { include: { targetGymnast: { select: { name: true } }, elementDefinition: { select: { package: { select: { program: { select: { name: true } } } } } }, vaultDefinition: { select: { package: { select: { program: { select: { name: true } } } } } }, trainingResource: true, landingResource: true, trainingPlanItem: { select: { id: true, planId: true } } }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
         },
       },
-      gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
+      gymnasts: { include: { gymnast: { select: { id: true, name: true } } }, orderBy: { assignedAt: "asc" } },
       _count: { select: { evidence: true, attendance: true } },
       facilityAssignment: { include: { location: true } },
       clubRotationPlan: true,
       rotationGroups: {
         orderBy: [{ orderIndex: "asc" }, { name: "asc" }],
         include: {
-          gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
+          gymnasts: { include: { gymnast: { select: { id: true, name: true } } }, orderBy: { assignedAt: "asc" } },
           assignments: {
             include: { block: true, trainingSpace: true },
             orderBy: [{ startTime: "asc" }, { orderIndex: "asc" }],
