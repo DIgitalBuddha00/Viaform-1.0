@@ -71,7 +71,8 @@ export async function currentAuthContext() {
   if(!session||session.expiresAt<=new Date()||!session.user.isActive||!session.organisationId||!session.organisation)return null;
   const selectionFresh=!!session.activeMembershipSelectedAt&&session.activeMembershipSelectedAt.getTime()>Date.now()-ACTIVE_MEMBERSHIP_HOURS*60*60*1000;
   const activeId=selectionFresh?(requested??session.activeMembershipId):null;
-  if(!selectionFresh&&(requested||session.activeMembershipId)){await prisma.authSession.updateMany({where:{tokenHash:tokenHash(token)},data:{activeMembershipId:null,activeMembershipSelectedAt:null}});jar.delete(ACTIVE_MEMBERSHIP_COOKIE);}
+  // This reader also runs during Server Component rendering, where cookies are read-only.
+  // Ignore expired selections here; selection and lock actions own cookie/session writes.
   const membershipsStartedAt=Date.now();
   const memberships=await prisma.organisationMembership.findMany({
     where:{organisationId:session.organisationId,isActive:true,...(activeId?{OR:[{id:activeId},{userId:session.user.id}]}:{userId:session.user.id})},
