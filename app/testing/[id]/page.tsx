@@ -53,7 +53,7 @@ export default async function TestingSessionPage({
     }),
   ]);
   if (!session) notFound();
-  const availableMetrics=session.singleMetricId?metrics.filter(m=>m.id===session.singleMetricId):session.batteryId?(await prisma.testBatteryItem.findMany({where:{batteryId:session.batteryId},orderBy:{orderIndex:"asc"}})).map(i=>metrics.find(m=>m.id===i.metricId)).filter((m):m is (typeof metrics)[number]=>!!m):metrics;
+  const capturedBattery=session.batteryDefinitionSnapshot?(()=>{try{return JSON.parse(session.batteryDefinitionSnapshot) as Array<{metricId:string;name:string;protocolVersion:number}>}catch{return []}})():[];const batteryMetricIds=capturedBattery.map(i=>i.metricId);const availableMetrics=session.singleMetricId?metrics.filter(m=>m.id===session.singleMetricId):session.batteryId?(batteryMetricIds.length?batteryMetricIds.map(id=>metrics.find(m=>m.id===id)).filter((m):m is (typeof metrics)[number]=>!!m):(await prisma.testBatteryItem.findMany({where:{batteryId:session.batteryId},orderBy:{orderIndex:"asc"}})).map(i=>metrics.find(m=>m.id===i.metricId)).filter((m):m is (typeof metrics)[number]=>!!m)):metrics;
 
   const selectedMetric = availableMetrics.find((metric) => metric.id === query.metric) ?? availableMetrics[0] ?? null;
   const metricResults = selectedMetric ? session.results.filter((result) => result.metricId === selectedMetric.id) : [];
@@ -95,7 +95,7 @@ export default async function TestingSessionPage({
               <div className="flex min-w-max gap-2">
                 {availableMetrics.map((metric) => (
                   <a key={metric.id} href={"/testing/" + session.id + "?metric=" + metric.id} className={"rounded-xl border px-4 py-3 text-sm " + (selectedMetric?.id === metric.id ? "border-[var(--foreground)] font-semibold" : "border-[var(--border)]")}>
-                    <span className="block">{metric.name}</span>
+                    <span className="block">{capturedBattery.find(i=>i.metricId===metric.id)?.name??metric.name}</span>
                     <span className="mt-1 block text-xs text-[var(--muted)]">{modeLabel[metric.captureMode] ?? metric.captureMode}{metric.unit ? " · " + metric.unit : ""}{metric.status !== "ACTIVE" ? " · archived" : ""}</span>
                   </a>
                 ))}
@@ -107,8 +107,8 @@ export default async function TestingSessionPage({
                 <article className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Current metric</p>
-                      <h2 className="mt-1 text-2xl font-semibold">{selectedMetric.name}</h2>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">{session.status==="COMPLETED"?"Recorded test":"Current test"}</p>
+                      <h2 className="mt-1 text-2xl font-semibold">{metricResults[0]?.metricNameSnapshot??capturedBattery.find(i=>i.metricId===selectedMetric.id)?.name??selectedMetric.name}</h2>
                       <p className="mt-2 text-sm text-[var(--muted)]">
                         {modeLabel[selectedMetric.captureMode] ?? selectedMetric.captureMode}
                         {selectedMetric.unit ? " · " + selectedMetric.unit : ""}
@@ -134,8 +134,8 @@ export default async function TestingSessionPage({
                           sessionId={session.id}
                           gymnastId={entry.gymnastId}
                           metricId={selectedMetric.id}
-                          captureMode={selectedMetric.captureMode}
-                          unit={selectedMetric.unit}
+                          captureMode={result?.captureModeSnapshot??selectedMetric.captureMode}
+                          unit={result?.unitSnapshot??selectedMetric.unit}
                           durationSeconds={selectedMetric.durationSeconds}
                           initialValue={result?.numberValue ?? null}
                           initialNote={result?.note ?? null}
