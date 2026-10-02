@@ -9,6 +9,12 @@ import {
   selectCompetitionRoutine,
   updateCompetitionEntryContext,
   updateCompetitionEvent,
+  assignCompetitionOperationsStaff,
+  removeCompetitionOperationsStaff,
+  saveCompetitionAthleteOperations,
+  addCompetitionOperationsSlot,
+  updateCompetitionOperationsSlot,
+  addCompetitionOperationsLog,
 } from "@/app/actions/competitions";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
@@ -36,7 +42,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
   });
   if (!event) notFound();
 
-  const [visibleGymnasts, routines, preference] = await Promise.all([
+  const [visibleGymnasts, routines, preference, operationsStaff, operationsAthletes, operationsSlots, operationsLog, activeMembers] = await Promise.all([
     prisma.gymnast.findMany({
       where: gymnastScopeWhere(c.organisation.id, c.membership.id, c.access),
       orderBy: { name: "asc" },
@@ -49,6 +55,11 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
       orderBy: [{ gymnastId: "asc" }, { apparatus: "asc" }, { updatedAt: "desc" }],
     }),
     prisma.membershipPresentationPreference.findUnique({ where: { membershipId: c.membership.id } }),
+    prisma.competitionOperationsStaff.findMany({where:{eventId:id},orderBy:[{role:"asc"},{createdAt:"asc"}]}),
+    prisma.competitionOperationsAthlete.findMany({where:{eventId:id}}),
+    prisma.competitionOperationsSlot.findMany({where:{eventId:id},orderBy:[{orderIndex:"asc"},{createdAt:"asc"}]}),
+    prisma.competitionOperationsLog.findMany({where:{eventId:id},orderBy:{createdAt:"desc"},take:30}),
+    prisma.organisationMembership.findMany({where:{organisationId:c.organisation.id,isActive:true},include:{user:{select:{displayName:true}}},orderBy:{joinedAt:"asc"}}),
   ]);
   const entered = new Set(event.entries.map((entry) => entry.gymnastId));
   const available = visibleGymnasts.filter((gymnast) => !entered.has(gymnast.id));
@@ -58,7 +69,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
     entrantIds.length?prisma.competitionEntry.count({where:{gymnastId:{in:entrantIds},event:{organisationId:c.organisation.id,id:{not:event.id}}}}):Promise.resolve(0)
   ]);
   const plans=event.entries.flatMap(e=>e.apparatusPlans),performances=plans.map(p=>p.performance).filter(Boolean),recorded=performances.filter(p=>p?.status!=="NOT_RECORDED"),reflections=performances.filter(p=>p?.athleteReflection),routineSelected=plans.filter(p=>p.routineId),missingRoutines=plans.length-routineSelected.length;
-  const eventDate = event.eventDate.toISOString().slice(0, 10);
+  const eventDate = event.eventDate.toISOString().slice(0, 10);\n  const staffName=new Map(activeMembers.map(m=>[m.id,m.user.displayName]));\n  const athleteOps=new Map(operationsAthletes.map(o=>[o.entryId,o]));
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
@@ -180,6 +191,17 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
             })}
             {!event.entries.length && <p className="rounded-2xl border border-dashed border-[var(--border)] p-7 text-sm text-[var(--muted)]">No gymnasts entered yet.</p>}
           </div>
+
+          <section className="lg:col-span-2 mt-2 grid gap-5">
+            <div className="section-heading"><h2>Competition operations</h2><span>Whole-event view</span></div>
+            <p className="text-sm text-[var(--muted)]">Operational planning sits alongside competition evidence without changing scores, routines or athlete records.</p>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><p className="font-semibold">Coach team & responsibilities</p><form action={assignCompetitionOperationsStaff} className="mt-3 grid gap-2 sm:grid-cols-2"><input type="hidden" name="eventId" value={event.id}/><select name="membershipId" required className="rounded-xl border border-[var(--border)] px-3 py-2"><option value="">Staff member…</option>{activeMembers.map(m=><option key={m.id} value={m.id}>{m.user.displayName}</option>)}</select><select name="role" defaultValue="COACH" className="rounded-xl border border-[var(--border)] px-3 py-2"><option value="HEAD_COACH">Head Coach</option><option value="COACH">Coach</option><option value="WARM_UP_COACH">Warm-up coach</option><option value="JUDGE">Judge</option><option value="HEAD_JUDGE">Head judge</option><option value="RECORDER">Recorder</option><option value="FLOOR_MANAGER">Floor manager</option><option value="CHOREOGRAPHER">Choreographer</option><option value="OTHER">Other</option></select><input name="notes" placeholder="Responsibility / notes" className="rounded-xl border border-[var(--border)] px-3 py-2 sm:col-span-2"/><button className="workspace-button workspace-button-primary sm:col-span-2">Assign</button></form><div className="mt-4 grid gap-2">{operationsStaff.map(s=><div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3 text-sm"><div><strong>{staffName.get(s.membershipId)??"Staff"}</strong><span className="ml-2 text-[var(--muted)]">{s.role.replaceAll("_"," ")}{s.notes?" · "+s.notes:""}</span></div><form action={removeCompetitionOperationsStaff}><input type="hidden" name="eventId" value={event.id}/><input type="hidden" name="staffId" value={s.id}/><button className="text-xs font-semibold">Remove</button></form></div>)}</div></article>
+              <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><p className="font-semibold">Event itinerary</p><form action={addCompetitionOperationsSlot} className="mt-3 grid gap-2 sm:grid-cols-3"><input type="hidden" name="eventId" value={event.id}/><input name="label" required placeholder="Block / activity" className="rounded-xl border border-[var(--border)] px-3 py-2"/><select name="slotType" defaultValue="OTHER" className="rounded-xl border border-[var(--border)] px-3 py-2"><option value="ARRIVAL">Arrival</option><option value="WARM_UP">Warm-up</option><option value="COMPETITION">Competition</option><option value="HANDOFF">Handoff</option><option value="BREAK">Break</option><option value="OTHER">Other</option></select><input name="plannedTime" type="time" className="rounded-xl border border-[var(--border)] px-3 py-2"/><textarea name="notes" placeholder="Notes" className="rounded-xl border border-[var(--border)] px-3 py-2 sm:col-span-3"/><button className="workspace-button workspace-button-primary sm:col-span-3">Add itinerary block</button></form><div className="mt-4 grid gap-2">{operationsSlots.map(slot=><form key={slot.id} action={updateCompetitionOperationsSlot} className="grid gap-2 rounded-xl border border-[var(--border)] p-3 sm:grid-cols-4"><input type="hidden" name="eventId" value={event.id}/><input type="hidden" name="slotId" value={slot.id}/><div className="text-sm"><strong>{slot.label}</strong><span className="block text-xs text-[var(--muted)]">{slot.slotType.replaceAll("_"," ")} · planned {slot.plannedTime||"—"}</span></div><input name="actualTime" type="time" defaultValue={slot.actualTime??""} className="rounded-lg border border-[var(--border)] px-2 py-1 text-sm"/><select name="status" defaultValue={slot.status} className="rounded-lg border border-[var(--border)] px-2 py-1 text-sm"><option value="PLANNED">Planned</option><option value="READY">Ready</option><option value="IN_PROGRESS">In progress</option><option value="DELAYED">Delayed</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option></select><button className="workspace-button">Update</button><input name="notes" defaultValue={slot.notes??""} placeholder="Change / delay note" className="rounded-lg border border-[var(--border)] px-2 py-1 text-sm sm:col-span-4"/></form>)}</div></article>
+            </div>
+            <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><p className="font-semibold">Athlete operations</p><div className="mt-4 grid gap-3">{event.entries.map(entry=>{const o=athleteOps.get(entry.id);return <form key={entry.id} action={saveCompetitionAthleteOperations} className="grid gap-2 rounded-xl border border-[var(--border)] p-3 md:grid-cols-6"><input type="hidden" name="eventId" value={event.id}/><input type="hidden" name="entryId" value={entry.id}/><strong className="text-sm md:col-span-6">{entry.gymnast.name}</strong><label className="text-xs">Arrival<input name="arrivalTime" type="time" defaultValue={o?.arrivalTime??""} className="mt-1 w-full rounded-lg border border-[var(--border)] px-2 py-2"/></label><label className="text-xs">Warm-up<input name="warmupTime" type="time" defaultValue={o?.warmupTime??""} className="mt-1 w-full rounded-lg border border-[var(--border)] px-2 py-2"/></label><label className="text-xs">Compete<input name="competitionTime" type="time" defaultValue={o?.competitionTime??""} className="mt-1 w-full rounded-lg border border-[var(--border)] px-2 py-2"/></label><select name="status" defaultValue={o?.status??"PLANNED"} className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"><option value="PLANNED">Planned</option><option value="READY">Ready</option><option value="IN_PROGRESS">In progress</option><option value="DELAYED">Delayed</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option></select><input name="handoffNote" defaultValue={o?.handoffNote??""} placeholder="Handoff" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm"/><button className="workspace-button">Save</button><input name="operationalNote" defaultValue={o?.operationalNote??""} placeholder="Operational note" className="rounded-lg border border-[var(--border)] px-2 py-2 text-sm md:col-span-6"/></form>})}</div></article>
+            <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><p className="font-semibold">Live event log</p><form action={addCompetitionOperationsLog} className="mt-3 flex flex-wrap gap-2"><input type="hidden" name="eventId" value={event.id}/><select name="kind" defaultValue="UPDATE" className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"><option value="UPDATE">Update</option><option value="DELAY">Delay</option><option value="CHANGE">Change</option><option value="HANDOFF">Handoff</option></select><input name="message" required placeholder="What changed?" className="min-w-60 flex-1 rounded-xl border border-[var(--border)] px-3 py-2"/><button className="workspace-button workspace-button-primary">Log</button></form>{operationsLog.length>0&&<div className="mt-4 grid gap-2">{operationsLog.map(l=><div key={l.id} className="rounded-xl border border-[var(--border)] p-3 text-sm"><strong>{l.kind}</strong><span className="ml-2">{l.message}</span><small className="ml-2 text-[var(--muted)]">{l.createdAt.toISOString().slice(0,16).replace("T"," ")}</small></div>)}</div>}</article>
+          </section>
 
           <aside className="grid content-start gap-4">
             {event.status === "PLANNED" && (

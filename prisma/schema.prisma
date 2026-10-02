@@ -1864,3 +1864,59 @@ model CoachingMemoryObservation {
   @@index([sessionId, createdAt])
   @@index([authorMembershipId, createdAt])
 }
+
+
+model CompetitionOperationsStaff {
+  id           String   @id @default(cuid())
+  eventId      String
+  membershipId String
+  role         String
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@unique([eventId,membershipId,role])
+  @@index([eventId,role])
+  @@index([membershipId])
+}
+
+model CompetitionOperationsAthlete {
+  id             String   @id @default(cuid())
+  eventId        String
+  entryId        String   @unique
+  arrivalTime    String?
+  warmupTime     String?
+  competitionTime String?
+  handoffNote    String?
+  operationalNote String?
+  status         String   @default("PLANNED")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([eventId,status])
+}
+
+model CompetitionOperationsSlot {
+  id          String   @id @default(cuid())
+  eventId     String
+  label       String
+  slotType    String   @default("OTHER")
+  plannedTime String?
+  actualTime  String?
+  status      String   @default("PLANNED")
+  notes       String?
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([eventId,orderIndex])
+  @@index([eventId,status])
+}
+
+model CompetitionOperationsLog {
+  id                 String   @id @default(cuid())
+  eventId            String
+  authorMembershipId String
+  kind               String   @default("UPDATE")
+  message            String
+  createdAt          DateTime @default(now())
+  @@index([eventId,createdAt])
+  @@index([authorMembershipId,createdAt])
+}

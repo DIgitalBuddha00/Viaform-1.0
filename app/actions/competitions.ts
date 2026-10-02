@@ -209,7 +209,7 @@ export async function recordCompetitionPerformance(data: FormData) {
     update: payload,
   });
   revalidatePath("/competitions/" + event.id);
-  revalidatePath("/progress");
+  revalidatePath("/analysis");
 }
 
 export async function recordCompetitionAthleteReflection(data: FormData) {
@@ -254,4 +254,52 @@ export async function recordCompetitionAthleteReflection(data: FormData) {
     },
   });
   revalidatePath("/competitions/" + event.id);
+}
+
+
+const OPERATIONS_ROLES = ["HEAD_COACH","COACH","WARM_UP_COACH","JUDGE","HEAD_JUDGE","RECORDER","FLOOR_MANAGER","CHOREOGRAPHER","OTHER"] as const;
+const SLOT_TYPES = ["ARRIVAL","WARM_UP","COMPETITION","HANDOFF","BREAK","OTHER"] as const;
+const OPS_STATUS = ["PLANNED","READY","IN_PROGRESS","DELAYED","COMPLETED","CANCELLED"] as const;
+
+export async function assignCompetitionOperationsStaff(data: FormData) {
+  const c=await context(),eventId=value(data,"eventId"),membershipId=value(data,"membershipId"),role=value(data,"role");
+  const event=await visibleEvent(eventId,c);if(!event||!membershipId||!OPERATIONS_ROLES.includes(role as (typeof OPERATIONS_ROLES)[number]))return;
+  const member=await prisma.organisationMembership.findFirst({where:{id:membershipId,organisationId:c.organisation.id,isActive:true},select:{id:true}});
+  if(!member)return;
+  await prisma.competitionOperationsStaff.upsert({where:{eventId_membershipId_role:{eventId,membershipId,role}},create:{eventId,membershipId,role,notes:value(data,"notes")||null},update:{notes:value(data,"notes")||null}});
+  revalidatePath("/competitions/"+eventId);
+}
+
+export async function removeCompetitionOperationsStaff(data: FormData) {
+  const c=await context(),eventId=value(data,"eventId");if(!await visibleEvent(eventId,c))return;
+  await prisma.competitionOperationsStaff.deleteMany({where:{id:value(data,"staffId"),eventId}});
+  revalidatePath("/competitions/"+eventId);
+}
+
+export async function saveCompetitionAthleteOperations(data: FormData) {
+  const c=await context(),eventId=value(data,"eventId"),entryId=value(data,"entryId");if(!await visibleEvent(eventId,c))return;
+  const entry=await prisma.competitionEntry.findFirst({where:{id:entryId,competitionEventId:eventId},select:{id:true}});if(!entry)return;
+  const status=value(data,"status")||"PLANNED";if(!OPS_STATUS.includes(status as (typeof OPS_STATUS)[number]))return;
+  await prisma.competitionOperationsAthlete.upsert({where:{entryId},create:{eventId,entryId,arrivalTime:value(data,"arrivalTime")||null,warmupTime:value(data,"warmupTime")||null,competitionTime:value(data,"competitionTime")||null,handoffNote:value(data,"handoffNote")||null,operationalNote:value(data,"operationalNote")||null,status},update:{arrivalTime:value(data,"arrivalTime")||null,warmupTime:value(data,"warmupTime")||null,competitionTime:value(data,"competitionTime")||null,handoffNote:value(data,"handoffNote")||null,operationalNote:value(data,"operationalNote")||null,status}});
+  revalidatePath("/competitions/"+eventId);
+}
+
+export async function addCompetitionOperationsSlot(data: FormData) {
+  const c=await context(),eventId=value(data,"eventId"),label=value(data,"label"),slotType=value(data,"slotType")||"OTHER";if(!await visibleEvent(eventId,c)||!label||!SLOT_TYPES.includes(slotType as (typeof SLOT_TYPES)[number]))return;
+  const last=await prisma.competitionOperationsSlot.findFirst({where:{eventId},orderBy:{orderIndex:"desc"},select:{orderIndex:true}});
+  await prisma.competitionOperationsSlot.create({data:{eventId,label,slotType,plannedTime:value(data,"plannedTime")||null,notes:value(data,"notes")||null,orderIndex:(last?.orderIndex??-1)+1}});
+  revalidatePath("/competitions/"+eventId);
+}
+
+export async function updateCompetitionOperationsSlot(data: FormData) {
+  const c=await context(),eventId=value(data,"eventId"),slotId=value(data,"slotId");if(!await visibleEvent(eventId,c))return;
+  const status=value(data,"status");if(status&&!OPS_STATUS.includes(status as (typeof OPS_STATUS)[number]))return;
+  await prisma.competitionOperationsSlot.updateMany({where:{id:slotId,eventId},data:{actualTime:value(data,"actualTime")||null,status:status||"PLANNED",notes:value(data,"notes")||null}});
+  revalidatePath("/competitions/"+eventId);
+}
+
+export async function addCompetitionOperationsLog(data: FormData) {
+  const c=await context(),eventId=value(data,"eventId"),message=value(data,"message");if(!await visibleEvent(eventId,c)||!message)return;
+  await prisma.competitionOperationsLog.create({data:{eventId,authorMembershipId:c.membership.id,kind:value(data,"kind")||"UPDATE",message}});
+  revalidatePath("/competitions/"+eventId);
 }
