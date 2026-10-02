@@ -232,6 +232,7 @@ export async function createSessionBlock(data: FormData) {
     },
     select: { id: true, title: true, category: true, durationMin: true, targetGymnastId: true },
   });
+  revalidatePath("/planning/" + sessionId);
   logServerTiming("training-planning.create-session-block", startedAt, { sessionId, hasSpace: Boolean(spaceId), hasTargetGymnast: Boolean(targetGymnastId) });
   return { block: { ...block, spaceName: space?.name ?? null } };
 }

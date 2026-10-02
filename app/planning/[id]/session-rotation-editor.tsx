@@ -147,8 +147,8 @@ export function SessionRotationEditor({
     {canEdit && spaces.length > 0 && <form onSubmit={addAssignment} className="mt-4 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
       <input type="hidden" name="sessionId" value={sessionId}/>
       <label className="grid gap-1 text-xs font-semibold">Group
-        <select name="rotationGroupId" required className={control} defaultValue={groups[0]?.id ?? "WHOLE_SESSION_GROUP"}>
-          <option value="WHOLE_SESSION_GROUP">{trainingGroupName} · whole group</option>
+        <select key={groups.map((group) => group.id).join(":")} name="rotationGroupId" required className={control} defaultValue={groups[0]?.id ?? "WHOLE_SESSION_GROUP"}>
+          {!groups.some((group) => group.name === trainingGroupName) && <option value="WHOLE_SESSION_GROUP">{trainingGroupName} · whole group</option>}
           {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
         </select>
       </label>
