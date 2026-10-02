@@ -18,11 +18,11 @@ async function videoContext(){
 export async function createVideoAsset(data:FormData){
   const c=await videoContext();
   const title=value(data,"title"); if(!title)return;
-  const gymnastId=value(data,"gymnastId")||null;const routineId=value(data,"routineId")||null;
+  const gymnastId=value(data,"gymnastId")||null;const routineId=value(data,"routineId")||null;const routineItemId=value(data,"routineItemId")||null;
   if(gymnastId&&!await prisma.gymnast.findFirst({where:{id:gymnastId,...gymnastScopeWhere(c.organisation.id,c.membership.id,c.access)},select:{id:true}}))return;
   if(routineId&&(!gymnastId||!await prisma.gymnastRoutine.findFirst({where:{id:routineId,gymnastId,status:"ACTIVE"},select:{id:true}})))return;
   const asset=await prisma.videoAsset.create({data:{
-    organisationId:c.organisation.id,createdByMembershipId:c.membership.id,title,gymnastId,routineId,
+    organisationId:c.organisation.id,createdByMembershipId:c.membership.id,title,gymnastId,routineId,routineItemId,
     apparatus:value(data,"apparatus")||null,skillLabel:value(data,"skillLabel")||null,
     cameraAngle:value(data,"cameraAngle")||null,sourceType:"LOCAL",
     fileName:value(data,"fileName")||null,mimeType:value(data,"mimeType")||null,notes:value(data,"notes")||null

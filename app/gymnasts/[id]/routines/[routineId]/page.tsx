@@ -273,7 +273,7 @@ export default async function RoutineWorkspace({
           <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_340px]">
             <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <p className="text-sm font-semibold text-[var(--muted)]">Build</p>
-              <h2 className="mt-1 text-xl font-semibold">Routine sequence</h2>
+              <h2 className="mt-1 text-xl font-semibold">Routine sequence</h2><div className="mt-3 flex flex-wrap gap-2">{routine.elements.map(item=><a key={"video-"+item.id} href={"/video?gymnast="+gymnast.id+"&routine="+routine.id+"&apparatus="+routine.apparatus+"&item="+item.id+"&itemLabel="+encodeURIComponent(item.elementDefinition.name)} className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold">Video · {item.elementDefinition.name}</a>)}{routine.customItems.map(item=><a key={"video-"+item.id} href={"/video?gymnast="+gymnast.id+"&routine="+routine.id+"&apparatus="+routine.apparatus+"&item="+item.id+"&itemLabel="+encodeURIComponent(item.label)} className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold">Video · {item.label}</a>)}</div>
               {routine.apparatus === "FLOOR" && routine.sections.length > 0 && (
                 <div className="mt-4 rounded-xl border border-[var(--border)] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">Floor map</p><span className="text-xs text-[var(--muted)]">Coach-authored spatial context</span></div>
