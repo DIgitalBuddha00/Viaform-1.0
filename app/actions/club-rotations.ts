@@ -79,7 +79,7 @@ async function writeSlot(data: FormData, existingId?: string): Promise<SlotResul
     !ROTATION_DAYS.includes(dayOfWeek as typeof ROTATION_DAYS[number]) || !validTime(startTime) || !validTime(endTime) ||
     minutes(endTime) <= minutes(startTime) || minutes(endTime) - minutes(startTime) > 480) return { error: "Check the day and times." };
   const [group, space, coach] = await Promise.all([
-    prisma.trainingGroup.findFirst({ where: { id: trainingGroupId, organisationId: c.organisation.id } }),
+    prisma.trainingGroup.findFirst({ where: { id: trainingGroupId, organisationId: c.organisation.id, status: "ACTIVE" } }),
     prisma.trainingSpace.findFirst({ where: { id: trainingSpaceId, locationId: p.locationId, status: "ACTIVE" } }),
     coachMembershipId ? prisma.organisationMembership.findFirst({ where: { id: coachMembershipId, organisationId: c.organisation.id, isActive: true } }) : null,
   ]);

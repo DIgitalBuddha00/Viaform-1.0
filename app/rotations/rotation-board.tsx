@@ -22,6 +22,9 @@ export function RotationBoard({ planId, day, variantCount, spaces, groups, coach
   const [groupId, setGroupId] = useState(groups[0]?.id ?? "");
   const [coachId, setCoachId] = useState("");
   const [duration, setDuration] = useState(20);
+  const [startTime, setStartTime] = useState(start);
+  const [spaceId, setSpaceId] = useState(spaces[0]?.id ?? "");
+  const [variantIndex, setVariantIndex] = useState(0);
   const [from, setFrom] = useState(start);
   const [to, setTo] = useState(end);
   const [notice, setNotice] = useState("");
@@ -33,6 +36,15 @@ export function RotationBoard({ planId, day, variantCount, spaces, groups, coach
   const ticks = safeRange ? Math.ceil((last - first) / 5) : 0;
   const variants = showAll ? Array.from({ length: variantCount }, (_, i) => i) : [onlyVariant];
   const chosen = slots.find(slot => slot.id === selected);
+
+  function createAt(variantIndex: number, trainingSpaceId: string, startTime: string) {
+    if (!canManage || pending || !groupId || !trainingSpaceId || !safeRange) return;
+    const endTime = clock(minutes(startTime) + duration);
+    if (minutes(startTime) < first || minutes(endTime) > last) { setNotice("Block must fit inside the board hours."); return; }
+    const data = new FormData();
+    for (const [key, value] of Object.entries({ planId, variantIndex: String(variantIndex), dayOfWeek: day, trainingGroupId: groupId, trainingSpaceId, coachMembershipId: coachId, startTime, endTime })) data.set(key, value);
+    transition(async () => { const result=await createClubRotationSlot(data); setNotice(result.error ?? ""); if(!result.error) router.refresh(); });
+  }
 
   function place(variantIndex: number, trainingSpaceId: string, offset: number) {
     if (!canManage || pending || !groupId || !safeRange) return;
@@ -69,7 +81,7 @@ export function RotationBoard({ planId, day, variantCount, spaces, groups, coach
     <div className="flex flex-wrap items-end gap-2">
       {canManage && <><label className="grid gap-1 text-xs font-semibold">Group<select className={control} value={groupId} onChange={e => setGroupId(e.target.value)}>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
         <label className="grid gap-1 text-xs font-semibold">Coach<select className={control} value={coachId} onChange={e => setCoachId(e.target.value)}><option value="">No coach</option>{coaches.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-        <label className="grid gap-1 text-xs font-semibold">Minutes<select className={control} value={duration} onChange={e => setDuration(Number(e.target.value))}>{[5, 10, 15, 20, 25, 30, 40, 45, 50, 60, 75, 90, 120].map(n => <option key={n} value={n}>{n}</option>)}</select></label></>}
+        <label className="grid gap-1 text-xs font-semibold">Minutes<select className={control} value={duration} onChange={e => setDuration(Number(e.target.value))}>{[5, 10, 15, 20, 25, 30, 40, 45, 50, 60, 75, 90, 120].map(n => <option key={n} value={n}>{n}</option>)}</select></label><label className="grid gap-1 text-xs font-semibold">Rota<select className={control} value={variantIndex} onChange={e=>setVariantIndex(Number(e.target.value))}>{Array.from({length:variantCount},(_,i)=><option key={i} value={i}>Rota {i+1}</option>)}</select></label><label className="grid gap-1 text-xs font-semibold">Area<select className={control} value={spaceId} onChange={e=>setSpaceId(e.target.value)}>{spaces.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="grid gap-1 text-xs font-semibold">Start<input type="time" step="300" className={control} value={startTime} onChange={e=>setStartTime(e.target.value)}/></label><button type="button" className="workspace-button workspace-button-primary" disabled={pending||!groupId||!spaceId} onClick={()=>createAt(variantIndex,spaceId,startTime)}>Add rotation block</button></>}
       <label className="grid gap-1 text-xs font-semibold">From<input type="time" step="300" className={control} value={from} onChange={e => setFrom(e.target.value)}/></label>
       <label className="grid gap-1 text-xs font-semibold">To<input type="time" step="300" className={control} value={to} onChange={e => setTo(e.target.value)}/></label>
       {variantCount > 1 && <button type="button" className="workspace-button" onClick={() => setShowAll(!showAll)}>{showAll ? "One rota" : "Compare rotas"}</button>}
@@ -97,7 +109,7 @@ export function RotationBoard({ planId, day, variantCount, spaces, groups, coach
         </div>
       </section>)}
     </div></div>}
-    {canManage && <p className="mt-2 text-xs text-[var(--muted)]">Select a group and tap the apparatus at its start time. Tap a block to edit it.</p>}
+    {canManage && <p className="mt-2 text-xs text-[var(--muted)]">Choose the group, rota, area, start time and duration, then add the block. You can also tap the board to place it visually. Tap an existing block to edit it.</p>}
     {chosen && <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><h3 className="font-semibold">Edit block</h3><form action={save} className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       <input type="hidden" name="planId" value={planId}/><input type="hidden" name="slotId" value={chosen.id}/><input type="hidden" name="dayOfWeek" value={day}/><input type="hidden" name="variantIndex" value={chosen.variantIndex}/>
       <select name="trainingGroupId" defaultValue={chosen.trainingGroupId} className={control}>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
