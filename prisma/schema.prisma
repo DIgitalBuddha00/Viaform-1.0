@@ -163,6 +163,8 @@ model TrainingGroup {
   name           String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  status         String   @default("ACTIVE")
+  archivedAt     DateTime?
 
   organisation Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   memberships  GymnastTrainingGroup[]
@@ -179,6 +181,7 @@ model TrainingGroup {
 
   @@unique([organisationId, name])
   @@index([organisationId, name])
+  @@index([organisationId, status, name])
 }
 
 model TrainingGroupSchedule {
