@@ -9,7 +9,25 @@ export default async function AnalysisPage({searchParams}:{searchParams:Promise<
  const groups=await prisma.trainingGroup.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},select:{id:true,name:true,memberships:{select:{gymnastId:true}}},orderBy:{name:"asc"}});const gymnasts=await prisma.gymnast.findMany({where:gymnastScopeWhere(c.organisation.id,c.membership.id,c.access),select:{id:true,name:true},orderBy:{name:"asc"}});
  const group=groups.find(g=>g.id===q.group);const visibleGymnasts=group?gymnasts.filter(g=>group.memberships.some(m=>m.gymnastId===g.id)):gymnasts;const ids=new Set(visibleGymnasts.map(g=>g.id)),gymnastId=ids.has(q.gymnast??"")?q.gymnast!:visibleGymnasts[0]?.id,compareId=ids.has(q.compare??"")&&q.compare!==gymnastId?q.compare!:null;
  const apparatus=["VAULT","UNEVEN_BARS","BALANCE_BEAM","FLOOR_EXERCISE"].includes(q.apparatus??"")?q.apparatus!:null;const days=[30,90,180,365].includes(Number(q.days))?Number(q.days):90;const since=new Date(Date.now()-days*86400000);
- const selected=visibleGymnasts.find(g=>g.id===gymnastId),compared=visibleGymnasts.find(g=>g.id===compareId);const programmeContext=gymnastId?await prisma.gymnastProgrammeAssignment.findUnique({where:{gymnastId},include:{programme:{select:{name:true}},stage:{select:{id:true,name:true,outcomes:{where:{status:"ACTIVE"},select:{id:true,title:true,category:true,apparatus:true,emphasis:true,successEvidence:true},orderBy:{orderIndex:"asc"},take:12}}}}):null;
+ const selected=visibleGymnasts.find(g=>g.id===gymnastId),compared=visibleGymnasts.find(g=>g.id===compareId);
+ const programmeContext=gymnastId?await prisma.gymnastProgrammeAssignment.findUnique({
+  where:{gymnastId},
+  include:{
+   programme:{select:{name:true}},
+   stage:{
+    select:{
+     id:true,
+     name:true,
+     outcomes:{
+      where:{status:"ACTIVE"},
+      select:{id:true,title:true,category:true,apparatus:true,emphasis:true,successEvidence:true},
+      orderBy:{orderIndex:"asc"},
+      take:12
+     }
+    }
+   }
+  }
+ }):null;
  async function bundle(id:string|undefined){if(!id)return null;const [training,tests,competitions,programmes,rulesets,routines,videos,goals,evaluations]=await Promise.all([
   prisma.trainingEvidence.findMany({where:{gymnastId:id,recordedAt:{gte:since},...(apparatus?{block:{apparatus}}:{})},select:{outcome:true,recordedAt:true,fatigueSnapshot:true,routineElementId:true,routineVaultId:true,routineCustomItemId:true},orderBy:{recordedAt:"asc"},take:1000}),
   prisma.testingResult.findMany({where:{gymnastId:id,recordedAt:{gte:since},...(apparatus?{metric:{apparatus}}:{})},select:{numberValue:true,recordedAt:true,metricNameSnapshot:true,unitSnapshot:true,directionSnapshot:true,metric:{select:{name:true,unit:true,direction:true,apparatus:true}}},orderBy:{recordedAt:"asc"},take:500}),
