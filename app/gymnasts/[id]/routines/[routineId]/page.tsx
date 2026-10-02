@@ -69,12 +69,12 @@ export default async function RoutineWorkspace({
   logServerTiming("page.routine.base", baseStartedAt, { apparatus: routine.apparatus, tab });
 
   const trainingApparatus: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE" };
-  const needsCurrentRules = tab === "overview";
-  const needsRuleSnapshot = tab === "overview" || tab === "strategy";
+  const needsCurrentRules = tab === "overview" || tab === "pathway";
+  const needsRuleSnapshot = tab === "overview" || tab === "strategy" || tab === "pathway";
   const needsEvidence = tab !== "overview";
   const needsBuildData = tab === "build";
   const contextStartedAt = startServerTiming();
-  const [currentRules, applicableRules, recentEvidence, catalogueElements, catalogueVaults, canonicalRoutineRequirements] = await Promise.all([
+  const [currentRules, applicableRules, recentEvidence, catalogueElements, catalogueVaults, canonicalRoutineRequirements, pathwayLevels] = await Promise.all([
     needsCurrentRules ? getGymnastRulesContext(gymnast.id, c.organisation.id) : Promise.resolve(null),
     needsRuleSnapshot ? getRulesetSnapshotRules(routine.rulesetPackageCode, routine.rulesetLevelCode, routine.apparatus as RulesetApparatus) : Promise.resolve([]),
     needsEvidence ? prisma.trainingEvidence.findMany({
@@ -105,6 +105,13 @@ export default async function RoutineWorkspace({
           include: { skill: true },
           orderBy: { sequenceIndex: "asc" },
         })
+      : Promise.resolve([]),,
+    tab === "pathway" && routine.rulesetProgramCode
+      ? prisma.rulesetLevel.findMany({
+          where: { program: { code: routine.rulesetProgramCode }, status: "ACTIVE" },
+          select: { id: true, code: true, name: true, orderIndex: true, routineRequirements: { where: { apparatus: routine.apparatus }, select: { id: true } } },
+          orderBy: { orderIndex: "asc" },
+        })
       : Promise.resolve([]),
   ]);
   logServerTiming("page.routine.context", contextStartedAt, {
@@ -120,6 +127,7 @@ export default async function RoutineWorkspace({
     elements: routine.elements,
     rules: applicableRules,
   }) : null;
+  const pathwayCandidates = pathwayLevels.filter((level) => level.code !== routine.rulesetLevelCode);
   const rulesContextChanged = Boolean(
     currentRules &&
     (currentRules.package.code !== routine.rulesetPackageCode || currentRules.level.code !== routine.rulesetLevelCode),
@@ -579,7 +587,7 @@ export default async function RoutineWorkspace({
                   <div className="rounded-xl border border-[var(--border)] p-3"><strong className="block text-xl">{evidenceCounts.missed}</strong><span className="text-xs text-[var(--muted)]">Missed</span></div>
                 </div>
                 <p className="mt-3 text-xs leading-5 text-[var(--muted)]">{recentEvidence.length} recent observations shown as context only. Outcome counts do not determine readiness or routine selection.</p>
-                <a href={"/progress?gymnast=" + gymnast.id} className="mt-3 inline-block text-sm font-semibold">Open full Progress Hub →</a>
+                <a href={"/analysis?gymnast=" + gymnast.id} className="mt-3 inline-block text-sm font-semibold">Open Analysis →</a>
               </article>
               <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <p className="text-sm font-semibold">Verified rule context</p>
@@ -605,6 +613,13 @@ export default async function RoutineWorkspace({
                 <PendingSubmitButton className="mt-3 rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold disabled:opacity-60">Save pathway</PendingSubmitButton>
               </form>
               <div className="mt-6 border-t border-[var(--border)] pt-5">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold">Pathway Explorer</p><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Explore other verified levels in this ruleset without changing the gymnast’s assignment, saved routine or readiness.</p></div><span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs">{pathwayCandidates.length} other level{pathwayCandidates.length===1?"":"s"}</span></div>
+                <div className="mt-3 grid gap-2">
+                  {pathwayCandidates.map((level) => <div key={level.id} className="rounded-xl border border-[var(--border)] p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">{level.name}</strong><span className="text-xs text-[var(--muted)]">{level.routineRequirements.length ? level.routineRequirements.length+" verified "+labels[routine.apparatus].toLowerCase()+" routine requirement"+(level.routineRequirements.length===1?"":"s") : "No apparatus-specific routine requirements stored"}</span></div><p className="mt-2 text-xs leading-5 text-[var(--muted)]">Hypothetical context only. Viaform has not changed the gymnast to {level.name} and is not asserting readiness for this level.</p></div>)}
+                  {!pathwayCandidates.length && <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">No other active levels are stored in this ruleset programme.</p>}
+                </div>
+              </div>
+              <div className="mt-6 border-t border-[var(--border)] pt-5">
                 <p className="text-sm font-semibold">Recent evidence context</p>
                 <div className="mt-3 grid gap-2">
                   {recentEvidence.slice(0, 8).map((entry) => (
@@ -626,7 +641,7 @@ export default async function RoutineWorkspace({
               <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <p className="text-sm font-semibold">Evidence boundary</p>
                 <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Made, Missed, Spotted, testing results and rule evaluation can inform the pathway. None of them independently authorise progression, removal of content or competition selection.</p>
-                <a href={"/progress?gymnast=" + gymnast.id} className="mt-3 inline-block text-sm font-semibold">Review longitudinal evidence →</a>
+                <a href={"/analysis?gymnast=" + gymnast.id} className="mt-3 inline-block text-sm font-semibold">Review longitudinal evidence →</a>
               </article>
             </aside>
           </div>
