@@ -74,7 +74,7 @@ export default async function RoutineWorkspace({
   const needsEvidence = tab !== "overview";
   const needsBuildData = tab === "build";
   const contextStartedAt = startServerTiming();
-  const [currentRules, applicableRules, recentEvidence, catalogueElements, catalogueVaults, canonicalRoutineRequirements, pathwayLevels] = await Promise.all([
+  const [currentRules, applicableRules, recentEvidence, catalogueElements, catalogueVaults, canonicalRoutineRequirements, pathwayLevels, linkedVideos] = await Promise.all([
     needsCurrentRules ? getGymnastRulesContext(gymnast.id, c.organisation.id) : Promise.resolve(null),
     needsRuleSnapshot ? getRulesetSnapshotRules(routine.rulesetPackageCode, routine.rulesetLevelCode, routine.apparatus as RulesetApparatus) : Promise.resolve([]),
     needsEvidence ? prisma.trainingEvidence.findMany({
@@ -113,6 +113,7 @@ export default async function RoutineWorkspace({
           orderBy: { orderIndex: "asc" },
         })
       : Promise.resolve([]),
+    tab === "overview" ? prisma.videoAsset.findMany({where:{organisationId:c.organisation.id,gymnastId:gymnast.id,routineId:routine.id,status:"ACTIVE"},select:{id:true,title:true,skillLabel:true,cameraAngle:true,updatedAt:true},orderBy:{updatedAt:"desc"},take:8}) : Promise.resolve([]),
   ]);
   logServerTiming("page.routine.context", contextStartedAt, {
     apparatus: routine.apparatus,
@@ -251,7 +252,7 @@ export default async function RoutineWorkspace({
                 <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Pathway focus</span><p className="mt-2 text-sm">{routine.pathwayNote || "Not yet recorded"}</p></div>
               </div>
             </article>
-            <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="grid gap-4"><article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Video evidence</p><a href={"/video?gymnast="+gymnast.id+"&routine="+routine.id+"&apparatus="+routine.apparatus} className="text-xs font-semibold">New video →</a></div><p className="mt-1 text-xs text-[var(--muted)]">Video linked to this saved routine plan.</p><div className="mt-3 grid gap-2">{linkedVideos.map(video=><a key={video.id} href={"/video/"+video.id} className="rounded-lg border border-[var(--border)] p-3"><strong className="block text-sm">{video.title}</strong><span className="mt-1 block text-xs text-[var(--muted)]">{[video.skillLabel,video.cameraAngle].filter(Boolean).join(" · ")||"Routine video"}</span></a>)}{!linkedVideos.length&&<p className="rounded-lg border border-dashed border-[var(--border)] p-3 text-xs text-[var(--muted)]">No video linked to this routine yet.</p>}</div></article><article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <p className="text-sm font-semibold">Current verified context</p>
               {routine.rulesetProgramName && routine.rulesetLevelName ? (
                 <>
@@ -262,7 +263,7 @@ export default async function RoutineWorkspace({
                   {rulesContextChanged && <p className="mt-4 rounded-lg border border-[var(--border)] p-3 text-xs text-[var(--muted)]">The gymnast’s current rules assignment has changed since this plan was created. This routine continues to use its saved rules snapshot.</p>}
                 </>
               ) : <p className="mt-2 text-sm text-[var(--muted)]">No verified canonical context was snapshotted for this plan.</p>}
-            </article>
+            </article></div>
           </div>
         )}
 
