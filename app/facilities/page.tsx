@@ -9,6 +9,7 @@ import {
   createFacilityResource,
   updateFacilityResource,
   deleteFacilityResource,
+  duplicateTrainingSpace,
 } from "@/app/actions/facilities";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
@@ -40,7 +41,7 @@ export default async function FacilitiesPage() {
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
-      <section className="workspace-page"><a href="/more" className="workspace-back">← More</a><div className="workspace-hero"><div><p className="workspace-kicker">Facilities & equipment</p><h1>Training environment</h1><p className="workspace-meta">{locations.length} location{locations.length===1?"":"s"}</p></div></div>
+      <section className="workspace-page"><a href="/more" className="workspace-back">← More</a><div className="workspace-hero"><div><p className="workspace-kicker">Facilities & equipment</p><h1>Training environment</h1><p className="workspace-meta">{locations.length} location{locations.length===1?"":"s"} · build reusable apparatus areas once, then use them in rotations and sessions</p></div></div>
 
         {canConfigure && (
           <form action={createFacilityLocation} className="mt-8 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-[1fr_2fr_auto]">
@@ -153,7 +154,7 @@ export default async function FacilitiesPage() {
                             <input name="notes" defaultValue={space.notes ?? ""} placeholder="Space notes" className="rounded-lg border border-[var(--border)] px-3 py-2 md:col-span-2" />
                             <button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save space</button>
                           </form>
-                          <form action={deleteTrainingSpace} className="mt-2">
+                          <form action={duplicateTrainingSpace} className="mt-2"><input type="hidden" name="spaceId" value={space.id}/><button className="text-xs font-semibold">Duplicate space + resources</button></form><form action={deleteTrainingSpace} className="mt-2">
                             <input type="hidden" name="spaceId" value={space.id} />
                             <button className="text-xs text-[var(--muted)]">Delete space</button>
                           </form>

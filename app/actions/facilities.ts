@@ -80,6 +80,12 @@ export async function updateFacilityLocation(data: FormData) {
   revalidatePath("/facilities");
 }
 
+export async function duplicateTrainingSpace(data: FormData) {
+  const context=await facilityManager(),id=value(data,"spaceId");const source=await prisma.trainingSpace.findFirst({where:{id,status:"ACTIVE",location:{organisationId:context.organisation.id,status:"ACTIVE"}},include:{resources:{where:{status:"ACTIVE"},orderBy:{orderIndex:"asc"}}}});if(!source)return;
+  const siblings=await prisma.trainingSpace.findMany({where:{locationId:source.locationId},select:{name:true}});const names=new Set(siblings.map(s=>s.name));let name=`${source.name} copy`,n=2;while(names.has(name))name=`${source.name} copy ${n++}`;
+  const count=await prisma.trainingSpace.count({where:{locationId:source.locationId}});await prisma.trainingSpace.create({data:{locationId:source.locationId,name,apparatus:source.apparatus,capacity:source.capacity,shareable:source.shareable,notes:source.notes,orderIndex:count,resources:{create:source.resources.map((r,i)=>({name:r.name,category:r.category,quantity:r.quantity,capacity:r.capacity,availability:r.availability,setupNotes:r.setupNotes,orderIndex:i}))}}});revalidatePath("/facilities");
+}
+
 export async function deleteFacilityLocation(data: FormData) {
   const context = await facilityManager();
   const id = value(data, "locationId");
