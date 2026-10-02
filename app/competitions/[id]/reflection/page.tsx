@@ -17,7 +17,7 @@ export default async function CompetitionReflectionPage({ params }: { params: Pr
       entries: {
         include: {
           gymnast: true,
-          apparatusPlans: { include: { performance: { include: { athleteReflection: true } } }, orderBy: { apparatus: "asc" } },
+          apparatusPlans: { include: { performance: { include: { athleteReflection: {include:{revisions:{orderBy:{supersededAt:"desc"}}}} } } }, orderBy: { apparatus: "asc" } },
         },
         orderBy: { gymnast: { name: "asc" } },
       },
@@ -47,7 +47,7 @@ export default async function CompetitionReflectionPage({ params }: { params: Pr
                       <input name="whatFeltGood" defaultValue={reflection?.whatFeltGood ?? ""} placeholder="What felt good?" className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
                       <input name="whatFeltHard" defaultValue={reflection?.whatFeltHard ?? ""} placeholder="What felt difficult?" className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
                       <textarea name="athleteNote" defaultValue={reflection?.athleteNote ?? ""} placeholder="Anything else you want the coach to know?" className="mt-2 min-h-24 w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
-                      <button className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save reflection</button>
+                      <button className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save reflection</button>{reflection?.revisions.length?<p className="mt-2 text-xs text-[var(--muted)]">{reflection.revisions.length} previous reflection version{reflection.revisions.length===1?"":"s"} preserved.</p>:null}
                     </form>
                   );
                 })}

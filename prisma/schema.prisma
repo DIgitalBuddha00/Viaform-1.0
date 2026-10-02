@@ -1697,6 +1697,28 @@ model CompetitionPerformance {
 
   apparatusPlan CompetitionApparatusPlan @relation(fields: [competitionApparatusPlanId], references: [id], onDelete: Cascade)
   athleteReflection CompetitionAthleteReflection?
+  revisions CompetitionPerformanceRevision[]
+}
+
+model CompetitionPerformanceRevision {
+  id String @id @default(cuid())
+  performanceId String
+  revisedByMembershipId String
+  status String
+  difficultyScore Float?
+  executionScore Float?
+  penalty Float?
+  finalScore Float?
+  rank Int?
+  warmupNote String?
+  judgeNote String?
+  coachObservation String?
+  performedAt DateTime?
+  supersededAt DateTime @default(now())
+  performance CompetitionPerformance @relation(fields:[performanceId],references:[id],onDelete:Cascade)
+  revisedBy OrganisationMembership @relation(fields:[revisedByMembershipId],references:[id],onDelete:Restrict)
+  @@index([performanceId,supersededAt])
+  @@index([revisedByMembershipId,supersededAt])
 }
 
 model CompetitionAthleteReflection {
@@ -1713,6 +1735,25 @@ model CompetitionAthleteReflection {
   updatedAt                DateTime @updatedAt
 
   performance CompetitionPerformance @relation(fields: [competitionPerformanceId], references: [id], onDelete: Cascade)
+  revisions CompetitionAthleteReflectionRevision[]
+}
+
+model CompetitionAthleteReflectionRevision {
+  id String @id @default(cuid())
+  reflectionId String
+  revisedByMembershipId String
+  rating Int?
+  confidence Int?
+  feltPrepared Boolean?
+  whatFeltGood String?
+  whatFeltHard String?
+  athleteNote String?
+  reflectedAt DateTime
+  supersededAt DateTime @default(now())
+  reflection CompetitionAthleteReflection @relation(fields:[reflectionId],references:[id],onDelete:Cascade)
+  revisedBy OrganisationMembership @relation(fields:[revisedByMembershipId],references:[id],onDelete:Restrict)
+  @@index([reflectionId,supersededAt])
+  @@index([revisedByMembershipId,supersededAt])
 }
 
 model CalendarEvent {

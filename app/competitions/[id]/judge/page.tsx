@@ -17,7 +17,7 @@ export default async function CompetitionJudgePage({ params }: { params: Promise
       entries: {
         include: {
           gymnast: true,
-          apparatusPlans: { include: { performance: true }, orderBy: { apparatus: "asc" } },
+          apparatusPlans: { include: { performance: {include:{revisions:{orderBy:{supersededAt:"desc"}}}} }, orderBy: { apparatus: "asc" } },
         },
         orderBy: { gymnast: { name: "asc" } },
       },
@@ -49,7 +49,7 @@ export default async function CompetitionJudgePage({ params }: { params: Promise
                     <input name="rank" type="number" min="1" step="1" defaultValue={plan.performance?.rank ?? ""} placeholder="Apparatus rank (optional)" className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
                     <textarea name="judgeNote" defaultValue={plan.performance?.judgeNote ?? ""} placeholder="Judge / official-score context" className="mt-2 min-h-20 w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm"/>
                     <input type="hidden" name="warmupNote" value={plan.performance?.warmupNote ?? ""}/><input type="hidden" name="coachObservation" value={plan.performance?.coachObservation ?? ""}/>
-                    <button className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save apparatus result</button>
+                    <button className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold">Save apparatus result</button>{plan.performance?.revisions.length?<p className="mt-2 text-xs text-[var(--muted)]">{plan.performance.revisions.length} previous recorded version{plan.performance.revisions.length===1?"":"s"} preserved.</p>:null}
                   </form>
                 ))}
               </div>

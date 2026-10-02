@@ -191,6 +191,7 @@ export async function recordCompetitionPerformance(data: FormData) {
   if ([difficultyScore, executionScore, penalty, finalScore].some((item) => typeof item === "number" && item < 0)) return;
   if (rankRaw !== null && (!Number.isInteger(rankRaw) || rankRaw < 1)) return;
 
+  if(plan.performance)await prisma.competitionPerformanceRevision.create({data:{performanceId:plan.performance.id,revisedByMembershipId:c.membership.id,status:plan.performance.status,difficultyScore:plan.performance.difficultyScore,executionScore:plan.performance.executionScore,penalty:plan.performance.penalty,finalScore:plan.performance.finalScore,rank:plan.performance.rank,warmupNote:plan.performance.warmupNote,judgeNote:plan.performance.judgeNote,coachObservation:plan.performance.coachObservation,performedAt:plan.performance.performedAt}});
   const payload = {
     status,
     difficultyScore,
@@ -218,7 +219,7 @@ export async function recordCompetitionAthleteReflection(data: FormData) {
   if (!event || event.status === "CANCELLED") return;
   const plan = await prisma.competitionApparatusPlan.findFirst({
     where: { id: value(data, "planId"), entry: { competitionEventId: event.id } },
-    include: { performance: true },
+    include: { performance: {include:{athleteReflection:true}} },
   });
   if (!plan) return;
   const performance = plan.performance ?? await prisma.competitionPerformance.create({
@@ -232,6 +233,7 @@ export async function recordCompetitionAthleteReflection(data: FormData) {
   const prepared = value(data, "feltPrepared");
   if (prepared && !["YES", "NO"].includes(prepared)) return;
 
+  if(performance.athleteReflection)await prisma.competitionAthleteReflectionRevision.create({data:{reflectionId:performance.athleteReflection.id,revisedByMembershipId:c.membership.id,rating:performance.athleteReflection.rating,confidence:performance.athleteReflection.confidence,feltPrepared:performance.athleteReflection.feltPrepared,whatFeltGood:performance.athleteReflection.whatFeltGood,whatFeltHard:performance.athleteReflection.whatFeltHard,athleteNote:performance.athleteReflection.athleteNote,reflectedAt:performance.athleteReflection.reflectedAt}});
   await prisma.competitionAthleteReflection.upsert({
     where: { competitionPerformanceId: performance.id },
     create: {
