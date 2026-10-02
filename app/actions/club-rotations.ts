@@ -161,6 +161,16 @@ export async function clearClubRotationFromSession(data: FormData) {
 
 const LIVE_ROTATION_STATUS=["PLANNED","IN_PROGRESS","COMPLETED","ENDED_EARLY"] as const;
 
+export async function swapLiveClubRotations(data: FormData) {
+  const c=await manager(),rotationDate=date(field(data,"rotationDate")),firstId=field(data,"slotId"),secondId=field(data,"swapSlotId");
+  if(!rotationDate||!firstId||!secondId||firstId===secondId)return;
+  const slots=await prisma.clubRotationSlot.findMany({where:{id:{in:[firstId,secondId]},plan:{organisationId:c.organisation.id,status:"ACTIVE"}},include:{plan:true}});if(slots.length!==2)return;
+  const first=slots.find(s=>s.id===firstId),second=slots.find(s=>s.id===secondId);if(!first||!second||first.plan.locationId!==second.plan.locationId||first.dayOfWeek!==rotationDay(rotationDate)||second.dayOfWeek!==rotationDay(rotationDate)||first.variantIndex!==rotationVariant(first.plan,rotationDate)||second.variantIndex!==rotationVariant(second.plan,rotationDate))return;
+  const states=await prisma.clubRotationLiveState.findMany({where:{rotationDate,sourceSlotId:{in:[first.id,second.id]}}});const bySlot=new Map(states.map(s=>[s.sourceSlotId,s]));const firstState=bySlot.get(first.id),secondState=bySlot.get(second.id),firstSpace=firstState?.trainingSpaceId??first.trainingSpaceId,secondSpace=secondState?.trainingSpaceId??second.trainingSpaceId;
+  const time=field(data,"time");if(time&&!validTime(time))return;const firstStart=firstState?.actualStartTime??first.startTime,secondStart=secondState?.actualStartTime??second.startTime;
+  await prisma.$transaction(async tx=>{for(const [slot,state,toSpace] of [[first,firstState,secondSpace],[second,secondState,firstSpace]] as const){await tx.clubRotationLiveState.upsert({where:{sourceSlotId_rotationDate:{sourceSlotId:slot.id,rotationDate}},create:{organisationId:c.organisation.id,planId:slot.planId,rotationDate,sourceSlotId:slot.id,trainingGroupId:slot.trainingGroupId,trainingSpaceId:toSpace,coachMembershipId:slot.coachMembershipId,plannedStartTime:slot.startTime,plannedEndTime:slot.endTime,actualStartTime:time||(slot.id===first.id?firstStart:secondStart),status:"IN_PROGRESS",updatedByMembershipId:c.membership.id},update:{trainingSpaceId:toSpace,actualStartTime:state?.actualStartTime??time??slot.startTime,status:"IN_PROGRESS",updatedByMembershipId:c.membership.id}});await tx.clubRotationLiveLog.create({data:{organisationId:c.organisation.id,planId:slot.planId,rotationDate,sourceSlotId:slot.id,authorMembershipId:c.membership.id,action:"SWAP",fromSpaceId:slot.id===first.id?firstSpace:secondSpace,toSpaceId:toSpace,note:field(data,"note")||null}})}});revalidatePath("/rotations");
+}
+
 export async function updateLiveClubRotation(data: FormData) {
   const c=await manager(),slotId=field(data,"slotId"),rotationDate=date(field(data,"rotationDate"));
   const slot=await prisma.clubRotationSlot.findFirst({where:{id:slotId,plan:{organisationId:c.organisation.id,status:"ACTIVE"}},include:{plan:true}});
