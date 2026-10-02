@@ -768,9 +768,6 @@ model TrainingSession {
   title                 String
   sessionIntent         String?
   notes                 String?
-  batteryNameSnapshot   String?
-  batteryVersionSnapshot Int?
-  batteryDefinitionSnapshot String?
   status                String   @default("PLANNED")
   programmeId           String?
   programmeStageId      String?
