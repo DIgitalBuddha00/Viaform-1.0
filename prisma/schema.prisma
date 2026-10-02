@@ -1833,3 +1833,34 @@ model MacrocycleFocusPeriod {
 
   @@index([phaseId, orderIndex, startDate])
 }
+
+
+model TrainingSessionReview {
+  id                     String   @id @default(cuid())
+  organisationId         String
+  sessionId              String   @unique
+  summary                String?
+  carryForward           String?
+  reviewedByMembershipId String
+  reviewedAt             DateTime @default(now())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([organisationId, reviewedAt])
+  @@index([reviewedByMembershipId, reviewedAt])
+}
+
+model CoachingMemoryObservation {
+  id                   String   @id @default(cuid())
+  organisationId       String
+  sessionId            String?
+  gymnastId            String?
+  authorMembershipId   String
+  observation          String
+  createdAt            DateTime @default(now())
+
+  @@index([organisationId, createdAt])
+  @@index([gymnastId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([authorMembershipId, createdAt])
+}

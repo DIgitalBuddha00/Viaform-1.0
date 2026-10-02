@@ -80,6 +80,7 @@ export async function finishTrainingSession(data: FormData) {
   revalidatePath("/training");
   revalidatePath("/training/" + sessionId);
   revalidatePath("/planning/" + sessionId);
+  redirect("/training/" + sessionId + "/review");
 }
 
 export async function reopenTrainingSession(data: FormData) {
