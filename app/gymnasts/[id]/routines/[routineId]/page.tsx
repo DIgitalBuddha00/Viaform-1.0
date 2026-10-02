@@ -205,7 +205,7 @@ export default async function RoutineWorkspace({
           </details>
         </div>
 
-        <nav className="mt-6 flex gap-2 overflow-x-auto pb-2">
+        <div className="mt-4 flex justify-end"><a href={"/mentor?gymnast="+gymnast.id+"&apparatus="+routine.apparatus+"&contextType=ROUTINE&contextRef="+routine.id} className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-semibold">Ask Mentor about this routine →</a></div><nav className="mt-6 flex gap-2 overflow-x-auto pb-2">
           {tabs.map((item) => (
             <a key={item} href={href + "?tab=" + item} className={"rounded-xl border px-4 py-2 text-sm font-semibold capitalize " + (tab === item ? "border-[var(--foreground)] bg-[var(--foreground)] text-white" : "border-[var(--border)]")}>{item}</a>
           ))}
