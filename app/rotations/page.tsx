@@ -21,6 +21,8 @@ export default async function RotationsPage({ searchParams }: { searchParams: Pr
   if (!c.access.canUseCoachingWorkspace && !c.access.canManageRotations) redirect("/more");
   const query = await searchParams;
   const day = ROTATION_DAYS.find(d => d === query.day) ?? "MONDAY";
+  const selectedDate = dateFrom(query.date) ?? new Date();
+  const previewDay = rotationDay(selectedDate);
   const neededDays = day === previewDay ? [day] : [day, previewDay];
   const [plans, locations, groups, memberships] = await Promise.all([
     prisma.clubRotationPlan.findMany({ where: { organisationId: c.organisation.id }, include: {
@@ -37,8 +39,6 @@ export default async function RotationsPage({ searchParams }: { searchParams: Pr
   const startMinutes = Math.min(day === "SATURDAY" || day === "SUNDAY" ? 9 * 60 : 14 * 60, ...daySlots.map(s => minutes(s.startTime)), ...daySchedules.map(s => minutes(s.startTime)));
   const endMinutes = Math.max(day === "SATURDAY" || day === "SUNDAY" ? 17 * 60 : 20 * 60 + 30, ...daySlots.map(s => minutes(s.endTime)), ...daySchedules.map(s => minutes(s.endTime)));
   const clock = (n: number) => `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
-  const selectedDate = dateFrom(query.date) ?? new Date();
-  const previewDay = rotationDay(selectedDate);
   const activeOnDate = plans.filter(p => p.status === "ACTIVE" && selectedDate >= p.effectiveFrom && (!p.effectiveTo || selectedDate <= p.effectiveTo));
   const preview = activeOnDate.flatMap(p => p.slots.filter(s => s.dayOfWeek === previewDay && s.variantIndex === rotationVariant(p, selectedDate)).map(s => ({ ...s, planName: p.name, locationName: p.location.name, locationId: p.locationId })));
   const liveStates = preview.length ? await prisma.clubRotationLiveState.findMany({ where: { organisationId: c.organisation.id, rotationDate: selectedDate, sourceSlotId: { in: preview.map(s=>s.id) } } }) : [];
