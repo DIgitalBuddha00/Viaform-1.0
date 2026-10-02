@@ -62,10 +62,10 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
         orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
         include: {
           targetGymnast: { select: { name: true } },
-          spaceAssignment: { include: { trainingSpace: true } },
-          resourceAssignments: { include: { resource: { include: { trainingSpace: true } } } },
+          spaceAssignment: true,
+          resourceAssignments: { include: { resource: { select: { id: true, name: true } } } },
           stations: { include: { workItem: true, skill: true }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
-          workItems: { include: { targetGymnast: { select: { name: true } }, elementDefinition: { select: { package: { select: { program: { select: { name: true } } } } } }, vaultDefinition: { select: { package: { select: { program: { select: { name: true } } } } } }, trainingResource: true, landingResource: true, trainingPlanItem: { select: { id: true, planId: true } } }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
+          workItems: { include: { targetGymnast: { select: { name: true } }, elementDefinition: { select: { package: { select: { program: { select: { name: true } } } } } }, vaultDefinition: { select: { package: { select: { program: { select: { name: true } } } } } }, trainingPlanItem: { select: { id: true, planId: true } } }, orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }] },
         },
       },
       gymnasts: { include: { gymnast: { select: { id: true, name: true } } }, orderBy: { assignedAt: "asc" } },
