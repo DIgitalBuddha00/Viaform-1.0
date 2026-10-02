@@ -3,7 +3,6 @@ import { SkillSearch } from "@/app/components/skill-search";
 import { AppShell } from "@/app/components/app-shell";
 import {
   addGymnastToTrainingSession,
-  createSessionBlock,
   addSessionBlockWorkItem,
   updateSessionBlockWorkItem,
   deleteSessionBlockWorkItem,
@@ -33,6 +32,7 @@ import {
   updateSessionStation,
 } from "@/app/actions/session-stations";
 import { SessionRotationEditor } from "./session-rotation-editor";
+import { SessionBlockCreator } from "./session-block-creator";
 
 export const dynamic = "force-dynamic";
 
@@ -423,22 +423,7 @@ export default async function PlannedSessionPage({ params }: { params: Promise<{
           )}
         </div>
 
-        <form action={createSessionBlock} className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <input type="hidden" name="sessionId" value={session.id} />
-          <h3 className="font-semibold">Add training block</h3>
-          <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
-            <input name="title" required placeholder="Block title" className="rounded-lg border border-[var(--border)] px-3 py-2" />
-            <select name="category" className="rounded-lg border border-[var(--border)] px-3 py-2">
-              {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select><select name="behaviour" required defaultValue="" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="" disabled>Choose block behaviour…</option>{BEHAVIOURS.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>
-            {activeFacility?.spaces.length ? <select name="spaceId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Area / apparatus…</option>{activeFacility.spaces.map(space => <option key={space.id} value={space.id}>{space.name}{space.apparatus ? " · " + space.apparatus.replaceAll("_", " ") : ""}</option>)}</select> : <select name="apparatus" className="rounded-lg border border-[var(--border)] px-3 py-2">{APPARATUS.map(([value, label]) => <option key={value || "none"} value={value}>{label}</option>)}</select>}
-            <input name="durationMin" type="number" min="1" max="480" placeholder="Minutes" className="rounded-lg border border-[var(--border)] px-3 py-2" />
-            <select name="targetGymnastId" className="rounded-lg border border-[var(--border)] px-3 py-2"><option value="">Whole group</option>{session.gymnasts.map(entry => <option key={entry.gymnastId} value={entry.gymnastId}>{entry.gymnast.name}</option>)}</select>
-          </div>
-          <input name="groupObjective" placeholder="Group objective" className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-2" />
-          <textarea name="notes" placeholder="Block notes" className="mt-2 min-h-20 w-full rounded-lg border border-[var(--border)] px-3 py-2" />
-          <button className="mt-3 rounded-xl bg-[var(--foreground)] px-4 py-3 font-semibold text-white">Add block</button>
-        </form>
+        <SessionBlockCreator sessionId={session.id} spaces={(activeFacility?.spaces ?? []).map(space => ({ id: space.id, name: space.name, apparatus: space.apparatus }))} gymnasts={session.gymnasts.map(entry => ({ id: entry.gymnastId, name: entry.gymnast.name }))}/>
 
         <section className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">

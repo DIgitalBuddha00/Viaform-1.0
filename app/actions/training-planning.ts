@@ -195,7 +195,7 @@ export async function createSessionBlock(data: FormData) {
   const context = await coachingContext();
   const sessionId = value(data, "sessionId");
   const session = await visibleSession(sessionId, context);
-  if (!session) return;
+  if (!session || session.status !== "PLANNED") return { error: "This session can no longer be edited." };
   const title = value(data, "title");
   const category = value(data, "category");
   const behaviour=value(data,"behaviour");
@@ -208,14 +208,14 @@ export async function createSessionBlock(data: FormData) {
     spaceId ? prisma.trainingSpace.findFirst({ where: { id: spaceId, status: "ACTIVE", location: { organisationId: context.organisation.id } } }) : Promise.resolve(null),
     targetGymnastId ? prisma.trainingSessionGymnast.findUnique({ where: { sessionId_gymnastId: { sessionId, gymnastId: targetGymnastId } } }) : Promise.resolve(null),
   ]);
-  if (spaceId && !space) return;
+  if (spaceId && !space) return { error: "Choose an active training area." };
   if (space?.apparatus) { const mapped: Record<string, string> = { VAULT: "VAULT", BARS: "UNEVEN_BARS", BEAM: "BALANCE_BEAM", FLOOR: "FLOOR_EXERCISE", CONDITIONING: "PHYSICAL_PREPARATION" }; apparatusValue = mapped[space.apparatus] ?? ""; }
-  if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number]) || !BEHAVIOURS.includes(behaviour as (typeof BEHAVIOURS)[number])) return;
-  if (apparatusValue && !APPARATUS.includes(apparatusValue as (typeof APPARATUS)[number])) return;
-  if (durationMin !== null && (!Number.isInteger(durationMin) || durationMin <= 0 || durationMin > 480)) return;
-  if (targetGymnastId && !targetGymnast) return;
+  if (!title || !CATEGORIES.includes(category as (typeof CATEGORIES)[number]) || !BEHAVIOURS.includes(behaviour as (typeof BEHAVIOURS)[number])) return { error: "Enter a title, category, and block behaviour." };
+  if (apparatusValue && !APPARATUS.includes(apparatusValue as (typeof APPARATUS)[number])) return { error: "Choose a valid apparatus." };
+  if (durationMin !== null && (!Number.isInteger(durationMin) || durationMin <= 0 || durationMin > 480)) return { error: "Enter a duration between 1 and 480 minutes." };
+  if (targetGymnastId && !targetGymnast) return { error: "That gymnast is not assigned to this session." };
   const last = await prisma.sessionBlock.findFirst({ where: { sessionId }, orderBy: { orderIndex: "desc" } });
-  await prisma.sessionBlock.create({
+  const block = await prisma.sessionBlock.create({
     data: {
       sessionId,
       title,
@@ -230,9 +230,10 @@ export async function createSessionBlock(data: FormData) {
       orderIndex: (last?.orderIndex ?? -1) + 1,
       ...(space ? { spaceAssignment: { create: { trainingSpaceId: space.id } } } : {}),
     },
+    select: { id: true, title: true, category: true, durationMin: true, targetGymnastId: true },
   });
-  revalidatePath("/planning/" + sessionId);
   logServerTiming("training-planning.create-session-block", startedAt, { sessionId, hasSpace: Boolean(spaceId), hasTargetGymnast: Boolean(targetGymnastId) });
+  return { block: { ...block, spaceName: space?.name ?? null } };
 }
 
 export async function updateSessionBlock(data: FormData) {

@@ -185,7 +185,6 @@ export async function createRotationGroup(data: FormData): Promise<RotationActio
     select: { id: true, name: true },
   }).catch(() => null);
   if (!group) return { error: "A rotation group with that name already exists." };
-  revalidatePath("/planning/" + sessionId);
   return { group };
 }
 
@@ -224,7 +223,6 @@ export async function assignGymnastToRotationGroup(data: FormData): Promise<Rota
     create: { sessionId, gymnastId, rotationGroupId },
     update: { rotationGroupId },
   });
-  revalidatePath("/planning/" + sessionId);
   return {};
 }
 
@@ -235,7 +233,6 @@ export async function removeGymnastFromRotationGroup(data: FormData): Promise<Ro
   const session = await visibleSession(sessionId, context);
   if (!session) return { error: "Session not found." };
   await prisma.sessionRotationGymnast.deleteMany({ where: { sessionId, gymnastId } });
-  revalidatePath("/planning/" + sessionId);
   return {};
 }
 
@@ -303,8 +300,6 @@ export async function createRotationAssignment(data: FormData): Promise<Rotation
       notes: true,
     },
   });
-  revalidatePath("/planning/" + sessionId);
-  revalidatePath("/training/" + sessionId);
   return { assignment, group: createdGroup };
 }
 
@@ -352,7 +347,5 @@ export async function deleteRotationAssignment(data: FormData): Promise<Rotation
   const session = await visibleSession(sessionId, context);
   if (!session) return { error: "Session not found." };
   await prisma.sessionRotationAssignment.deleteMany({ where: { id: assignmentId, sessionId } });
-  revalidatePath("/planning/" + sessionId);
-  revalidatePath("/training/" + sessionId);
   return {};
 }
