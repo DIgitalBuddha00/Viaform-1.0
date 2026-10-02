@@ -29,6 +29,8 @@ export async function createVideoAsset(data:FormData){
   redirect("/video/"+asset.id);
 }
 
+export async function updateVideoAssetMetadata(data:FormData){const c=await videoContext(),id=value(data,"videoAssetId");const asset=await prisma.videoAsset.findFirst({where:{id,organisationId:c.organisation.id,status:"ACTIVE"},select:{id:true}});if(!asset)return;await prisma.videoAsset.update({where:{id},data:{fileName:value(data,"fileName")||undefined,mimeType:value(data,"mimeType")||undefined,durationSeconds:numberOrNull(data,"durationSeconds")??undefined}});revalidatePath("/video/"+id);}
+
 export async function saveVideoAnalysis(data:FormData){
   const c=await videoContext(); const videoAssetId=value(data,"videoAssetId");
   const asset=await prisma.videoAsset.findFirst({where:{id:videoAssetId,organisationId:c.organisation.id,status:"ACTIVE"},select:{id:true}});
