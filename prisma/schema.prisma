@@ -60,6 +60,8 @@ model Organisation {
   clubRotationPlans ClubRotationPlan[]
   extensionSkills ViaformSkill[]
   staffInvitations StaffInvitation[]
+  cultureDefinitions CultureDefinition[]
+  cultureAchievements CultureAchievement[]
 }
 
 model OrganisationMembership {
@@ -245,11 +247,51 @@ model Gymnast {
   sessionBlockWorkItems SessionBlockWorkItem[]
   targetedSessionBlocks SessionBlock[]
   goals GymnastGoal[]
+  cultureAchievements CultureAchievement[]
 
   @@index([organisationId, status, name])
   @@index([organisationId, name])
 }
 
+
+model CultureDefinition {
+  id String @id @default(cuid())
+  organisationId String
+  name String
+  description String?
+  kind String @default("RECOGNITION")
+  holdingType String @default("PERMANENT")
+  badgeLabel String?
+  criteria String?
+  visibility String @default("ATHLETE_GUARDIAN")
+  status String @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  achievements CultureAchievement[]
+  @@unique([organisationId, name])
+  @@index([organisationId, status, kind])
+}
+model CultureAchievement {
+  id String @id @default(cuid())
+  organisationId String
+  cultureDefinitionId String
+  gymnastId String
+  awardedByMembershipId String
+  awardedAt DateTime @default(now())
+  endedAt DateTime?
+  endedReason String?
+  sourceType String @default("MANUAL")
+  sourceRef String?
+  note String?
+  createdAt DateTime @default(now())
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  definition CultureDefinition @relation(fields: [cultureDefinitionId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  @@index([organisationId, gymnastId, awardedAt])
+  @@index([cultureDefinitionId, endedAt])
+  @@index([gymnastId, endedAt])
+}
 
 model GymnastGoal {
   id                    String   @id @default(cuid())

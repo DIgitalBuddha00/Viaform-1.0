@@ -11,6 +11,7 @@ export default async function More(){
     {label:"Analysis",href:"/analysis",description:"Explore and compare evidence across Viaform.",show:c.access.canUseCoachingWorkspace},
     {label:"Organisation & access",href:"/people",description:"People, roles and organisation access.",show:c.access.canManagePeopleAndRoles},
     {label:"Programmes & methodology",href:"/programmes",description:"Programmes, stages and coaching methodology.",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},
+    {label:"Culture",href:"/culture",description:"Who we are: club identity, traditions, clubs and recognition.",show:c.access.canManageProgrammesAndMethodology||c.access.canUseCoachingWorkspace},
     {label:"Facilities & resources",href:"/facilities",description:"Locations, training spaces and equipment.",show:c.access.canConfigureFacilities||c.access.canUseCoachingWorkspace},
     {label:"Coach handoffs",href:"/handoffs",description:"Coverage, handoffs and coaching continuity.",show:c.access.canUseCoachingWorkspace},
     {label:"Club collaboration",href:"/collaboration",description:"Durable coach-to-coach notes attached to coaching context.",show:c.access.canUseCoachingWorkspace},

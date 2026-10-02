@@ -1,0 +1,33 @@
+import {AppShell} from "@/app/components/app-shell";
+import {requireAuthContext} from "@/app/lib/auth";
+import {prisma} from "@/app/lib/prisma";
+import {gymnastScopeWhere} from "@/app/lib/coaching-scope";
+import {archiveCultureDefinition,awardCultureRecognition,createCultureDefinition,endCultureRecognition} from "@/app/actions/culture";
+export const dynamic="force-dynamic";
+const formatDate=(x:Date)=>new Intl.DateTimeFormat("en-IE",{day:"numeric",month:"short",year:"numeric"}).format(x);
+export default async function Culture({searchParams}:{searchParams:Promise<{gymnast?:string}>}){
+ const c=await requireAuthContext(),q=await searchParams;if(!c.access.canUseCoachingWorkspace&&!c.access.canManageProgrammesAndMethodology)return null;
+ const scope=gymnastScopeWhere(c.organisation.id,c.membership.id,c.access);
+ const [definitions,gymnasts,achievements]=await Promise.all([
+  prisma.cultureDefinition.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},orderBy:[{kind:"asc"},{name:"asc"}]}),
+  prisma.gymnast.findMany({where:scope,select:{id:true,name:true},orderBy:{name:"asc"}}),
+  prisma.cultureAchievement.findMany({where:{organisationId:c.organisation.id,gymnast:{is:scope}},include:{definition:true,gymnast:{select:{name:true}}},orderBy:{awardedAt:"desc"},take:100})
+ ]);
+ const current=achievements.filter(a=>!a.endedAt);
+ return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section className="workspace-page">
+  <a href="/more" className="workspace-back">← More</a><div className="workspace-hero"><div><p className="workspace-kicker">Culture</p><h1>Who we are</h1><p className="workspace-meta">Club identity, traditions and recognition, configured by your club.</p></div></div>
+  {c.access.canManageProgrammesAndMethodology&&<details className="management-panel mt-6"><summary>+ Add to our culture</summary><form action={createCultureDefinition} className="workspace-form-grid">
+   <input name="name" required maxLength={120} placeholder="Name, e.g. Back Tuck Club"/><select name="kind" defaultValue="RECOGNITION"><option value="IDENTITY">Identity / value</option><option value="TRADITION">Tradition</option><option value="CLUB">Club / earned membership</option><option value="RECOGNITION">Recognition / badge</option></select>
+   <select name="holdingType" defaultValue="PERMANENT"><option value="PERMANENT">Permanent / earned</option><option value="ROTATING">Rotating / current holder</option></select><input name="badgeLabel" placeholder="Badge label (optional)"/><textarea name="description" placeholder="What this means in our club"/><textarea name="criteria" placeholder="How it is earned or awarded"/>
+   <select name="visibility" defaultValue="ATHLETE_GUARDIAN"><option value="ATHLETE_GUARDIAN">Athlete and guardian</option><option value="ATHLETE">Athlete only</option><option value="GUARDIAN">Guardian only</option><option value="COACH_ONLY">Coaches only</option></select><button className="workspace-button workspace-button-primary">Create</button>
+  </form></details>}
+  <section className="mt-7"><div className="section-heading"><h2>Our culture</h2><span>{definitions.length}</span></div><div className="mt-3 grid gap-3 md:grid-cols-2">{definitions.map(def=>{const holders=current.filter(a=>a.cultureDefinitionId===def.id);return <article key={def.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+   <div className="flex justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">{def.kind.replaceAll("_"," ").toLowerCase()} · {def.holdingType==="ROTATING"?"rotating":"earned"}</p><h3 className="mt-1 text-lg font-semibold">{def.name}</h3></div>{def.badgeLabel&&<span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold">{def.badgeLabel}</span>}</div>
+   {def.description&&<p className="mt-2 text-sm">{def.description}</p>}{def.criteria&&<p className="mt-3 text-xs text-[var(--muted)]"><strong>How it works:</strong> {def.criteria}</p>}
+   <div className="mt-4"><p className="text-xs font-semibold text-[var(--muted)]">{def.holdingType==="ROTATING"?"Current holder":"Current members / holders"}</p>{holders.map(h=><div key={h.id} className="mt-2 flex items-center justify-between rounded-xl border border-[var(--border)] p-3 text-sm"><span><strong>{h.gymnast.name}</strong> · since {formatDate(h.awardedAt)}</span><form action={endCultureRecognition}><input type="hidden" name="achievementId" value={h.id}/><button className="text-xs text-[var(--muted)]">End</button></form></div>)}{!holders.length&&<p className="mt-2 text-sm text-[var(--muted)]">No current holder.</p>}</div>
+   <form action={awardCultureRecognition} className="mt-4 flex flex-wrap gap-2"><input type="hidden" name="definitionId" value={def.id}/><select name="gymnastId" required defaultValue={q.gymnast??""} className="min-w-48 flex-1 rounded-lg border px-3 py-2"><option value="">Gymnast...</option>{gymnasts.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select><select name="sourceType" defaultValue="MANUAL" className="rounded-lg border px-3 py-2"><option value="MANUAL">Coach awarded</option><option value="TESTING">Testing / evaluation</option><option value="COMPETITION">Competition</option><option value="TRAINING">Training</option></select><input name="sourceRef" placeholder="Source or session (optional)" className="rounded-lg border px-3 py-2"/><button className="workspace-button">{def.holdingType==="ROTATING"?"Set current holder":"Award"}</button></form>
+   {c.access.canManageProgrammesAndMethodology&&<form action={archiveCultureDefinition} className="mt-3"><input type="hidden" name="definitionId" value={def.id}/><button className="text-xs text-[var(--muted)]">Archive definition</button></form>}
+  </article>})}{!definitions.length&&<p className="empty-state">Nothing has been defined here yet. Culture is club-owned and configurable.</p>}</div></section>
+  <section className="mt-8"><div className="section-heading"><h2>Achievement history</h2><span>{achievements.length}</span></div><p className="mt-2 text-sm text-[var(--muted)]">History remains after a rotating badge moves to somebody else.</p><div className="mt-3 grid gap-2">{achievements.map(a=><div key={a.id} className="workspace-row"><div><strong>{a.gymnast.name} · {a.definition.badgeLabel??a.definition.name}</strong><span>Won {formatDate(a.awardedAt)}{a.endedAt?" · held until "+formatDate(a.endedAt):" · current"}</span></div><em>{a.sourceType.toLowerCase().replaceAll("_"," ")}</em></div>)}</div></section>
+ </section></AppShell>;
+}
