@@ -157,3 +157,28 @@ export async function clearClubRotationFromSession(data: FormData) {
   ]);
   revalidatePath("/planning/" + session.id);
 }
+
+
+const LIVE_ROTATION_STATUS=["PLANNED","IN_PROGRESS","COMPLETED","ENDED_EARLY"] as const;
+
+export async function updateLiveClubRotation(data: FormData) {
+  const c=await manager(),slotId=field(data,"slotId"),rotationDate=date(field(data,"rotationDate"));
+  const slot=await prisma.clubRotationSlot.findFirst({where:{id:slotId,plan:{organisationId:c.organisation.id,status:"ACTIVE"}},include:{plan:true}});
+  if(!slot||!rotationDate||rotationDate<slot.plan.effectiveFrom||(slot.plan.effectiveTo&&rotationDate>slot.plan.effectiveTo)||slot.dayOfWeek!==rotationDay(rotationDate)||slot.variantIndex!==rotationVariant(slot.plan,rotationDate))return;
+  const action=field(data,"action"),current=await prisma.clubRotationLiveState.findUnique({where:{sourceSlotId_rotationDate:{sourceSlotId:slot.id,rotationDate}}});
+  let status=current?.status??"PLANNED",spaceId=current?.trainingSpaceId??slot.trainingSpaceId,actualStart=current?.actualStartTime??null,actualEnd=current?.actualEndTime??null,note=field(data,"note")||current?.notes||null;
+  const now=field(data,"time");
+  if(now&&!validTime(now))return;
+  const fromSpaceId=spaceId,fromEnd=current?.actualEndTime??slot.endTime;
+  if(action==="START"){status="IN_PROGRESS";actualStart=now||slot.startTime;}
+  else if(action==="MOVE"){const target=field(data,"trainingSpaceId");const space=await prisma.trainingSpace.findFirst({where:{id:target,locationId:slot.plan.locationId,status:"ACTIVE"}});if(!space)return;spaceId=space.id;if(status==="PLANNED"){status="IN_PROGRESS";actualStart=now||slot.startTime;}}
+  else if(action==="EXTEND"){if(!now||minutes(now)<=minutes(actualStart||slot.startTime))return;actualEnd=now;}
+  else if(action==="END_EARLY"){if(!now||minutes(now)<=minutes(actualStart||slot.startTime))return;status="ENDED_EARLY";actualEnd=now;}
+  else if(action==="COMPLETE"){status="COMPLETED";actualEnd=now||actualEnd||slot.endTime;}
+  else return;
+  await prisma.$transaction([
+    prisma.clubRotationLiveState.upsert({where:{sourceSlotId_rotationDate:{sourceSlotId:slot.id,rotationDate}},create:{organisationId:c.organisation.id,planId:slot.planId,rotationDate,sourceSlotId:slot.id,trainingGroupId:slot.trainingGroupId,trainingSpaceId:spaceId,coachMembershipId:slot.coachMembershipId,plannedStartTime:slot.startTime,plannedEndTime:slot.endTime,actualStartTime:actualStart,actualEndTime:actualEnd,status,notes:note,updatedByMembershipId:c.membership.id},update:{trainingSpaceId:spaceId,actualStartTime:actualStart,actualEndTime:actualEnd,status,notes:note,updatedByMembershipId:c.membership.id}}),
+    prisma.clubRotationLiveLog.create({data:{organisationId:c.organisation.id,planId:slot.planId,rotationDate,sourceSlotId:slot.id,authorMembershipId:c.membership.id,action,fromSpaceId,toSpaceId:spaceId,fromEndTime:fromEnd,toEndTime:actualEnd,note:field(data,"note")||null}})
+  ]);
+  revalidatePath("/rotations");
+}

@@ -1,0 +1,9 @@
+CREATE TABLE "ClubRotationLiveState" (
+"id" TEXT NOT NULL PRIMARY KEY,"organisationId" TEXT NOT NULL,"planId" TEXT NOT NULL,"rotationDate" DATETIME NOT NULL,"sourceSlotId" TEXT NOT NULL,"trainingGroupId" TEXT NOT NULL,"trainingSpaceId" TEXT NOT NULL,"coachMembershipId" TEXT,"plannedStartTime" TEXT NOT NULL,"plannedEndTime" TEXT NOT NULL,"actualStartTime" TEXT,"actualEndTime" TEXT,"status" TEXT NOT NULL DEFAULT 'PLANNED',"notes" TEXT,"updatedByMembershipId" TEXT NOT NULL,"createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" DATETIME NOT NULL);
+CREATE UNIQUE INDEX "ClubRotationLiveState_sourceSlotId_rotationDate_key" ON "ClubRotationLiveState"("sourceSlotId","rotationDate");
+CREATE INDEX "ClubRotationLiveState_organisationId_rotationDate_status_idx" ON "ClubRotationLiveState"("organisationId","rotationDate","status");
+CREATE INDEX "ClubRotationLiveState_planId_rotationDate_idx" ON "ClubRotationLiveState"("planId","rotationDate");
+CREATE INDEX "ClubRotationLiveState_trainingGroupId_rotationDate_idx" ON "ClubRotationLiveState"("trainingGroupId","rotationDate");
+CREATE TABLE "ClubRotationLiveLog" ("id" TEXT NOT NULL PRIMARY KEY,"organisationId" TEXT NOT NULL,"planId" TEXT NOT NULL,"rotationDate" DATETIME NOT NULL,"sourceSlotId" TEXT NOT NULL,"authorMembershipId" TEXT NOT NULL,"action" TEXT NOT NULL,"fromSpaceId" TEXT,"toSpaceId" TEXT,"fromEndTime" TEXT,"toEndTime" TEXT,"note" TEXT,"createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "ClubRotationLiveLog_organisationId_rotationDate_createdAt_idx" ON "ClubRotationLiveLog"("organisationId","rotationDate","createdAt");
+CREATE INDEX "ClubRotationLiveLog_sourceSlotId_rotationDate_createdAt_idx" ON "ClubRotationLiveLog"("sourceSlotId","rotationDate","createdAt");

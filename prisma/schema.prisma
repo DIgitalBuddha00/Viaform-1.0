@@ -1920,3 +1920,46 @@ model CompetitionOperationsLog {
   @@index([eventId,createdAt])
   @@index([authorMembershipId,createdAt])
 }
+
+
+model ClubRotationLiveState {
+  id              String   @id @default(cuid())
+  organisationId  String
+  planId          String
+  rotationDate    DateTime
+  sourceSlotId    String
+  trainingGroupId String
+  trainingSpaceId String
+  coachMembershipId String?
+  plannedStartTime String
+  plannedEndTime   String
+  actualStartTime  String?
+  actualEndTime    String?
+  status           String   @default("PLANNED")
+  notes            String?
+  updatedByMembershipId String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@unique([sourceSlotId,rotationDate])
+  @@index([organisationId,rotationDate,status])
+  @@index([planId,rotationDate])
+  @@index([trainingGroupId,rotationDate])
+}
+
+model ClubRotationLiveLog {
+  id                 String   @id @default(cuid())
+  organisationId     String
+  planId             String
+  rotationDate       DateTime
+  sourceSlotId       String
+  authorMembershipId String
+  action             String
+  fromSpaceId        String?
+  toSpaceId          String?
+  fromEndTime        String?
+  toEndTime          String?
+  note               String?
+  createdAt          DateTime @default(now())
+  @@index([organisationId,rotationDate,createdAt])
+  @@index([sourceSlotId,rotationDate,createdAt])
+}

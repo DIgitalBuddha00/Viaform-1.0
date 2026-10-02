@@ -2,7 +2,7 @@ import { AppShell } from "@/app/components/app-shell";
 import { requireAuthContext } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
 import { ROTATION_DAYS, minutes, overlap, rotationDay, rotationVariant } from "@/app/lib/club-rotation-time";
-import { createClubRotationPlan, setClubRotationPlanStatus, updateClubRotationPlan } from "@/app/actions/club-rotations";
+import { createClubRotationPlan, setClubRotationPlanStatus, updateClubRotationPlan, updateLiveClubRotation } from "@/app/actions/club-rotations";
 import { RotationBoard } from "./rotation-board";
 import { redirect } from "next/navigation";
 
@@ -40,6 +40,8 @@ export default async function RotationsPage({ searchParams }: { searchParams: Pr
   const previewDay = rotationDay(selectedDate);
   const activeOnDate = plans.filter(p => p.status === "ACTIVE" && selectedDate >= p.effectiveFrom && (!p.effectiveTo || selectedDate <= p.effectiveTo));
   const preview = activeOnDate.flatMap(p => p.slots.filter(s => s.dayOfWeek === previewDay && s.variantIndex === rotationVariant(p, selectedDate)).map(s => ({ ...s, planName: p.name, locationName: p.location.name, locationId: p.locationId })));
+  const liveStates = preview.length ? await prisma.clubRotationLiveState.findMany({ where: { organisationId: c.organisation.id, rotationDate: selectedDate, sourceSlotId: { in: preview.map(s=>s.id) } } }) : [];
+  const liveBySlot = new Map(liveStates.map(s=>[s.sourceSlotId,s]));
   const conflicts = new Set(preview.filter((slot, i) => preview.some((other, j) => i !== j && slot.locationId === other.locationId && overlap(slot.startTime, slot.endTime, other.startTime, other.endTime) && (
     slot.trainingGroupId === other.trainingGroupId || (slot.coachMembershipId && slot.coachMembershipId === other.coachMembershipId) || slot.trainingSpaceId === other.trainingSpaceId
   ))).map(s => s.id));
@@ -68,7 +70,7 @@ export default async function RotationsPage({ searchParams }: { searchParams: Pr
       </>}
 
       <section className="mt-8"><div className="section-heading"><h2>Club view</h2><span>{preview.length} blocks</span></div><form method="get" action="/rotations" className="mt-3 flex flex-wrap gap-2"><input type="hidden" name="plan" value={selected?.id ?? ""}/><input type="hidden" name="day" value={day}/><input name="date" type="date" defaultValue={dateValue(selectedDate)} className={control}/><button className="workspace-button">Show date</button></form>
-        <div className="mt-3 grid gap-2">{preview.sort((a,b) => a.startTime.localeCompare(b.startTime) || a.locationName.localeCompare(b.locationName)).map(s => <div key={s.id} className="workspace-row"><div><strong>{s.startTime}–{s.endTime} · {s.trainingSpace.name}</strong><span>{s.trainingGroup.name} · {s.planName} · {s.locationName}{s.coach ? " · " + s.coach.user.displayName : ""}</span></div>{conflicts.has(s.id) && <em>Check overlap</em>}</div>)}{!preview.length && <div className="empty-state">No rotation blocks for this date.</div>}</div>
+        <div className="mt-3 grid gap-3">{preview.sort((a,b) => a.startTime.localeCompare(b.startTime) || a.locationName.localeCompare(b.locationName)).map(s => {const live=liveBySlot.get(s.id);const actualSpace=live?spaces.find(x=>x.id===live.trainingSpaceId):null;return <div key={s.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><strong>{s.startTime}–{s.endTime} · {s.trainingSpace.name}</strong><span className="block text-sm text-[var(--muted)]">{s.trainingGroup.name} · {s.planName} · {s.locationName}{s.coach ? " · " + s.coach.user.displayName : ""}</span>{live&&<span className="mt-1 block text-sm">Actual: {live.actualStartTime||s.startTime}–{live.actualEndTime||"…"} · {actualSpace?.name??s.trainingSpace.name} · {live.status.replaceAll("_"," ")}</span>}</div>{conflicts.has(s.id) && <em>Check overlap</em>}</div>{c.access.canManageRotations&&<form action={updateLiveClubRotation} className="mt-3 grid gap-2 sm:grid-cols-5"><input type="hidden" name="slotId" value={s.id}/><input type="hidden" name="rotationDate" value={dateValue(selectedDate)}/><select name="action" defaultValue={live?.status==="IN_PROGRESS"?"COMPLETE":"START"} className={control}><option value="START">Start</option><option value="MOVE">Move</option><option value="EXTEND">Extend</option><option value="END_EARLY">Break early</option><option value="COMPLETE">Complete</option></select><select name="trainingSpaceId" defaultValue={live?.trainingSpaceId??s.trainingSpaceId} className={control}>{spaces.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><input name="time" type="time" step="300" className={control}/><input name="note" defaultValue={live?.notes??""} placeholder="Operational note" className={control}/><button className="workspace-button workspace-button-primary">Apply</button></form>}</div>})}{!preview.length && <div className="empty-state">No rotation blocks for this date.</div>}</div>
       </section>
     </section>
   </AppShell>;
