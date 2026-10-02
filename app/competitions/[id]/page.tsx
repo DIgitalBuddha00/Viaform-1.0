@@ -69,7 +69,9 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
     entrantIds.length?prisma.competitionEntry.count({where:{gymnastId:{in:entrantIds},event:{organisationId:c.organisation.id,id:{not:event.id}}}}):Promise.resolve(0)
   ]);
   const plans=event.entries.flatMap(e=>e.apparatusPlans),performances=plans.map(p=>p.performance).filter(Boolean),recorded=performances.filter(p=>p?.status!=="NOT_RECORDED"),reflections=performances.filter(p=>p?.athleteReflection),routineSelected=plans.filter(p=>p.routineId),missingRoutines=plans.length-routineSelected.length;
-  const eventDate = event.eventDate.toISOString().slice(0, 10);\n  const staffName=new Map(activeMembers.map(m=>[m.id,m.user.displayName]));\n  const athleteOps=new Map(operationsAthletes.map(o=>[o.entryId,o]));
+  const eventDate = event.eventDate.toISOString().slice(0, 10);
+  const staffName=new Map(activeMembers.map(m=>[m.id,m.user.displayName]));
+  const athleteOps=new Map(operationsAthletes.map(o=>[o.entryId,o]));
 
   return (
     <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}>
