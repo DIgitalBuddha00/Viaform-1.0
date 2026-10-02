@@ -1,0 +1,12 @@
+ALTER TABLE "TestMetric" ADD COLUMN "protocolVersion" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "TestingResult" ADD COLUMN "metricNameSnapshot" TEXT;
+ALTER TABLE "TestingResult" ADD COLUMN "protocolSnapshot" TEXT;
+ALTER TABLE "TestingResult" ADD COLUMN "protocolVersionSnapshot" INTEGER;
+ALTER TABLE "TestingResult" ADD COLUMN "captureModeSnapshot" TEXT;
+ALTER TABLE "TestingResult" ADD COLUMN "unitSnapshot" TEXT;
+ALTER TABLE "TestingResult" ADD COLUMN "directionSnapshot" TEXT;
+ALTER TABLE "TestingResult" ADD COLUMN "scoringModeSnapshot" TEXT;
+UPDATE "TestingResult" SET "metricNameSnapshot"=(SELECT "name" FROM "TestMetric" WHERE "TestMetric"."id"="TestingResult"."metricId"),"protocolSnapshot"=(SELECT "protocol" FROM "TestMetric" WHERE "TestMetric"."id"="TestingResult"."metricId"),"protocolVersionSnapshot"=1,"captureModeSnapshot"=(SELECT "captureMode" FROM "TestMetric" WHERE "TestMetric"."id"="TestingResult"."metricId"),"unitSnapshot"=(SELECT "unit" FROM "TestMetric" WHERE "TestMetric"."id"="TestingResult"."metricId"),"directionSnapshot"=(SELECT "direction" FROM "TestMetric" WHERE "TestMetric"."id"="TestingResult"."metricId"),"scoringModeSnapshot"=(SELECT "scoringMode" FROM "TestMetric" WHERE "TestMetric"."id"="TestingResult"."metricId");
+CREATE TABLE "TestingResultRevision" ("id" TEXT NOT NULL PRIMARY KEY,"resultId" TEXT NOT NULL,"revisedByMembershipId" TEXT NOT NULL,"numberValue" REAL NOT NULL,"pointsValue" REAL,"classificationSnapshot" TEXT,"metricNameSnapshot" TEXT,"protocolSnapshot" TEXT,"protocolVersionSnapshot" INTEGER,"captureModeSnapshot" TEXT,"unitSnapshot" TEXT,"directionSnapshot" TEXT,"scoringModeSnapshot" TEXT,"note" TEXT,"recordedAt" DATETIME NOT NULL,"supersededAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "TestingResultRevision_resultId_fkey" FOREIGN KEY ("resultId") REFERENCES "TestingResult" ("id") ON DELETE CASCADE ON UPDATE CASCADE,CONSTRAINT "TestingResultRevision_revisedByMembershipId_fkey" FOREIGN KEY ("revisedByMembershipId") REFERENCES "OrganisationMembership" ("id") ON DELETE RESTRICT ON UPDATE CASCADE);
+CREATE INDEX "TestingResultRevision_resultId_supersededAt_idx" ON "TestingResultRevision"("resultId","supersededAt");
+CREATE INDEX "TestingResultRevision_revisedByMembershipId_supersededAt_idx" ON "TestingResultRevision"("revisedByMembershipId","supersededAt");

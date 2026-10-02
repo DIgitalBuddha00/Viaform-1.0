@@ -38,7 +38,7 @@ export default async function TestingSessionPage({
       include: {
         trainingGroup: true,
         gymnasts: { include: { gymnast: true }, orderBy: { assignedAt: "asc" } },
-        results: { orderBy: { recordedAt: "asc" } },
+        results: { orderBy: { recordedAt: "asc" }, include: { revisions: { orderBy: { supersededAt: "desc" } } } },
       },
     }),
     prisma.testMetric.findMany({

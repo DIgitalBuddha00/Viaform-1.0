@@ -1005,6 +1005,7 @@ model TestMetric {
   scoringMode     String   @default("NONE")
   pointSystemId   String?
   status          String   @default("ACTIVE")
+  protocolVersion Int      @default(1)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1126,6 +1127,13 @@ model TestingResult {
   numberValue            Float
   pointsValue            Float?
   classificationSnapshot String?
+  metricNameSnapshot      String?
+  protocolSnapshot        String?
+  protocolVersionSnapshot Int?
+  captureModeSnapshot     String?
+  unitSnapshot            String?
+  directionSnapshot       String?
+  scoringModeSnapshot     String?
   note                   String?
   recordedAt             DateTime @default(now())
   updatedAt              DateTime @updatedAt
@@ -1134,11 +1142,36 @@ model TestingResult {
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
   metric TestMetric @relation(fields: [metricId], references: [id], onDelete: Restrict)
   recordedBy OrganisationMembership @relation(fields: [recordedByMembershipId], references: [id], onDelete: Restrict)
+  revisions TestingResultRevision[]
 
   @@unique([sessionId, gymnastId, metricId])
   @@index([gymnastId, metricId, recordedAt])
   @@index([metricId, recordedAt])
   @@index([recordedByMembershipId, recordedAt])
+}
+
+
+model TestingResultRevision {
+  id                     String   @id @default(cuid())
+  resultId               String
+  revisedByMembershipId  String
+  numberValue            Float
+  pointsValue            Float?
+  classificationSnapshot String?
+  metricNameSnapshot     String?
+  protocolSnapshot       String?
+  protocolVersionSnapshot Int?
+  captureModeSnapshot    String?
+  unitSnapshot           String?
+  directionSnapshot      String?
+  scoringModeSnapshot    String?
+  note                   String?
+  recordedAt             DateTime
+  supersededAt           DateTime @default(now())
+  result TestingResult @relation(fields:[resultId],references:[id],onDelete:Cascade)
+  revisedBy OrganisationMembership @relation(fields:[revisedByMembershipId],references:[id],onDelete:Restrict)
+  @@index([resultId,supersededAt])
+  @@index([revisedByMembershipId,supersededAt])
 }
 
 model SessionStation {

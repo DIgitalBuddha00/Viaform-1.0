@@ -99,6 +99,7 @@ export async function updateTestMetric(data: FormData) {
       durationSeconds,
       direction,
       scoringMode:SCORING_MODES.includes(value(data,"scoringMode") as any)?value(data,"scoringMode"):"NONE",
+      protocolVersion: { increment: 1 },
     },
   }).catch(() => null);
   revalidatePath("/testing");
@@ -174,6 +175,8 @@ export async function recordTestingResult(data: FormData) {
   const manualPointsValue=manualPoints===""?null:Number(manualPoints);
   if(metric.scoringMode==="MANUAL"&&manualPointsValue!==null&&!Number.isFinite(manualPointsValue))return;
   const pointsValue=metric.scoringMode==="AUTOMATIC"?(band?.points??null):metric.scoringMode==="MANUAL"?manualPointsValue:null;
+  const existing=await prisma.testingResult.findUnique({where:{sessionId_gymnastId_metricId:{sessionId,gymnastId,metricId}}});
+  if(existing) await prisma.testingResultRevision.create({data:{resultId:existing.id,revisedByMembershipId:context.membership.id,numberValue:existing.numberValue,pointsValue:existing.pointsValue,classificationSnapshot:existing.classificationSnapshot,metricNameSnapshot:existing.metricNameSnapshot,protocolSnapshot:existing.protocolSnapshot,protocolVersionSnapshot:existing.protocolVersionSnapshot,captureModeSnapshot:existing.captureModeSnapshot,unitSnapshot:existing.unitSnapshot,directionSnapshot:existing.directionSnapshot,scoringModeSnapshot:existing.scoringModeSnapshot,note:existing.note,recordedAt:existing.recordedAt}});
   await prisma.testingResult.upsert({
     where: { sessionId_gymnastId_metricId: { sessionId, gymnastId, metricId } },
     create: {
@@ -184,12 +187,14 @@ export async function recordTestingResult(data: FormData) {
       numberValue,
       pointsValue,
       classificationSnapshot:metric.evidenceClassification,
+      metricNameSnapshot:metric.name, protocolSnapshot:metric.protocol, protocolVersionSnapshot:metric.protocolVersion, captureModeSnapshot:metric.captureMode, unitSnapshot:metric.unit, directionSnapshot:metric.direction, scoringModeSnapshot:metric.scoringMode,
       note: value(data, "note") || null,
     },
     update: {
       numberValue,
       pointsValue,
       classificationSnapshot:metric.evidenceClassification,
+      metricNameSnapshot:metric.name, protocolSnapshot:metric.protocol, protocolVersionSnapshot:metric.protocolVersion, captureModeSnapshot:metric.captureMode, unitSnapshot:metric.unit, directionSnapshot:metric.direction, scoringModeSnapshot:metric.scoringMode,
       note: value(data, "note") || null,
       recordedByMembershipId: context.membership.id,
       recordedAt: new Date(),
