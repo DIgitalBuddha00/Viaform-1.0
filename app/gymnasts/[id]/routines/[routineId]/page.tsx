@@ -129,7 +129,9 @@ export default async function RoutineWorkspace({
     rules: applicableRules,
   }) : null;
   type PathwayLevel = { id: string; code: string; name: string; orderIndex: number; routineRequirements: { id: string }[] };
+  type LinkedVideo = { id: string; title: string; skillLabel: string | null; cameraAngle: string | null; updatedAt: Date };
   const pathwayCandidates: PathwayLevel[] = ((pathwayLevels ?? []) as PathwayLevel[]).filter((level) => level.code !== routine.rulesetLevelCode);
+  const routineVideos = (linkedVideos ?? []) as LinkedVideo[];
   const rulesContextChanged = Boolean(
     currentRules &&
     (currentRules.package.code !== routine.rulesetPackageCode || currentRules.level.code !== routine.rulesetLevelCode),
@@ -252,7 +254,7 @@ export default async function RoutineWorkspace({
                 <div className="rounded-xl border border-[var(--border)] p-4"><span className="text-xs text-[var(--muted)]">Pathway focus</span><p className="mt-2 text-sm">{routine.pathwayNote || "Not yet recorded"}</p></div>
               </div>
             </article>
-            <div className="grid gap-4"><article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Video evidence</p><a href={"/video?gymnast="+gymnast.id+"&routine="+routine.id+"&apparatus="+routine.apparatus} className="text-xs font-semibold">New video →</a></div><p className="mt-1 text-xs text-[var(--muted)]">Video linked to this saved routine plan.</p><div className="mt-3 grid gap-2">{linkedVideos.map(video=><a key={video.id} href={"/video/"+video.id} className="rounded-lg border border-[var(--border)] p-3"><strong className="block text-sm">{video.title}</strong><span className="mt-1 block text-xs text-[var(--muted)]">{[video.skillLabel,video.cameraAngle].filter(Boolean).join(" · ")||"Routine video"}</span></a>)}{!linkedVideos.length&&<p className="rounded-lg border border-dashed border-[var(--border)] p-3 text-xs text-[var(--muted)]">No video linked to this routine yet.</p>}</div></article><article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <div className="grid gap-4"><article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">Video evidence</p><a href={"/video?gymnast="+gymnast.id+"&routine="+routine.id+"&apparatus="+routine.apparatus} className="text-xs font-semibold">New video →</a></div><p className="mt-1 text-xs text-[var(--muted)]">Video linked to this saved routine plan.</p><div className="mt-3 grid gap-2">{routineVideos.map(video=><a key={video.id} href={"/video/"+video.id} className="rounded-lg border border-[var(--border)] p-3"><strong className="block text-sm">{video.title}</strong><span className="mt-1 block text-xs text-[var(--muted)]">{[video.skillLabel,video.cameraAngle].filter(Boolean).join(" · ")||"Routine video"}</span></a>)}{!routineVideos.length&&<p className="rounded-lg border border-dashed border-[var(--border)] p-3 text-xs text-[var(--muted)]">No video linked to this routine yet.</p>}</div></article><article className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <p className="text-sm font-semibold">Current verified context</p>
               {routine.rulesetProgramName && routine.rulesetLevelName ? (
                 <>
