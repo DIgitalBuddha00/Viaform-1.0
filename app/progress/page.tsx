@@ -178,19 +178,19 @@ export default async function ProgressPage({
                   <div className="mt-5 grid gap-3 md:grid-cols-3">
                     <div className="rounded-xl border border-[var(--border)] p-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Latest</p>
-                      <strong className="mt-2 block text-3xl">{number(latest.numberValue)}{selectedMetric.unit ? " " + selectedMetric.unit : ""}</strong>
+                      <strong className="mt-2 block text-3xl">{number(latest.numberValue)}{latest.unitSnapshot ? " " + latest.unitSnapshot : ""}</strong>
                       <span className="mt-1 block text-xs text-[var(--muted)]">{dateValue(latest.session.testedAt)}</span>
                     </div>
                     <div className="rounded-xl border border-[var(--border)] p-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Previous</p>
                       {previous ? (
-                        <><strong className="mt-2 block text-3xl">{number(previous.numberValue)}{selectedMetric.unit ? " " + selectedMetric.unit : ""}</strong><span className="mt-1 block text-xs text-[var(--muted)]">{dateValue(previous.session.testedAt)}</span></>
+                        <><strong className="mt-2 block text-3xl">{number(previous.numberValue)}{previous.unitSnapshot ? " " + previous.unitSnapshot : ""}</strong><span className="mt-1 block text-xs text-[var(--muted)]">{dateValue(previous.session.testedAt)}</span></>
                       ) : <strong className="mt-2 block text-lg">Not yet assessed twice</strong>}
                     </div>
                     <div className="rounded-xl border border-[var(--border)] p-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Change since previous</p>
-                      <strong className="mt-2 block text-3xl">{delta === null ? "—" : (delta > 0 ? "+" : "") + number(delta)}{delta !== null && selectedMetric.unit ? " " + selectedMetric.unit : ""}</strong>
-                      <span className="mt-1 block text-xs text-[var(--muted)]">{directionLabel[selectedMetric.direction] ?? "Coach interpretation"}</span>
+                      <strong className="mt-2 block text-3xl">{delta === null ? "—" : (delta > 0 ? "+" : "") + number(delta)}{delta !== null && latest.unitSnapshot && latest.unitSnapshot===previous?.unitSnapshot ? " " + latest.unitSnapshot : ""}</strong>
+                      <span className="mt-1 block text-xs text-[var(--muted)]">{latest.directionSnapshot===previous?.directionSnapshot ? (directionLabel[latest.directionSnapshot??""] ?? "Coach interpretation") : "Recorded under different test definitions"}</span>
                     </div>
                   </div>
                   <div className="mt-5 overflow-x-auto">
@@ -200,7 +200,7 @@ export default async function ProgressPage({
                         {metricResults.map((result) => (
                           <tr key={result.id} className="border-b border-[var(--border)] last:border-0">
                             <td className="py-3 pr-4">{dateValue(result.session.testedAt)}</td>
-                            <td className="py-3 pr-4 font-semibold">{number(result.numberValue)}{selectedMetric.unit ? " " + selectedMetric.unit : ""}</td>
+                            <td className="py-3 pr-4 font-semibold">{number(result.numberValue)}{result.unitSnapshot ? " " + result.unitSnapshot : ""}<span className="block text-xs font-normal text-[var(--muted)]">{result.metricNameSnapshot??selectedMetric.name} · protocol v{result.protocolVersionSnapshot??1}</span></td>
                             <td className="py-3 pr-4">{result.session.name}</td>
                             <td className="py-3 text-[var(--muted)]">{result.note || "—"}</td>
                           </tr>
