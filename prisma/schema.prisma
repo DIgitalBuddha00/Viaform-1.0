@@ -244,9 +244,55 @@ model Gymnast {
   trainingCheckIns TrainingCheckIn[]
   sessionBlockWorkItems SessionBlockWorkItem[]
   targetedSessionBlocks SessionBlock[]
+  goals GymnastGoal[]
 
   @@index([organisationId, status, name])
   @@index([organisationId, name])
+}
+
+
+model GymnastGoal {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  gymnastId             String
+  createdByMembershipId String
+  category              String   @default("DEVELOPMENT")
+  apparatus             String?
+  title                 String
+  description           String?
+  successCriteria       String?
+  targetDate            DateTime?
+  visibility            String   @default("ATHLETE_GUARDIAN")
+  status                String   @default("ACTIVE")
+  programmeNameSnapshot String?
+  stageNameSnapshot     String?
+  rulesetNameSnapshot   String?
+  rulesetLevelSnapshot  String?
+  achievedAt            DateTime?
+  pausedAt              DateTime?
+  archivedAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  updates GymnastGoalUpdate[]
+
+  @@index([organisationId, gymnastId, status])
+  @@index([gymnastId, createdAt])
+  @@index([gymnastId, targetDate])
+}
+
+model GymnastGoalUpdate {
+  id                    String   @id @default(cuid())
+  goalId                String
+  createdByMembershipId String
+  note                  String
+  statusSnapshot        String
+  createdAt             DateTime @default(now())
+
+  goal GymnastGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, createdAt])
 }
 
 model AthletePortalAccess {
