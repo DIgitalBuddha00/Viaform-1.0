@@ -2717,12 +2717,31 @@ model HistoricalCompetitionRecord {
   gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
   source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   candidate ImportCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  apparatusResults HistoricalCompetitionApparatusResult[]
 
   @@unique([organisationId, gymnastId, sourceRowKey])
   @@index([organisationId, gymnastId, competitionDate])
   @@index([gymnastId, competitionKey, competitionDate])
   @@index([sourceId])
   @@index([candidateId])
+}
+
+model HistoricalCompetitionApparatusResult {
+  id                            String   @id @default(cuid())
+  historicalCompetitionRecordId String
+  apparatus                     String
+  startValue                    Float?
+  score                         Float?
+  placeRank                     Int?
+  placeLabel                    String?
+  sourceJson                    String   @default("{}")
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  competitionRecord HistoricalCompetitionRecord @relation(fields: [historicalCompetitionRecordId], references: [id], onDelete: Cascade)
+
+  @@unique([historicalCompetitionRecordId, apparatus])
+  @@index([historicalCompetitionRecordId, apparatus])
 }
 
 model HistoricalPlanningRecord {
