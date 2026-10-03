@@ -342,7 +342,13 @@ model GymnastEvaluation {
   updatedAt DateTime @updatedAt
   organisation Organisation @relation(fields:[organisationId],references:[id],onDelete:Cascade)
   gymnast Gymnast @relation(fields:[gymnastId],references:[id],onDelete:Cascade)
+  batteryId String?
+  batteryNameSnapshot String?
+  batteryClassificationSnapshot String?
+  referenceContextJson String @default("{}")
+  battery TestBattery? @relation(fields:[batteryId],references:[id],onDelete:SetNull)
   items GymnastEvaluationItem[]
+  @@index([batteryId])
   @@index([organisationId,gymnastId,evaluatedAt])
   @@index([organisationId,status,evaluatedAt])
 }
@@ -358,11 +364,17 @@ model GymnastEvaluationItem {
   note String?
   testMetricId String?
   skillId String?
+  batteryItemId String?
+  shorthandCode String?
+  retainedAsEvidence Boolean @default(false)
+  retainedAsEvidenceAt DateTime?
   orderIndex Int @default(0)
   createdAt DateTime @default(now())
   evaluation GymnastEvaluation @relation(fields:[evaluationId],references:[id],onDelete:Cascade)
   skill ViaformSkill? @relation(fields:[skillId],references:[id],onDelete:SetNull)
+  batteryItem EvaluationBatteryItem? @relation(fields:[batteryItemId],references:[id],onDelete:SetNull)
   @@index([evaluationId,area,orderIndex])
+  @@index([batteryItemId])
   @@index([testMetricId])
   @@index([skillId])
 }
@@ -1187,6 +1199,7 @@ model TestMetric {
   programmeOutcomes ProgrammeStageOutcome[]
   batteryItems TestBatteryItem[]
   scoreBands TestScoreBand[]
+  evaluationBatteryItems EvaluationBatteryItem[]
 
   @@unique([organisationId, name])
   @@index([organisationId, category, status])
@@ -1224,10 +1237,41 @@ model TestBattery {
   organisation Organisation @relation(fields:[organisationId],references:[id],onDelete:Cascade)
   pointSystem TestPointSystem? @relation(fields:[pointSystemId],references:[id],onDelete:SetNull)
   items TestBatteryItem[]
+  evaluationItems EvaluationBatteryItem[]
+  evaluations GymnastEvaluation[]
   sessions TestingSession[]
   @@unique([organisationId,name])
   @@index([organisationId,classification,status])
   @@index([pointSystemId])
+}
+
+model EvaluationBatteryItem {
+  id                   String   @id @default(cuid())
+  batteryId            String
+  itemType              String   @default("SKILL")
+  area                  String   @default("SKILL")
+  apparatus             String?
+  label                 String
+  skillId               String?
+  testMetricId          String?
+  referenceType         String?
+  referenceId           String?
+  defaultUnit           String?
+  shorthandOptionsJson String   @default("[]")
+  orderIndex            Int      @default(0)
+  status                String   @default("ACTIVE")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  battery TestBattery @relation(fields:[batteryId],references:[id],onDelete:Cascade)
+  skill ViaformSkill? @relation(fields:[skillId],references:[id],onDelete:SetNull)
+  testMetric TestMetric? @relation(fields:[testMetricId],references:[id],onDelete:SetNull)
+  evaluationItems GymnastEvaluationItem[]
+
+  @@index([batteryId,status,orderIndex])
+  @@index([skillId])
+  @@index([testMetricId])
+  @@index([referenceType,referenceId])
 }
 
 model TestBatteryItem {
@@ -1620,6 +1664,7 @@ model ViaformSkill {
   gymnastSkills GymnastSkill[]
   evaluationItems GymnastEvaluationItem[]
   historicalSkillAssessments HistoricalSkillAssessment[]
+  evaluationBatteryItems EvaluationBatteryItem[]
   developsFrom VaultDevelopmentLink[] @relation("VaultTargetSkill")
   developsToward VaultDevelopmentLink[] @relation("VaultDevelopmentSkill")
   vaultFamilyDevelopmentLinks VaultDevelopmentFamilyLink[]
