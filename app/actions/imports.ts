@@ -7,7 +7,7 @@ import {importRecordCanBeDeletedOnRollback} from "@/app/lib/organisation-lifecyc
 
 const v=(d:FormData,k:string)=>String(d.get(k)??"").trim();
 async function manager(){const c=await requireAuthContext();if(!c.access.canManagePeopleAndRoles)redirect("/more");return c;}
-async function allowedOrganisationIds(c:Awaited<ReturnType<typeof manager>>){const grants=await prisma.historicalOrganisationAccess.findMany({where:{userId:c.loginUser.id,revokedAt:null,organisation:{status:"ARCHIVED"}},select:{organisationId:true}});return [c.organisation.id,...grants.map(g=>g.organisationId)];}
+async function allowedOrganisationIds(c:Awaited<ReturnType<typeof manager>>){const grants=await prisma.historicalOrganisationAccess.findMany({where:{userId:c.loginUser.id,revokedAt:null,accessLevel:"EDIT",organisation:{status:"ARCHIVED"}},select:{organisationId:true}});return [c.organisation.id,...grants.map(g=>g.organisationId)];}
 async function batch(id:string,organisationIds:string[]){return prisma.importBatch.findFirst({where:{id,organisationId:{in:organisationIds}}});}
 
 export async function createImportBatch(d:FormData){
