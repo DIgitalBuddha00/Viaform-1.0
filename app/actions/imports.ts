@@ -39,3 +39,47 @@ export async function reviewImportCandidate(d:FormData){
  await prisma.importCandidate.update({where:{id:candidateId},data:{reviewStatus,reviewedByUserId:reviewStatus==="PENDING"?null:c.loginUser.id,reviewedAt:reviewStatus==="PENDING"?null:new Date()}});
  revalidatePath("/imports");
 }
+
+
+type StructuredImportPayload={data?:Record<string,unknown>;quarterFocusItems?:Array<Record<string,unknown>>};
+const parsedPayload=(json:string):StructuredImportPayload|null=>{try{const p=JSON.parse(json);return p&&typeof p==="object"?p:null}catch{return null}};
+const dateOrNull=(x:unknown)=>typeof x==="string"&&x?new Date(x):null;
+
+export async function executeApprovedImportCandidate(d:FormData){
+ const c=await manager(),candidateId=v(d,"candidateId"),allowed=await allowedOrganisationIds(c);
+ const candidate=await prisma.importCandidate.findFirst({where:{id:candidateId,reviewStatus:"APPROVED",batch:{organisationId:{in:allowed}}},include:{batch:true,source:true}});
+ if(!candidate||candidate.importTreatment!=="STAGE"||candidate.proposedAction!=="CREATE")return;
+ const existing=await prisma.importRecordLink.findFirst({where:{candidateId:candidate.id,rolledBackAt:null}});if(existing)return;
+ const payload=parsedPayload(candidate.payloadJson),data=payload?.data;if(!data)return;
+
+ if(candidate.entityType==="GYMNAST"){
+  const name=typeof data.name==="string"?data.name.trim():"";if(!name||!candidate.sourceEntityKey)return;
+  const dob=dateOrNull(data.dateOfBirth),status=typeof data.status==="string"?data.status:"ARCHIVED";
+  await prisma.$transaction(async tx=>{
+   const mapped=await tx.sourceIdentityMapping.findUnique({where:{organisationId_sourceNamespace_entityType_sourceEntityKey:{organisationId:candidate.batch.organisationId,sourceNamespace:candidate.batch.idempotencyKey,entityType:"GYMNAST",sourceEntityKey:candidate.sourceEntityKey!}}});
+   if(mapped)return;
+   const gymnast=await tx.gymnast.create({data:{organisationId:candidate.batch.organisationId,name,dateOfBirth:dob,status}});
+   await tx.sourceIdentityMapping.create({data:{organisationId:candidate.batch.organisationId,sourceNamespace:candidate.batch.idempotencyKey,entityType:"GYMNAST",sourceEntityKey:candidate.sourceEntityKey!,targetType:"GYMNAST",targetId:gymnast.id,confidence:candidate.confidence,resolvedByUserId:c.loginUser.id,metadataJson:JSON.stringify({importBatchId:candidate.batchId,sourceId:candidate.sourceId})}});
+   await tx.importRecordLink.create({data:{batchId:candidate.batchId,sourceId:candidate.sourceId,candidateId:candidate.id,targetType:"GYMNAST",targetId:gymnast.id,operation:"CREATE",ownership:"CREATED_BY_BATCH",sourceLocatorJson:candidate.source?.locatorJson??"{}",afterSnapshotJson:JSON.stringify({name:gymnast.name,status:gymnast.status,dateOfBirth:gymnast.dateOfBirth})}});
+  });
+ }else if(["TRAINING_QUARTERS","TRAINING_PLAN","MACROCYCLE"].includes(candidate.entityType)){
+  const gymnastSourceKey=typeof data.gymnastSourceKey==="string"?data.gymnastSourceKey:"";if(!gymnastSourceKey||!candidate.sourceId)return;
+  const mapping=await prisma.sourceIdentityMapping.findUnique({where:{organisationId_sourceNamespace_entityType_sourceEntityKey:{organisationId:candidate.batch.organisationId,sourceNamespace:candidate.batch.idempotencyKey,entityType:"GYMNAST",sourceEntityKey:gymnastSourceKey}}});if(!mapping)return;
+  const title=typeof data.title==="string"?data.title.trim():"";if(!title)return;
+  const sourceStatus=typeof data.sourceStatus==="string"?data.sourceStatus:null;
+  const notes=typeof data.notes==="string"?data.notes:null;
+  await prisma.$transaction(async tx=>{
+   const record=await tx.historicalPlanningRecord.create({data:{organisationId:candidate.batch.organisationId,gymnastId:mapping.targetId,sourceId:candidate.sourceId,candidateId:candidate.id,recordType:candidate.entityType,title,startDate:dateOrNull(data.startDate),endDate:dateOrNull(data.endDate),sourceStatus,payloadJson:JSON.stringify(data),notes}});
+   if(candidate.entityType==="TRAINING_QUARTERS"&&Array.isArray(payload?.quarterFocusItems)){
+    for(const [orderIndex,item] of payload.quarterFocusItems.entries()){
+     const year=Number(item.year),quarter=Number(item.quarter),apparatus=typeof item.apparatus==="string"?item.apparatus:"",priority=typeof item.priority==="string"?item.priority:"",skillText=typeof item.skillText==="string"?item.skillText.trim():"";
+     if(!Number.isInteger(year)||![1,2,3,4].includes(quarter)||!apparatus||!["PRIMARY","SECONDARY"].includes(priority)||!skillText)throw new Error("Invalid historical quarter focus item");
+     await tx.historicalQuarterFocus.create({data:{planningRecordId:record.id,year,quarter,startDate:dateOrNull(item.startDate),endDate:dateOrNull(item.endDate),apparatus,priority,skillText,sourceSkillKey:typeof item.sourceSkillKey==="string"?item.sourceSkillKey:null,orderIndex}});
+    }
+   }
+   await tx.importRecordLink.create({data:{batchId:candidate.batchId,sourceId:candidate.sourceId,candidateId:candidate.id,targetType:"HISTORICAL_PLANNING_RECORD",targetId:record.id,operation:"CREATE",ownership:"CREATED_BY_BATCH",sourceLocatorJson:candidate.source?.locatorJson??"{}",afterSnapshotJson:JSON.stringify({recordType:record.recordType,title:record.title,gymnastId:record.gymnastId})}});
+  });
+ }else return;
+ await prisma.importBatch.update({where:{id:candidate.batchId},data:{status:"IMPORTING",importedAt:new Date()}}).catch(()=>null);
+ revalidatePath("/imports");revalidatePath("/analysis/history");
+}
