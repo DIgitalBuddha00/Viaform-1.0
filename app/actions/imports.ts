@@ -62,7 +62,28 @@ export async function executeApprovedImportCandidate(d:FormData){
    await tx.sourceIdentityMapping.create({data:{organisationId:candidate.batch.organisationId,sourceNamespace:candidate.batch.idempotencyKey,entityType:"GYMNAST",sourceEntityKey:candidate.sourceEntityKey!,targetType:"GYMNAST",targetId:gymnast.id,confidence:candidate.confidence,resolvedByUserId:c.loginUser.id,metadataJson:JSON.stringify({importBatchId:candidate.batchId,sourceId:candidate.sourceId})}});
    await tx.importRecordLink.create({data:{batchId:candidate.batchId,sourceId:candidate.sourceId,candidateId:candidate.id,targetType:"GYMNAST",targetId:gymnast.id,operation:"CREATE",ownership:"CREATED_BY_BATCH",sourceLocatorJson:candidate.source?.locatorJson??"{}",afterSnapshotJson:JSON.stringify({name:gymnast.name,status:gymnast.status,dateOfBirth:gymnast.dateOfBirth})}});
   });
- }else if(["TRAINING_QUARTERS","TRAINING_PLAN","MACROCYCLE"].includes(candidate.entityType)){
+ }else if(candidate.entityType==="TRAINING_QUARTERS"){
+  const gymnastSourceKey=typeof data.gymnastSourceKey==="string"?data.gymnastSourceKey:"";if(!gymnastSourceKey||!candidate.sourceId||!Array.isArray(payload?.quarterFocusItems)||!payload.quarterFocusItems.length)return;
+  const mapping=await prisma.sourceIdentityMapping.findUnique({where:{organisationId_sourceNamespace_entityType_sourceEntityKey:{organisationId:candidate.batch.organisationId,sourceNamespace:candidate.batch.idempotencyKey,entityType:"GYMNAST",sourceEntityKey:gymnastSourceKey}}});if(!mapping)return;
+  const grouped=new Map<string,{year:number;quarter:number;items:Array<Record<string,unknown>>}>();
+  for(const item of payload.quarterFocusItems){
+   const year=Number(item.year),quarter=Number(item.quarter),apparatus=typeof item.apparatus==="string"?item.apparatus:"",priority=typeof item.priority==="string"?item.priority:"",skillText=typeof item.skillText==="string"?item.skillText.trim():"";
+   if(!Number.isInteger(year)||![1,2,3,4].includes(quarter)||!apparatus||!["PRIMARY","SECONDARY"].includes(priority)||!skillText)throw new Error("Invalid training quarter focus item");
+   const key=year+"-"+quarter,current=grouped.get(key)??{year,quarter,items:[]};current.items.push(item);grouped.set(key,current);
+  }
+  await prisma.$transaction(async tx=>{
+   for(const group of [...grouped.values()].sort((a,b)=>a.year-b.year||a.quarter-b.quarter)){
+    const startMonth=(group.quarter-1)*3;
+    const startDate=new Date(Date.UTC(group.year,startMonth,1));
+    const endDate=new Date(Date.UTC(group.year,startMonth+3,0,23,59,59,999));
+    const quarter=await tx.trainingQuarter.create({data:{organisationId:candidate.batch.organisationId,gymnastId:mapping.targetId,year:group.year,quarter:group.quarter,startDate,endDate,status:"HISTORICAL",sourceStatus:typeof data.sourceStatus==="string"?data.sourceStatus:"HISTORICAL",sourceType:"IMPORT",sourceId:candidate.sourceId,candidateId:candidate.id,notes:typeof data.notes==="string"?data.notes:null}});
+    for(const [orderIndex,item] of group.items.entries()){
+     await tx.trainingQuarterFocus.create({data:{quarterId:quarter.id,apparatus:String(item.apparatus),priority:String(item.priority),skillText:String(item.skillText).trim(),sourceSkillKey:typeof item.sourceSkillKey==="string"?item.sourceSkillKey:null,progressState:typeof item.progressState==="string"?item.progressState:null,progressJson:item.progressJson?JSON.stringify(item.progressJson):null,orderIndex}});
+    }
+    await tx.importRecordLink.create({data:{batchId:candidate.batchId,sourceId:candidate.sourceId,candidateId:candidate.id,targetType:"TRAINING_QUARTER",targetId:quarter.id,operation:"CREATE",ownership:"CREATED_BY_BATCH",sourceLocatorJson:candidate.source?.locatorJson??"{}",afterSnapshotJson:JSON.stringify({year:quarter.year,quarter:quarter.quarter,gymnastId:quarter.gymnastId})}});
+   }
+  });
+ }else if(["TRAINING_PLAN","MACROCYCLE"].includes(candidate.entityType)){
   const gymnastSourceKey=typeof data.gymnastSourceKey==="string"?data.gymnastSourceKey:"";if(!gymnastSourceKey||!candidate.sourceId)return;
   const mapping=await prisma.sourceIdentityMapping.findUnique({where:{organisationId_sourceNamespace_entityType_sourceEntityKey:{organisationId:candidate.batch.organisationId,sourceNamespace:candidate.batch.idempotencyKey,entityType:"GYMNAST",sourceEntityKey:gymnastSourceKey}}});if(!mapping)return;
   const title=typeof data.title==="string"?data.title.trim():"";if(!title)return;

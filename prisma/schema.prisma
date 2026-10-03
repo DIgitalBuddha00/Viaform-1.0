@@ -73,6 +73,7 @@ model Organisation {
   sourceIdentityMappings SourceIdentityMapping[]
   historicalAccesses HistoricalOrganisationAccess[]
   historicalPlanningRecords HistoricalPlanningRecord[]
+  trainingQuarters TrainingQuarter[]
 
   @@index([status, name])
 }
@@ -97,6 +98,7 @@ model OrganisationMembership {
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   groupAssignments TrainingGroupCoach[]
   createdTrainingSessions TrainingSession[]
+  createdTrainingQuarters TrainingQuarter[]
   recordedTrainingEvidence TrainingEvidence[]
   recordedTrainingAttendance TrainingAttendance[]
   createdTestingSessions TestingSession[]
@@ -263,6 +265,7 @@ model Gymnast {
   cultureAchievements CultureAchievement[]
   evaluations GymnastEvaluation[]
   historicalPlanningRecords HistoricalPlanningRecord[]
+  trainingQuarters TrainingQuarter[]
 
   @@index([organisationId, status, name])
   @@index([organisationId, name])
@@ -1602,6 +1605,7 @@ model ViaformSkill {
   sessionStations SessionStation[]
   trainingEvidence TrainingEvidence[]
   trainingPlanTargets TrainingPlanSkillTarget[]
+  trainingQuarterFocuses TrainingQuarterFocus[]
   developsFrom VaultDevelopmentLink[] @relation("VaultTargetSkill")
   developsToward VaultDevelopmentLink[] @relation("VaultDevelopmentSkill")
   vaultFamilyDevelopmentLinks VaultDevelopmentFamilyLink[]
@@ -2440,6 +2444,7 @@ model ImportSource {
   candidates ImportCandidate[]
   recordLinks ImportRecordLink[]
   historicalPlanningRecords HistoricalPlanningRecord[]
+  trainingQuarters TrainingQuarter[]
 
   @@unique([batchId, sourceKey])
   @@index([batchId, sourceType])
@@ -2473,6 +2478,7 @@ model ImportCandidate {
   source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   recordLinks ImportRecordLink[]
   historicalPlanningRecords HistoricalPlanningRecord[]
+  trainingQuarters TrainingQuarter[]
 
   @@unique([batchId, candidateKey])
   @@index([batchId, reviewStatus, entityType])
@@ -2527,6 +2533,61 @@ model ImportRecordLink {
   @@index([candidateId])
 }
 
+
+model TrainingQuarter {
+  id                    String   @id @default(cuid())
+  organisationId        String
+  gymnastId             String
+  year                   Int
+  quarter                Int
+  startDate              DateTime
+  endDate                DateTime
+  status                 String   @default("ACTIVE")
+  sourceStatus           String?
+  sourceType             String   @default("VIAFORM")
+  createdByMembershipId String?
+  sourceId               String?
+  candidateId            String?
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  createdBy OrganisationMembership? @relation(fields: [createdByMembershipId], references: [id], onDelete: SetNull)
+  source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  candidate ImportCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  focuses TrainingQuarterFocus[]
+
+  @@unique([organisationId, gymnastId, year, quarter])
+  @@index([organisationId, year, quarter, status])
+  @@index([gymnastId, year, quarter])
+  @@index([sourceId])
+  @@index([candidateId])
+}
+
+model TrainingQuarterFocus {
+  id             String   @id @default(cuid())
+  quarterId      String
+  apparatus      String
+  priority       String
+  skillId        String?
+  skillText      String
+  sourceSkillKey String?
+  progressState  String?
+  progressJson   String?
+  notes          String?
+  orderIndex     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  quarter TrainingQuarter @relation(fields: [quarterId], references: [id], onDelete: Cascade)
+  skill ViaformSkill? @relation(fields: [skillId], references: [id], onDelete: SetNull)
+
+  @@unique([quarterId, apparatus, priority, skillText])
+  @@index([quarterId, apparatus, priority, orderIndex])
+  @@index([skillId])
+}
 
 model HistoricalPlanningRecord {
   id             String   @id @default(cuid())
