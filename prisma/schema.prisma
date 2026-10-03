@@ -75,6 +75,7 @@ model Organisation {
   historicalPlanningRecords HistoricalPlanningRecord[]
   trainingQuarters TrainingQuarter[]
   historicalSkillAssessments HistoricalSkillAssessment[]
+  historicalTestingRecords HistoricalTestingRecord[]
 
   @@index([status, name])
 }
@@ -269,6 +270,7 @@ model Gymnast {
   trainingQuarters TrainingQuarter[]
   skillLibrary GymnastSkill[]
   historicalSkillAssessments HistoricalSkillAssessment[]
+  historicalTestingRecords HistoricalTestingRecord[]
 
   @@index([organisationId, status, name])
   @@index([organisationId, name])
@@ -2472,6 +2474,7 @@ model ImportSource {
   historicalPlanningRecords HistoricalPlanningRecord[]
   trainingQuarters TrainingQuarter[]
   historicalSkillAssessments HistoricalSkillAssessment[]
+  historicalTestingRecords HistoricalTestingRecord[]
 
   @@unique([batchId, sourceKey])
   @@index([batchId, sourceType])
@@ -2507,6 +2510,7 @@ model ImportCandidate {
   historicalPlanningRecords HistoricalPlanningRecord[]
   trainingQuarters TrainingQuarter[]
   historicalSkillAssessments HistoricalSkillAssessment[]
+  historicalTestingRecords HistoricalTestingRecord[]
 
   @@unique([batchId, candidateKey])
   @@index([batchId, reviewStatus, entityType])
@@ -2647,6 +2651,38 @@ model HistoricalSkillAssessment {
   @@index([organisationId, gymnastId, apparatus])
   @@index([gymnastId, assessedAt])
   @@index([skillId])
+  @@index([sourceId])
+  @@index([candidateId])
+}
+
+model HistoricalTestingRecord {
+  id             String   @id @default(cuid())
+  organisationId String
+  gymnastId      String
+  sourceId       String?
+  candidateId    String?
+  testType       String
+  metricName     String
+  metricKey      String
+  rawValue       String?
+  numberValue    Float?
+  unit           String?
+  pointsValue    Float?
+  testedAt       DateTime?
+  dateLabel      String?
+  sourceRowKey   String
+  sourceJson     String   @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  candidate ImportCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+
+  @@unique([organisationId, gymnastId, sourceRowKey])
+  @@index([organisationId, gymnastId, testType])
+  @@index([gymnastId, metricKey, testedAt])
   @@index([sourceId])
   @@index([candidateId])
 }
