@@ -1616,6 +1616,7 @@ model ViaformSkill {
   trainingEvidence TrainingEvidence[]
   trainingPlanTargets TrainingPlanSkillTarget[]
   trainingQuarterFocuses TrainingQuarterFocus[]
+  trainingQuarterFocusSkillLinks TrainingQuarterFocusSkill[]
   gymnastSkills GymnastSkill[]
   evaluationItems GymnastEvaluationItem[]
   historicalSkillAssessments HistoricalSkillAssessment[]
@@ -2619,10 +2620,28 @@ model TrainingQuarterFocus {
 
   quarter TrainingQuarter @relation(fields: [quarterId], references: [id], onDelete: Cascade)
   skill ViaformSkill? @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  skillLinks TrainingQuarterFocusSkill[]
 
   @@unique([quarterId, apparatus, priority, skillText])
   @@index([quarterId, apparatus, priority, orderIndex])
   @@index([skillId])
+}
+
+model TrainingQuarterFocusSkill {
+  id           String   @id @default(cuid())
+  focusId      String
+  skillId      String
+  relationship String
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  focus TrainingQuarterFocus @relation(fields: [focusId], references: [id], onDelete: Cascade)
+  skill ViaformSkill @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@unique([focusId, skillId, relationship])
+  @@index([focusId, relationship])
+  @@index([skillId, relationship])
 }
 
 model HistoricalSkillAssessment {
