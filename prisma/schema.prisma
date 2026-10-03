@@ -74,6 +74,7 @@ model Organisation {
   historicalAccesses HistoricalOrganisationAccess[]
   historicalPlanningRecords HistoricalPlanningRecord[]
   trainingQuarters TrainingQuarter[]
+  historicalSkillAssessments HistoricalSkillAssessment[]
 
   @@index([status, name])
 }
@@ -267,6 +268,7 @@ model Gymnast {
   historicalPlanningRecords HistoricalPlanningRecord[]
   trainingQuarters TrainingQuarter[]
   skillLibrary GymnastSkill[]
+  historicalSkillAssessments HistoricalSkillAssessment[]
 
   @@index([organisationId, status, name])
   @@index([organisationId, name])
@@ -1612,6 +1614,7 @@ model ViaformSkill {
   trainingQuarterFocuses TrainingQuarterFocus[]
   gymnastSkills GymnastSkill[]
   evaluationItems GymnastEvaluationItem[]
+  historicalSkillAssessments HistoricalSkillAssessment[]
   developsFrom VaultDevelopmentLink[] @relation("VaultTargetSkill")
   developsToward VaultDevelopmentLink[] @relation("VaultDevelopmentSkill")
   vaultFamilyDevelopmentLinks VaultDevelopmentFamilyLink[]
@@ -2468,6 +2471,7 @@ model ImportSource {
   recordLinks ImportRecordLink[]
   historicalPlanningRecords HistoricalPlanningRecord[]
   trainingQuarters TrainingQuarter[]
+  historicalSkillAssessments HistoricalSkillAssessment[]
 
   @@unique([batchId, sourceKey])
   @@index([batchId, sourceType])
@@ -2502,6 +2506,7 @@ model ImportCandidate {
   recordLinks ImportRecordLink[]
   historicalPlanningRecords HistoricalPlanningRecord[]
   trainingQuarters TrainingQuarter[]
+  historicalSkillAssessments HistoricalSkillAssessment[]
 
   @@unique([batchId, candidateKey])
   @@index([batchId, reviewStatus, entityType])
@@ -2610,6 +2615,40 @@ model TrainingQuarterFocus {
   @@unique([quarterId, apparatus, priority, skillText])
   @@index([quarterId, apparatus, priority, orderIndex])
   @@index([skillId])
+}
+
+model HistoricalSkillAssessment {
+  id             String   @id @default(cuid())
+  organisationId String
+  gymnastId      String
+  sourceId       String?
+  candidateId    String?
+  apparatus      String
+  skillId        String?
+  skillText      String
+  sourceSkillKey String?
+  resultCode     String?
+  resultLabel    String?
+  frameworkLabel String?
+  coachComment   String?
+  assessedAt     DateTime?
+  dateLabel      String?
+  sourceJson     String   @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  candidate ImportCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  skill ViaformSkill? @relation(fields: [skillId], references: [id], onDelete: SetNull)
+
+  @@unique([organisationId, gymnastId, sourceId, apparatus, skillText])
+  @@index([organisationId, gymnastId, apparatus])
+  @@index([gymnastId, assessedAt])
+  @@index([skillId])
+  @@index([sourceId])
+  @@index([candidateId])
 }
 
 model HistoricalPlanningRecord {
