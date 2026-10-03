@@ -3,6 +3,7 @@ import {revalidatePath} from "next/cache";
 import {redirect} from "next/navigation";
 import {requireAuthContext} from "@/app/lib/auth";
 import {prisma} from "@/app/lib/prisma";
+import {importRecordCanBeDeletedOnRollback} from "@/app/lib/organisation-lifecycle";
 
 const v=(d:FormData,k:string)=>String(d.get(k)??"").trim();
 async function manager(){const c=await requireAuthContext();if(!c.access.canManagePeopleAndRoles)redirect("/more");return c;}
@@ -100,5 +101,28 @@ export async function executeApprovedImportCandidate(d:FormData){
   });
  }else return;
  await prisma.importBatch.update({where:{id:candidate.batchId},data:{status:"IMPORTING",importedAt:new Date()}}).catch(()=>null);
+ revalidatePath("/imports");revalidatePath("/analysis/history");
+}
+
+
+export async function rollbackImportedCandidate(d:FormData){
+ const c=await manager(),candidateId=v(d,"candidateId"),confirmation=v(d,"confirmation");if(confirmation!=="ROLLBACK")return;
+ const candidate=await prisma.importCandidate.findFirst({where:{id:candidateId,batch:{organisationId:{in:await allowedOrganisationIds(c)}}},include:{batch:true}});if(!candidate)return;
+ const links=await prisma.importRecordLink.findMany({where:{candidateId,rolledBackAt:null},orderBy:{createdAt:"desc"}});if(!links.length||links.some(link=>link.operation!=="CREATE"||!importRecordCanBeDeletedOnRollback(link.ownership)))return;
+ await prisma.$transaction(async tx=>{
+  if(links.some(link=>link.targetType==="GYMNAST")){
+   const gymnastIds=links.filter(link=>link.targetType==="GYMNAST").map(link=>link.targetId);
+   const dependent=await tx.importRecordLink.findFirst({where:{batchId:candidate.batchId,rolledBackAt:null,candidateId:{not:candidate.id},OR:[{targetType:"TRAINING_QUARTER",targetId:{in:(await tx.trainingQuarter.findMany({where:{gymnastId:{in:gymnastIds}},select:{id:true}})).map(q=>q.id)}},{targetType:"HISTORICAL_PLANNING_RECORD",targetId:{in:(await tx.historicalPlanningRecord.findMany({where:{gymnastId:{in:gymnastIds}},select:{id:true}})).map(r=>r.id)}}]}});if(dependent)throw new Error("Rollback dependent imported records before the gymnast identity");
+  }
+  for(const link of links){
+   if(link.targetType==="TRAINING_QUARTER")await tx.trainingQuarter.deleteMany({where:{id:link.targetId,organisationId:candidate.batch.organisationId}});
+   else if(link.targetType==="HISTORICAL_PLANNING_RECORD")await tx.historicalPlanningRecord.deleteMany({where:{id:link.targetId,organisationId:candidate.batch.organisationId}});
+   else if(link.targetType==="GYMNAST"){
+    await tx.sourceIdentityMapping.deleteMany({where:{organisationId:candidate.batch.organisationId,sourceNamespace:candidate.batch.idempotencyKey,targetType:"GYMNAST",targetId:link.targetId}});
+    await tx.gymnast.deleteMany({where:{id:link.targetId,organisationId:candidate.batch.organisationId}});
+   }else throw new Error("Unsupported rollback target type: "+link.targetType);
+   await tx.importRecordLink.update({where:{id:link.id},data:{rollbackStatus:"ROLLED_BACK",rolledBackAt:new Date()}});
+  }
+ });
  revalidatePath("/imports");revalidatePath("/analysis/history");
 }
