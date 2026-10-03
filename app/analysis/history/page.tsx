@@ -1,7 +1,8 @@
 import {AppShell} from "@/app/components/app-shell";
 import {requireAuthContext} from "@/app/lib/auth";
 import {prisma} from "@/app/lib/prisma";
-import {redirect} from "next/navigation";\nimport {updateHistoricalQuarterProgress} from "@/app/actions/historical-training-quarter";
+import {redirect} from "next/navigation";
+import {updateHistoricalQuarterProgress} from "@/app/actions/historical-training-quarter";
 export const dynamic="force-dynamic";
 const day=(d:Date|null)=>d?d.toISOString().slice(0,10):"—";
 export default async function HistoricalAnalysis({searchParams}:{searchParams:Promise<{organisation?:string;gymnast?:string}>}){
