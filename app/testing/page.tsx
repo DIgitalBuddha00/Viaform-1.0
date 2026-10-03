@@ -4,12 +4,12 @@ export default async function TestingPage({searchParams}:{searchParams:Promise<{
  const [groups,metrics,batteries,sessions,recentResults,pref]=c.access.canUseCoachingWorkspace?await Promise.all([
  prisma.trainingGroup.findMany({where:scope,include:{memberships:{select:{gymnastId:true}}},orderBy:{name:"asc"}}),
  prisma.testMetric.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},include:{scoreBands:{orderBy:{orderIndex:"asc"}}},orderBy:[{category:"asc"},{name:"asc"}]}),
- prisma.testBattery.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE"},include:{items:{include:{metric:true},orderBy:{orderIndex:"asc"}}},orderBy:{name:"asc"}}),
+ prisma.testBattery.findMany({where:{organisationId:c.organisation.id,status:"ACTIVE",items:{some:{}}},include:{items:{include:{metric:true},orderBy:{orderIndex:"asc"}}},orderBy:{name:"asc"}}),
  prisma.testingSession.findMany({where:{organisationId:c.organisation.id,trainingGroup:scope},include:{trainingGroup:true,gymnasts:true,results:{select:{id:true,gymnastId:true}}},orderBy:[{testedAt:"desc"},{createdAt:"desc"}],take:40}),
  prisma.testingResult.findMany({where:{session:{organisationId:c.organisation.id,trainingGroup:scope}},include:{gymnast:true,metric:true,session:{include:{trainingGroup:true}}},orderBy:{recordedAt:"desc"},take:12}),
  prisma.membershipPresentationPreference.findUnique({where:{membershipId:c.membership.id}})
  ]):[[],[],[],[],[],null];
- const [archivedMetrics,archivedBatteries]=view==="manage"?await Promise.all([prisma.testMetric.findMany({where:{organisationId:c.organisation.id,status:"ARCHIVED"},orderBy:{name:"asc"}}),prisma.testBattery.findMany({where:{organisationId:c.organisation.id,status:"ARCHIVED"},orderBy:{name:"asc"}})]):[[],[]];
+ const [archivedMetrics,archivedBatteries]=view==="manage"?await Promise.all([prisma.testMetric.findMany({where:{organisationId:c.organisation.id,status:"ARCHIVED"},orderBy:{name:"asc"}}),prisma.testBattery.findMany({where:{organisationId:c.organisation.id,status:"ARCHIVED",items:{some:{}}},orderBy:{name:"asc"}})]):[[],[]];
  const active=sessions.filter(s=>s.status==="IN_PROGRESS"||s.status==="PAUSED"),completed=sessions.filter(s=>s.status==="COMPLETED"),allGymnastIds=new Set(groups.flatMap(g=>g.memberships.map(m=>m.gymnastId))),testedIds=new Set(sessions.flatMap(s=>s.results.map(r=>r.gymnastId))),untested=Math.max(0,allGymnastIds.size-testedIds.size),physical=metrics.filter(m=>m.apparatus==="PHYSICAL_PREPARATION"||m.category.toLowerCase().includes("physical")),apparatus=new Set(metrics.map(m=>m.apparatus).filter(Boolean));
  const small=(label:string,value:string|number,href:string)=><a href={href} className={card}><p>{label}</p><strong>{value}</strong></a>;
  const widgets:OverviewWidget[]=[
