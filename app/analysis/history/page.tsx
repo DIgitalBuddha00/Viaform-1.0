@@ -6,7 +6,7 @@ export const dynamic="force-dynamic";
 const day=(d:Date|null)=>d?d.toISOString().slice(0,10):"—";
 export default async function HistoricalAnalysis({searchParams}:{searchParams:Promise<{organisation?:string;gymnast?:string}>}){
  const c=await requireAuthContext();if(!c.access.canUseCoachingWorkspace)redirect("/analysis");const q=await searchParams;
- const grants=await prisma.historicalOrganisationAccess.findMany({where:{userId:c.loginUser.id,revokedAt:null,organisation:{status:"ARCHIVED"}},include:{organisation:true},orderBy:{organisation:{name:"asc"}});
+ const grants=await prisma.historicalOrganisationAccess.findMany({where:{userId:c.loginUser.id,revokedAt:null,organisation:{status:"ARCHIVED"}},include:{organisation:true},orderBy:{organisation:{name:"asc"}}});
  const grant=grants.find(g=>g.organisationId===q.organisation)??grants[0];
  const gymnasts=grant?await prisma.gymnast.findMany({where:{organisationId:grant.organisationId},select:{id:true,name:true,status:true,dateOfBirth:true,_count:{select:{trainingEvidence:true,testingResults:true,routines:true,competitionEntries:true,trainingPlans:true,goals:true}}},orderBy:{name:"asc"}}):[];
  const gymnast=gymnasts.find(g=>g.id===q.gymnast)??gymnasts[0];
