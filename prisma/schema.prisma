@@ -266,6 +266,7 @@ model Gymnast {
   evaluations GymnastEvaluation[]
   historicalPlanningRecords HistoricalPlanningRecord[]
   trainingQuarters TrainingQuarter[]
+  skillLibrary GymnastSkill[]
 
   @@index([organisationId, status, name])
   @@index([organisationId, name])
@@ -350,11 +351,14 @@ model GymnastEvaluationItem {
   unit String?
   note String?
   testMetricId String?
+  skillId String?
   orderIndex Int @default(0)
   createdAt DateTime @default(now())
   evaluation GymnastEvaluation @relation(fields:[evaluationId],references:[id],onDelete:Cascade)
+  skill ViaformSkill? @relation(fields:[skillId],references:[id],onDelete:SetNull)
   @@index([evaluationId,area,orderIndex])
   @@index([testMetricId])
+  @@index([skillId])
 }
 
 model GymnastGoal {
@@ -1606,6 +1610,8 @@ model ViaformSkill {
   trainingEvidence TrainingEvidence[]
   trainingPlanTargets TrainingPlanSkillTarget[]
   trainingQuarterFocuses TrainingQuarterFocus[]
+  gymnastSkills GymnastSkill[]
+  evaluationItems GymnastEvaluationItem[]
   developsFrom VaultDevelopmentLink[] @relation("VaultTargetSkill")
   developsToward VaultDevelopmentLink[] @relation("VaultDevelopmentSkill")
   vaultFamilyDevelopmentLinks VaultDevelopmentFamilyLink[]
@@ -1613,6 +1619,23 @@ model ViaformSkill {
 
   @@index([discipline, apparatus, status])
   @@index([sourceOrganisationId, status])
+}
+
+model GymnastSkill {
+  id               String   @id @default(cuid())
+  gymnastId        String
+  skillId          String
+  firstEvidenceAt  DateTime?
+  latestEvidenceAt DateTime?
+  status           String   @default("ACTIVE")
+  note             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  skill ViaformSkill @relation(fields: [skillId], references: [id], onDelete: Restrict)
+  @@unique([gymnastId, skillId])
+  @@index([gymnastId, status, latestEvidenceAt])
+  @@index([skillId, status, latestEvidenceAt])
 }
 
 model VaultFamily {
