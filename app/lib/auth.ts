@@ -64,11 +64,11 @@ export async function currentAuthContext() {
     select:{
       expiresAt:true,organisationId:true,activeMembershipId:true,activeMembershipSelectedAt:true,
       user:{select:{id:true,email:true,displayName:true,isActive:true,passwordSalt:true,passwordHash:true}},
-      organisation:{select:{id:true,name:true,slug:true}},
+      organisation:{select:{id:true,name:true,slug:true,status:true,archivedAt:true}},
     },
   }).catch(()=>null);
   const sessionMs=Date.now()-sessionStartedAt;
-  if(!session||session.expiresAt<=new Date()||!session.user.isActive||!session.organisationId||!session.organisation)return null;
+  if(!session||session.expiresAt<=new Date()||!session.user.isActive||!session.organisationId||!session.organisation||session.organisation.status!=="ACTIVE")return null;
   const selectionFresh=!!session.activeMembershipSelectedAt&&session.activeMembershipSelectedAt.getTime()>Date.now()-ACTIVE_MEMBERSHIP_HOURS*60*60*1000;
   const activeId=selectionFresh?(requested??session.activeMembershipId):null;
   // This reader also runs during Server Component rendering, where cookies are read-only.
@@ -97,7 +97,7 @@ export async function currentPortalContext() {
   if(!token)return null;
   const session=await prisma.authSession.findUnique({
     where:{tokenHash:tokenHash(token)},
-    include:{user:{include:{athletePortalAccesses:{where:{status:"ACTIVE"},include:{gymnast:true,organisation:true},orderBy:{createdAt:"asc"}}}}}
+    include:{user:{include:{athletePortalAccesses:{where:{status:"ACTIVE",organisation:{status:"ACTIVE"}},include:{gymnast:true,organisation:true},orderBy:{createdAt:"asc"}}}}}
   }).catch(()=>null);
   if(!session||session.expiresAt<=new Date()||!session.user.isActive)return null;
   const accesses=session.user.athletePortalAccesses.filter(x=>!session.organisationId||x.organisationId===session.organisationId);

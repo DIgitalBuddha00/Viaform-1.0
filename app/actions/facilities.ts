@@ -91,7 +91,7 @@ export async function deleteFacilityLocation(data: FormData) {
   const id = value(data, "locationId");
   const location = await locationInOrganisation(id, context.organisation.id);
   if (!location) return;
-  await prisma.facilityLocation.delete({ where: { id } });
+  await prisma.facilityLocation.update({ where: { id }, data: { status: "ARCHIVED" } });
   revalidatePath("/facilities");
 }
 
@@ -146,7 +146,7 @@ export async function deleteTrainingSpace(data: FormData) {
   const id = value(data, "spaceId");
   const space = await spaceInOrganisation(id, context.organisation.id);
   if (!space) return;
-  await prisma.trainingSpace.delete({ where: { id } });
+  await prisma.trainingSpace.update({ where: { id }, data: { status: "ARCHIVED" } });
   revalidatePath("/facilities");
 }
 
@@ -201,7 +201,7 @@ export async function deleteFacilityResource(data: FormData) {
   const id = value(data, "resourceId");
   const resource = await resourceInOrganisation(id, context.organisation.id);
   if (!resource) return;
-  await prisma.facilityResource.delete({ where: { id } });
+  await prisma.facilityResource.update({ where: { id }, data: { status: "ARCHIVED" } });
   revalidatePath("/facilities");
 }
 

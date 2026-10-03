@@ -32,6 +32,10 @@ model Organisation {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  status    String   @default("ACTIVE")
+  archivedAt DateTime?
+  archivedByUserId String?
+  archiveReason String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -64,6 +68,10 @@ model Organisation {
   cultureAchievements CultureAchievement[]
   evaluations GymnastEvaluation[]
   programmeOutcomes ProgrammeStageOutcome[]
+  importBatches ImportBatch[]
+  sourceIdentityMappings SourceIdentityMapping[]
+
+  @@index([status, name])
 }
 
 model OrganisationMembership {
@@ -2358,4 +2366,136 @@ model MentorQuestion {
   @@index([organisationId, createdAt])
   @@index([askedByMembershipId, createdAt])
   @@index([gymnastId, createdAt])
+}
+
+
+model ImportBatch {
+  id               String   @id @default(cuid())
+  organisationId   String
+  idempotencyKey   String
+  name             String
+  sourceKind       String
+  status           String   @default("DISCOVERING")
+  createdByUserId  String?
+  startedAt        DateTime @default(now())
+  reviewedAt       DateTime?
+  importedAt       DateTime?
+  rolledBackAt     DateTime?
+  rollbackStatus   String?
+  summaryJson      String   @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  sources ImportSource[]
+  candidates ImportCandidate[]
+  recordLinks ImportRecordLink[]
+
+  @@unique([organisationId, idempotencyKey])
+  @@index([organisationId, status, createdAt])
+}
+
+model ImportSource {
+  id              String   @id @default(cuid())
+  batchId         String
+  parentSourceId  String?
+  sourceKey       String
+  sourceType      String
+  name            String
+  externalRef     String?
+  contentHash     String?
+  modifiedAt      DateTime?
+  locatorJson     String   @default("{}")
+  metadataJson    String   @default("{}")
+  createdAt       DateTime @default(now())
+
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  parent ImportSource? @relation("ImportSourceHierarchy", fields: [parentSourceId], references: [id], onDelete: Cascade)
+  children ImportSource[] @relation("ImportSourceHierarchy")
+  candidates ImportCandidate[]
+  recordLinks ImportRecordLink[]
+
+  @@unique([batchId, sourceKey])
+  @@index([batchId, sourceType])
+  @@index([parentSourceId])
+}
+
+model ImportCandidate {
+  id                 String   @id @default(cuid())
+  batchId            String
+  sourceId           String?
+  candidateKey       String
+  entityType         String
+  sourceEntityKey    String?
+  dataRole           String
+  visibility         String
+  importTreatment    String
+  proposedAction     String
+  confidence         Float?
+  reviewStatus       String   @default("PENDING")
+  targetType         String?
+  targetId           String?
+  payloadJson        String
+  interpretationJson String   @default("{}")
+  conflictJson       String?
+  reviewedByUserId   String?
+  reviewedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  recordLinks ImportRecordLink[]
+
+  @@unique([batchId, candidateKey])
+  @@index([batchId, reviewStatus, entityType])
+  @@index([sourceId, entityType])
+}
+
+model SourceIdentityMapping {
+  id              String   @id @default(cuid())
+  organisationId  String
+  sourceNamespace String
+  entityType      String
+  sourceEntityKey String
+  targetType      String
+  targetId        String
+  confidence      Float?
+  resolution      String   @default("CONFIRMED")
+  resolvedByUserId String?
+  resolvedAt      DateTime @default(now())
+  metadataJson    String   @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, sourceNamespace, entityType, sourceEntityKey])
+  @@index([organisationId, targetType, targetId])
+}
+
+model ImportRecordLink {
+  id                 String   @id @default(cuid())
+  batchId            String
+  sourceId           String?
+  candidateId        String?
+  targetType         String
+  targetId           String
+  operation          String
+  ownership          String
+  sourceLocatorJson  String   @default("{}")
+  beforeSnapshotJson String?
+  afterSnapshotJson  String?
+  rollbackStatus     String?
+  rolledBackAt       DateTime?
+  createdAt          DateTime @default(now())
+
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  candidate ImportCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+
+  @@unique([batchId, targetType, targetId, sourceId])
+  @@index([batchId, ownership, operation])
+  @@index([targetType, targetId])
+  @@index([candidateId])
 }

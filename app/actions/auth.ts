@@ -36,7 +36,7 @@ export async function createFirstOrganisation(data: FormData) {
 export async function signIn(data: FormData) {
   const email = normaliseEmail(data.get("email"));
   const password = String(data.get("password") ?? "");
-  const user = await prisma.user.findUnique({ where: { email }, include: { memberships: { where: { isActive: true }, orderBy: { joinedAt: "asc" } }, athletePortalAccesses:{where:{status:"ACTIVE"},orderBy:{createdAt:"asc"}} } });
+  const user = await prisma.user.findUnique({ where: { email }, include: { memberships: { where: { isActive: true, organisation: { status: "ACTIVE" } }, orderBy: { joinedAt: "asc" } }, athletePortalAccesses:{where:{status:"ACTIVE",organisation:{status:"ACTIVE"}},orderBy:{createdAt:"asc"}} } });
   if (!user || !user.isActive || !verifyPassword(password, user.passwordSalt, user.passwordHash)) redirect("/login?error=invalid");
   const membership=user.memberships[0],portal=user.athletePortalAccesses[0];
   if(!membership&&!portal)redirect("/login?error=access");

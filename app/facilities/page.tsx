@@ -73,7 +73,7 @@ export default async function FacilitiesPage() {
                   </form>
                   <form action={deleteFacilityLocation} className="mt-3">
                     <input type="hidden" name="locationId" value={location.id} />
-                    <button className="text-sm text-[var(--muted)]">Delete facility</button>
+                    <button className="text-sm text-[var(--muted)]">Archive facility</button>
                   </form>
                 </details>
               )}
@@ -121,7 +121,7 @@ export default async function FacilitiesPage() {
                               </form>
                               <form action={deleteFacilityResource} className="mt-2">
                                 <input type="hidden" name="resourceId" value={resource.id} />
-                                <button className="text-xs text-[var(--muted)]">Delete resource</button>
+                                <button className="text-xs text-[var(--muted)]">Archive resource</button>
                               </form>
                             </>
                           )}
@@ -156,7 +156,7 @@ export default async function FacilitiesPage() {
                           </form>
                           <form action={duplicateTrainingSpace} className="mt-2"><input type="hidden" name="spaceId" value={space.id}/><button className="text-xs font-semibold">Duplicate space + resources</button></form><form action={deleteTrainingSpace} className="mt-2">
                             <input type="hidden" name="spaceId" value={space.id} />
-                            <button className="text-xs text-[var(--muted)]">Delete space</button>
+                            <button className="text-xs text-[var(--muted)]">Archive space</button>
                           </form>
                         </details>
                       </>
