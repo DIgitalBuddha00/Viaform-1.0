@@ -9,6 +9,7 @@ export default async function More(){
     {label:"Coach profile & settings",href:"/profile",description:"Profile, coach PIN and account settings.",show:true},
     {label:"Video workspace",href:"/video",description:"Capture, review, compare and annotate coaching video.",show:c.access.canUseCoachingWorkspace},
     {label:"Analysis",href:"/analysis",description:"Explore and compare evidence across Viaform.",show:c.access.canUseCoachingWorkspace},
+    {label:"Skill Library",href:"/skills",description:"Search canonical skills and each accessible gymnast’s longitudinal skill relationships.",show:c.access.canUseCoachingWorkspace},
     {label:"Evaluate",href:"/evaluate",description:"Intake evidence and coach-led programme or group placement.",show:c.access.canUseCoachingWorkspace},
     {label:"Organisation & access",href:"/people",description:"People, roles and organisation access.",show:c.access.canManagePeopleAndRoles},
     {label:"Import workspace",href:"/imports",description:"Stage and review historical data before it enters Viaform.",show:c.access.canManagePeopleAndRoles},
