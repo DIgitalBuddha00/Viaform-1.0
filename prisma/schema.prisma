@@ -76,6 +76,7 @@ model Organisation {
   trainingQuarters TrainingQuarter[]
   historicalSkillAssessments HistoricalSkillAssessment[]
   historicalTestingRecords HistoricalTestingRecord[]
+  historicalCompetitionRecords HistoricalCompetitionRecord[]
 
   @@index([status, name])
 }
@@ -271,6 +272,7 @@ model Gymnast {
   skillLibrary GymnastSkill[]
   historicalSkillAssessments HistoricalSkillAssessment[]
   historicalTestingRecords HistoricalTestingRecord[]
+  historicalCompetitionRecords HistoricalCompetitionRecord[]
 
   @@index([organisationId, status, name])
   @@index([organisationId, name])
@@ -2475,6 +2477,7 @@ model ImportSource {
   trainingQuarters TrainingQuarter[]
   historicalSkillAssessments HistoricalSkillAssessment[]
   historicalTestingRecords HistoricalTestingRecord[]
+  historicalCompetitionRecords HistoricalCompetitionRecord[]
 
   @@unique([batchId, sourceKey])
   @@index([batchId, sourceType])
@@ -2511,6 +2514,7 @@ model ImportCandidate {
   trainingQuarters TrainingQuarter[]
   historicalSkillAssessments HistoricalSkillAssessment[]
   historicalTestingRecords HistoricalTestingRecord[]
+  historicalCompetitionRecords HistoricalCompetitionRecord[]
 
   @@unique([batchId, candidateKey])
   @@index([batchId, reviewStatus, entityType])
@@ -2683,6 +2687,40 @@ model HistoricalTestingRecord {
   @@unique([organisationId, gymnastId, sourceRowKey])
   @@index([organisationId, gymnastId, testType])
   @@index([gymnastId, metricKey, testedAt])
+  @@index([sourceId])
+  @@index([candidateId])
+}
+
+model HistoricalCompetitionRecord {
+  id              String   @id @default(cuid())
+  organisationId  String
+  gymnastId       String
+  sourceId        String?
+  candidateId     String?
+  competitionName String?
+  competitionKey  String
+  competitionType String?
+  levelLabel      String?
+  ageDivision     String?
+  competitionDate DateTime?
+  dateLabel       String?
+  datePrecision   String   @default("UNKNOWN")
+  aaScore         Float?
+  aaRank          Int?
+  outcomeLabel    String?
+  sourceRowKey    String
+  sourceJson      String   @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  gymnast Gymnast @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  candidate ImportCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+
+  @@unique([organisationId, gymnastId, sourceRowKey])
+  @@index([organisationId, gymnastId, competitionDate])
+  @@index([gymnastId, competitionKey, competitionDate])
   @@index([sourceId])
   @@index([candidateId])
 }
