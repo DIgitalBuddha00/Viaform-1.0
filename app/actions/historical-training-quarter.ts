@@ -20,16 +20,13 @@ export async function mapHistoricalQuarterSkill(d:FormData){
  const c=await requireAuthContext(),focusId=value(d,"focusId"),skillId=value(d,"skillId");if(!focusId||!skillId)return;
  const grant=await prisma.historicalOrganisationAccess.findFirst({where:{userId:c.loginUser.id,revokedAt:null,accessLevel:"EDIT",organisation:{status:"ARCHIVED",trainingQuarters:{some:{focuses:{some:{id:focusId}}}}}},select:{organisationId:true}});if(!grant)return;
  const [focus,skill]=await Promise.all([
-  prisma.trainingQuarterFocus.findFirst({where:{id:focusId,quarter:{organisationId:grant.organisationId}},select:{id:true,apparatus:true,quarter:{select:{gymnastId:true}}}}),
+  prisma.trainingQuarterFocus.findFirst({where:{id:focusId,quarter:{organisationId:grant.organisationId}},select:{id:true,apparatus:true}}),
   prisma.viaformSkill.findFirst({where:{id:skillId,discipline:"WAG",status:"ACTIVE"},select:{id:true,apparatus:true}})
  ]);if(!focus||!skill)return;
  const apparatusMap:Record<string,string>={VAULT:"VAULT",BARS:"UNEVEN_BARS",BEAM:"BALANCE_BEAM",FLOOR:"FLOOR_EXERCISE"};
  if(apparatusMap[focus.apparatus]!==skill.apparatus)return;
- await prisma.$transaction([
-  prisma.trainingQuarterFocus.update({where:{id:focus.id},data:{skillId:skill.id}}),
-  prisma.gymnastSkill.upsert({where:{gymnastId_skillId:{gymnastId:focus.quarter.gymnastId,skillId:skill.id}},create:{gymnastId:focus.quarter.gymnastId,skillId:skill.id},update:{status:"ACTIVE"}})
- ]);
- revalidatePath("/analysis/history");revalidatePath("/skills");
+ await prisma.trainingQuarterFocus.update({where:{id:focus.id},data:{skillId:skill.id}});
+ revalidatePath("/analysis/history");
 }
 export async function clearHistoricalQuarterSkill(d:FormData){
  const c=await requireAuthContext(),focusId=value(d,"focusId");if(!focusId)return;
