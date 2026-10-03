@@ -6,12 +6,13 @@ import {prisma} from "@/app/lib/prisma";
 
 const v=(d:FormData,k:string)=>String(d.get(k)??"").trim();
 async function manager(){const c=await requireAuthContext();if(!c.access.canManagePeopleAndRoles)redirect("/more");return c;}
-async function allowedOrganisationIds(c:Awaited<ReturnType<typeof manager>>){const grants=await prisma.historicalOrganisationAccess.findMany({where:{userId:c.loginUser.id,revokedAt:null,organisation:{status:"ARCHIVED"}},select:{organisationId:true}});return [c.organisation.id,...grants.map(g=>g.organisationId)];}\nasync function batch(id:string,organisationIds:string[]){return prisma.importBatch.findFirst({where:{id,organisationId:{in:organisationIds}}});}
+async function allowedOrganisationIds(c:Awaited<ReturnType<typeof manager>>){const grants=await prisma.historicalOrganisationAccess.findMany({where:{userId:c.loginUser.id,revokedAt:null,organisation:{status:"ARCHIVED"}},select:{organisationId:true}});return [c.organisation.id,...grants.map(g=>g.organisationId)];}
+async function batch(id:string,organisationIds:string[]){return prisma.importBatch.findFirst({where:{id,organisationId:{in:organisationIds}}});}
 
 export async function createImportBatch(d:FormData){
- const c=await manager(),name=v(d,"name"),sourceKind=v(d,"sourceKind"),idempotencyKey=v(d,"idempotencyKey");
- if(!name||!sourceKind||!idempotencyKey)return;
- await prisma.importBatch.create({data:{organisationId:c.organisation.id,name,sourceKind,idempotencyKey,createdByUserId:c.loginUser.id}}).catch(()=>null);
+ const c=await manager(),name=v(d,"name"),sourceKind=v(d,"sourceKind"),idempotencyKey=v(d,"idempotencyKey"),organisationId=v(d,"organisationId")||c.organisation.id;
+ if(!name||!sourceKind||!idempotencyKey)return;const allowed=await allowedOrganisationIds(c);if(!allowed.includes(organisationId))return;
+ await prisma.importBatch.create({data:{organisationId,name,sourceKind,idempotencyKey,createdByUserId:c.loginUser.id}}).catch(()=>null);
  revalidatePath("/imports");
 }
 

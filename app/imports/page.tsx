@@ -7,7 +7,9 @@ export const dynamic="force-dynamic";
 const day=(d:Date)=>d.toISOString().slice(0,10);
 export default async function Imports(){
  const c=await requireAuthContext();if(!c.access.canManagePeopleAndRoles)redirect("/more");
- const historical=await prisma.historicalOrganisationAccess.findMany({where:{userId:c.loginUser.id,revokedAt:null,organisation:{status:"ARCHIVED"}},include:{organisation:true},orderBy:{organisation:{name:"asc"}}});\n const organisationIds=[c.organisation.id,...historical.map(h=>h.organisationId)];\n const batches=await prisma.importBatch.findMany({where:{organisationId:{in:organisationIds}},include:{organisation:{select:{name:true,status:true}},sources:{orderBy:{createdAt:"asc"}},candidates:{orderBy:{createdAt:"asc"}},_count:{select:{recordLinks:true}}},orderBy:{createdAt:"desc"},take:30});
+ const historical=await prisma.historicalOrganisationAccess.findMany({where:{userId:c.loginUser.id,revokedAt:null,organisation:{status:"ARCHIVED"}},include:{organisation:true},orderBy:{organisation:{name:"asc"}}});
+ const organisationIds=[c.organisation.id,...historical.map(h=>h.organisationId)];
+ const batches=await prisma.importBatch.findMany({where:{organisationId:{in:organisationIds}},include:{organisation:{select:{name:true,status:true}},sources:{orderBy:{createdAt:"asc"}},candidates:{orderBy:{createdAt:"asc"}},_count:{select:{recordLinks:true}}},orderBy:{createdAt:"desc"},take:30});
  return <AppShell organisationName={c.organisation.name} displayName={c.user.displayName} access={c.access}><section className="workspace-page">
   <a href="/more" className="workspace-back">← More</a>
   <div className="workspace-hero"><div><p className="workspace-kicker">Organisation · Import</p><h1>Import workspace</h1><p className="workspace-meta">Discover, classify and review historical material before anything is written into Viaform records.</p></div></div>
