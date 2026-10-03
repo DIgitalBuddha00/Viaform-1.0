@@ -72,6 +72,7 @@ model Organisation {
   importBatches ImportBatch[]
   sourceIdentityMappings SourceIdentityMapping[]
   historicalAccesses HistoricalOrganisationAccess[]
+  historicalPlanningRecords HistoricalPlanningRecord[]
 
   @@index([status, name])
 }
@@ -261,6 +262,7 @@ model Gymnast {
   goals GymnastGoal[]
   cultureAchievements CultureAchievement[]
   evaluations GymnastEvaluation[]
+  historicalPlanningRecords HistoricalPlanningRecord[]
 
   @@index([organisationId, status, name])
   @@index([organisationId, name])
@@ -2437,6 +2439,7 @@ model ImportSource {
   children ImportSource[] @relation("ImportSourceHierarchy")
   candidates ImportCandidate[]
   recordLinks ImportRecordLink[]
+  historicalPlanningRecords HistoricalPlanningRecord[]
 
   @@unique([batchId, sourceKey])
   @@index([batchId, sourceType])
@@ -2469,6 +2472,7 @@ model ImportCandidate {
   batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
   source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   recordLinks ImportRecordLink[]
+  historicalPlanningRecords HistoricalPlanningRecord[]
 
   @@unique([batchId, candidateKey])
   @@index([batchId, reviewStatus, entityType])
@@ -2521,4 +2525,56 @@ model ImportRecordLink {
   @@index([batchId, ownership, operation])
   @@index([targetType, targetId])
   @@index([candidateId])
+}
+
+
+model HistoricalPlanningRecord {
+  id             String   @id @default(cuid())
+  organisationId String
+  gymnastId      String?
+  sourceId       String?
+  candidateId    String?
+  recordType     String
+  title          String
+  startDate      DateTime?
+  endDate        DateTime?
+  status         String   @default("HISTORICAL")
+  sourceStatus   String?
+  payloadJson    String   @default("{}")
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  gymnast Gymnast? @relation(fields: [gymnastId], references: [id], onDelete: Cascade)
+  source ImportSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  candidate ImportCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  quarterFocusItems HistoricalQuarterFocus[]
+
+  @@unique([organisationId, recordType, sourceId, gymnastId])
+  @@index([organisationId, gymnastId, recordType, startDate])
+  @@index([sourceId])
+  @@index([candidateId])
+}
+
+model HistoricalQuarterFocus {
+  id               String   @id @default(cuid())
+  planningRecordId String
+  year             Int
+  quarter          Int
+  startDate        DateTime?
+  endDate          DateTime?
+  apparatus        String
+  priority         String
+  skillText        String
+  sourceSkillKey   String?
+  progressState    String?
+  progressJson     String?
+  orderIndex       Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  planningRecord HistoricalPlanningRecord @relation(fields: [planningRecordId], references: [id], onDelete: Cascade)
+
+  @@unique([planningRecordId, year, quarter, apparatus, priority, skillText])
+  @@index([planningRecordId, year, quarter, apparatus, priority])
 }
