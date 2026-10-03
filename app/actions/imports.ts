@@ -76,11 +76,9 @@ export async function executeApprovedImportCandidate(d:FormData){
     const startMonth=(group.quarter-1)*3;
     const startDate=new Date(Date.UTC(group.year,startMonth,1));
     const endDate=new Date(Date.UTC(group.year,startMonth+3,0,23,59,59,999));
-    const quarter=await tx.trainingQuarter.create({data:{organisationId:candidate.batch.organisationId,gymnastId:mapping.targetId,year:group.year,quarter:group.quarter,startDate,endDate,status:"HISTORICAL",sourceStatus:typeof data.sourceStatus==="string"?data.sourceStatus:"HISTORICAL",sourceType:"IMPORT",sourceId:candidate.sourceId,candidateId:candidate.id,notes:typeof data.notes==="string"?data.notes:null}});
-    for(const [orderIndex,item] of group.items.entries()){
-     await tx.trainingQuarterFocus.create({data:{quarterId:quarter.id,apparatus:String(item.apparatus),priority:String(item.priority),skillText:String(item.skillText).trim(),sourceSkillKey:typeof item.sourceSkillKey==="string"?item.sourceSkillKey:null,progressState:typeof item.progressState==="string"?item.progressState:null,progressJson:item.progressJson?JSON.stringify(item.progressJson):null,orderIndex}});
-    }
-    await tx.importRecordLink.create({data:{batchId:candidate.batchId,sourceId:candidate.sourceId,candidateId:candidate.id,targetType:"TRAINING_QUARTER",targetId:quarter.id,operation:"CREATE",ownership:"CREATED_BY_BATCH",sourceLocatorJson:candidate.source?.locatorJson??"{}",afterSnapshotJson:JSON.stringify({year:quarter.year,quarter:quarter.quarter,gymnastId:quarter.gymnastId})}});
+    const focuses=group.items.map((item,orderIndex)=>({apparatus:String(item.apparatus),priority:String(item.priority),skillText:String(item.skillText).trim(),sourceSkillKey:typeof item.sourceSkillKey==="string"?item.sourceSkillKey:null,progressState:typeof item.progressState==="string"?item.progressState:null,progressJson:item.progressJson?JSON.stringify(item.progressJson):null,orderIndex}));
+    const quarter=await tx.trainingQuarter.create({data:{organisationId:candidate.batch.organisationId,gymnastId:mapping.targetId,year:group.year,quarter:group.quarter,startDate,endDate,status:"HISTORICAL",sourceStatus:typeof data.sourceStatus==="string"?data.sourceStatus:"HISTORICAL",sourceType:"IMPORT",sourceId:candidate.sourceId,candidateId:candidate.id,notes:typeof data.notes==="string"?data.notes:null,focuses:{create:focuses}}});
+    await tx.importRecordLink.create({data:{batchId:candidate.batchId,sourceId:candidate.sourceId,candidateId:candidate.id,targetType:"TRAINING_QUARTER",targetId:quarter.id,operation:"CREATE",ownership:"CREATED_BY_BATCH",sourceLocatorJson:candidate.source?.locatorJson??"{}",afterSnapshotJson:JSON.stringify({year:quarter.year,quarter:quarter.quarter,gymnastId:quarter.gymnastId,focusCount:focuses.length})}});
    }
   });
  }else if(["TRAINING_PLAN","MACROCYCLE"].includes(candidate.entityType)){
